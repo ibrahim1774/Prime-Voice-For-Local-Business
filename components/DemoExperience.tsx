@@ -25,23 +25,14 @@ export default function DemoExperience({
   const [error, setError] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const vapiRef = useRef<Vapi | null>(null);
-  const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const scrollableRef = useRef<HTMLDivElement>(null);
 
-  const transcriptContainerRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll transcript and handle window scrolling
+  // Auto-scroll transcript within the container
   useEffect(() => {
-    // Scroll the inner container
-    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
-
-    // If call is active or just ended with transcript, ensure the whole container is visible
-    if (callStatus !== "idle" && transcript.length > 0) {
-      transcriptContainerRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+    if (scrollableRef.current) {
+      scrollableRef.current.scrollTop = scrollableRef.current.scrollHeight;
     }
-  }, [transcript, callStatus]);
+  }, [transcript]);
 
   // Initialize Vapi
   useEffect(() => {
@@ -269,7 +260,6 @@ export default function DemoExperience({
       {/* Live Transcript */}
       {(transcript.length > 0 || callStatus === "active") && (
         <div
-          ref={transcriptContainerRef}
           className="gold-glow-border rounded-2xl bg-card p-6 mb-10 transition-all duration-500 transform scale-100"
         >
           <div className="flex items-center justify-between mb-5">
@@ -284,7 +274,7 @@ export default function DemoExperience({
             )}
           </div>
 
-          <div className="max-h-[450px] overflow-y-auto space-y-4 pr-2 custom-scrollbar min-h-[120px] flex flex-col">
+          <div ref={scrollableRef} className="max-h-[450px] overflow-y-auto space-y-4 pr-2 custom-scrollbar min-h-[120px] flex flex-col">
             {transcript.length === 0 ? (
               <div className="flex-1 flex items-center justify-center py-8">
                 <p className="text-subtle font-sans text-sm italic">
@@ -311,7 +301,6 @@ export default function DemoExperience({
                 </div>
               ))
             )}
-            <div ref={transcriptEndRef} />
           </div>
         </div>
       )}

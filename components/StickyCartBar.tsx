@@ -182,9 +182,6 @@ export default function StickyCartBar() {
                 >
                   Get Started
                 </a>
-                <p className="mt-3 text-center font-sans text-xs text-subtle italic">
-                  *Join 200+ contractors using PrimeVoice today
-                </p>
               </div>
 
               {/* What's Included Table */}
