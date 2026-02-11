@@ -132,30 +132,30 @@ export default function DemoExperience({
   }, [isMuted]);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 w-full">
+    <div className="flex flex-col h-full w-full max-w-2xl mx-auto px-4 pt-6 pb-4">
       {/* Header */}
-      <div className="text-center mb-12">
-        <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/5 px-4 py-2 mb-6">
+      <div className="text-center mb-4 shrink-0">
+        <div className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/5 px-4 py-1.5 mb-3">
           <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="font-sans text-xs font-medium text-gold uppercase tracking-wider">
             Live Demo
           </span>
         </div>
 
-        <h1 className="font-serif text-3xl font-bold text-white md:text-5xl">
+        <h1 className="font-serif text-xl font-bold text-white md:text-3xl">
           Your AI Receptionist is Ready,{" "}
           <span className="text-gold">{businessName}</span>
         </h1>
 
-        <p className="mt-4 font-sans text-muted max-w-lg mx-auto leading-relaxed">
-          Click the button below to start a live call with your custom AI
-          receptionist. Speak naturally — ask about your services, try to book an
-          appointment, or see how it handles tough questions.
+        <p className="mt-2 font-sans text-sm text-muted max-w-lg mx-auto leading-relaxed">
+          Start a live call with your custom AI receptionist. Speak naturally — ask
+          about your services, try to book an appointment, or see how it handles
+          tough questions.
         </p>
       </div>
 
       {/* Call Controls */}
-      <div className="flex justify-center gap-4 mb-10">
+      <div className="flex justify-center gap-4 mb-4 shrink-0">
         {callStatus === "idle" && (
           <button
             onClick={startCall}
@@ -242,7 +242,7 @@ export default function DemoExperience({
 
       {/* Active call indicator */}
       {callStatus === "active" && (
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-3 shrink-0">
           <div className="flex items-center gap-2 text-sm text-emerald-400 font-sans">
             <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             Call in progress...
@@ -252,92 +252,85 @@ export default function DemoExperience({
 
       {/* Error Display */}
       {error && (
-        <div className="mb-8 rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-center">
+        <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-center shrink-0">
           <p className="text-sm text-red-400 font-sans">{error}</p>
         </div>
       )}
 
-      {/* Live Transcript */}
-      {(transcript.length > 0 || callStatus === "active") && (
-        <div
-          className="gold-glow-border rounded-2xl bg-card p-6 mb-10 transition-all duration-500 transform scale-100"
-        >
-          <div className="flex items-center justify-between mb-5">
-            <p className="font-sans text-xs uppercase tracking-[0.15em] text-gold font-semibold">
-              Live Transcript
-            </p>
-            {callStatus === "active" && (
-              <div className="flex items-center gap-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] uppercase tracking-wider text-emerald-500/80 font-medium">Listening...</span>
-              </div>
-            )}
-          </div>
+      {/* Live Transcript — fills remaining space */}
+      <div className="flex-1 min-h-0 flex flex-col gold-glow-border rounded-2xl bg-card p-4 pb-5">
+        <div className="flex items-center justify-between mb-3 shrink-0">
+          <p className="font-sans text-xs uppercase tracking-[0.15em] text-gold font-semibold">
+            Live Transcript
+          </p>
+          {callStatus === "active" && (
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] uppercase tracking-wider text-emerald-500/80 font-medium">Listening...</span>
+            </div>
+          )}
+        </div>
 
-          <div ref={scrollableRef} className="max-h-[450px] overflow-y-auto space-y-4 pr-2 custom-scrollbar min-h-[120px] flex flex-col">
-            {transcript.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center py-8">
-                <p className="text-subtle font-sans text-sm italic">
-                  Waiting for conversation to begin...
+        <div ref={scrollableRef} className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2 custom-scrollbar flex flex-col">
+          {callStatus === "ended" ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center animate-fade-in-up py-4">
+              <h3 className="font-serif text-xl font-bold text-white md:text-2xl">
+                Imagine This Answering Every Call
+                <br />
+                <span className="text-gold">to Your Business, 24/7</span>
+              </h3>
+              <p className="mt-3 font-sans text-sm text-muted max-w-md mx-auto">
+                No more missed calls. No more lost jobs. Get your own AI
+                receptionist live on your business line today.
+              </p>
+              <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <a
+                  href="https://buy.stripe.com/5kQ3cu9i416e8Zc1vU3cc0d"
+                  className="rounded-xl bg-gold px-8 py-3.5 font-sans text-base font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.02]"
+                >
+                  Get Started — $29/month
+                </a>
+                <a
+                  href="/"
+                  className="rounded-xl border border-white/10 bg-transparent px-8 py-3.5 font-sans text-base font-medium text-muted transition-all duration-300 hover:border-white/20 hover:text-white"
+                >
+                  Try Another Demo
+                </a>
+              </div>
+              <p className="mt-3 font-sans text-xs text-subtle">
+                *Additional charges apply based on call volume at $0.06–$0.13 per minute.
+              </p>
+            </div>
+          ) : transcript.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-subtle font-sans text-sm italic">
+                {callStatus === "active"
+                  ? "Waiting for conversation to begin..."
+                  : "Start a call to see the live transcript here."}
+              </p>
+            </div>
+          ) : (
+            transcript.map((entry, index) => (
+              <div
+                key={index}
+                className={
+                  entry.role === "assistant"
+                    ? "transcript-bubble-ai animate-fade-in-up"
+                    : "transcript-bubble-user animate-fade-in-up"
+                }
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                <p className="text-[10px] uppercase tracking-wider text-gold/60 mb-1 font-sans font-bold">
+                  {entry.role === "assistant" ? "AI Receptionist" : "You"}
+                </p>
+                <p className="font-sans text-[15px] text-white leading-relaxed">
+                  {entry.text}
                 </p>
               </div>
-            ) : (
-              transcript.map((entry, index) => (
-                <div
-                  key={index}
-                  className={
-                    entry.role === "assistant"
-                      ? "transcript-bubble-ai animate-fade-in-up"
-                      : "transcript-bubble-user animate-fade-in-up"
-                  }
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                >
-                  <p className="text-[10px] uppercase tracking-wider text-gold/60 mb-1 font-sans font-bold">
-                    {entry.role === "assistant" ? "AI Receptionist" : "You"}
-                  </p>
-                  <p className="font-sans text-[15px] text-white leading-relaxed">
-                    {entry.text}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
+            ))
+          )}
         </div>
-      )}
-
-      {/* Post-call CTA */}
-      {callStatus === "ended" && (
-        <div className="gold-glow-border rounded-2xl bg-card p-8 md:p-10 text-center animate-fade-in-up">
-          <h3 className="font-serif text-2xl font-bold text-white md:text-3xl">
-            Imagine This Answering Every Call
-            <br />
-            <span className="text-gold">to Your Business, 24/7</span>
-          </h3>
-          <p className="mt-4 font-sans text-muted max-w-md mx-auto">
-            No more missed calls. No more lost jobs. Get your own AI
-            receptionist live on your business line today.
-          </p>
-
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href="https://buy.stripe.com/5kQ3cu9i416e8Zc1vU3cc0d"
-              className="rounded-xl bg-gold px-8 py-4 font-sans text-base font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.02]"
-            >
-              Get Started — $29/month
-            </a>
-            <a
-              href="/"
-              className="rounded-xl border border-white/10 bg-transparent px-8 py-4 font-sans text-base font-medium text-muted transition-all duration-300 hover:border-white/20 hover:text-white"
-            >
-              Try Another Demo
-            </a>
-          </div>
-
-          <p className="mt-4 font-sans text-xs text-subtle">
-            *Additional charges apply based on call volume at $0.06–$0.13 per minute.
-          </p>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

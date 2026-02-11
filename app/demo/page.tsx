@@ -14,7 +14,7 @@ export default async function DemoPage({ searchParams }: DemoPageProps) {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center py-20">
+    <main className="h-dvh flex flex-col overflow-hidden">
       <DemoExperience
         assistantId={assistantId}
         businessName={decodeURIComponent(businessName)}
