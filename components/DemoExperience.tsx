@@ -272,36 +272,7 @@ export default function DemoExperience({
         </div>
 
         <div ref={scrollableRef} className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2 custom-scrollbar flex flex-col">
-          {callStatus === "ended" ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center animate-fade-in-up py-4">
-              <h3 className="font-serif text-xl font-bold text-white md:text-2xl">
-                Imagine This Answering Every Call
-                <br />
-                <span className="text-gold">to Your Business, 24/7</span>
-              </h3>
-              <p className="mt-3 font-sans text-sm text-muted max-w-md mx-auto">
-                No more missed calls. No more lost jobs. Get your own AI
-                receptionist live on your business line today.
-              </p>
-              <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-                <a
-                  href="https://buy.stripe.com/5kQ3cu9i416e8Zc1vU3cc0d"
-                  className="rounded-xl bg-gold px-8 py-3.5 font-sans text-base font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.02]"
-                >
-                  Get Started — $29/month
-                </a>
-                <a
-                  href="/"
-                  className="rounded-xl border border-white/10 bg-transparent px-8 py-3.5 font-sans text-base font-medium text-muted transition-all duration-300 hover:border-white/20 hover:text-white"
-                >
-                  Try Another Demo
-                </a>
-              </div>
-              <p className="mt-3 font-sans text-xs text-subtle">
-                *Additional charges apply based on call volume at $0.06–$0.13 per minute.
-              </p>
-            </div>
-          ) : transcript.length === 0 ? (
+          {transcript.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
               <p className="text-subtle font-sans text-sm italic">
                 {callStatus === "active"
@@ -330,6 +301,16 @@ export default function DemoExperience({
             ))
           )}
         </div>
+      </div>
+
+      {/* Bottom CTA — always visible */}
+      <div className="shrink-0 pt-3 pb-1">
+        <a
+          href="https://buy.stripe.com/5kQ3cu9i416e8Zc1vU3cc0d"
+          className="block w-full rounded-xl bg-gold py-3.5 text-center font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light"
+        >
+          Get Your 24/7 AI Receptionist Set Up for Your Business
+        </a>
       </div>
     </div>
   );

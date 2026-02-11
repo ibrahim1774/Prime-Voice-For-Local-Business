@@ -14,7 +14,7 @@ export default async function DemoPage({ searchParams }: DemoPageProps) {
   }
 
   return (
-    <main className="h-dvh flex flex-col overflow-hidden">
+    <main className="fixed inset-0 flex flex-col overflow-hidden">
       <DemoExperience
         assistantId={assistantId}
         businessName={decodeURIComponent(businessName)}
