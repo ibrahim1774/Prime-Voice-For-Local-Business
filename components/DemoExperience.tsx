@@ -240,6 +240,10 @@ export default function DemoExperience({
         )}
       </div>
 
+      <p className="text-center font-sans text-[11px] text-subtle -mt-2 mb-2 shrink-0">
+        *Additional charges apply based on the number of call minutes used, billed at $0.06–$0.13/min.
+      </p>
+
       {/* Active call indicator */}
       {callStatus === "active" && (
         <div className="flex justify-center mb-3 shrink-0">
@@ -306,7 +310,7 @@ export default function DemoExperience({
       {/* Money-back guarantee banner */}
       <div className="shrink-0 mt-3 rounded-lg bg-red-600 px-4 py-2.5 text-center">
         <p className="font-sans text-xs font-semibold text-white">
-          100% Money-Back Guarantee — Not satisfied? Get a full refund, no questions asked.
+          100% Money-Back Guarantee — Not satisfied? Get a full refund.
         </p>
       </div>
 
