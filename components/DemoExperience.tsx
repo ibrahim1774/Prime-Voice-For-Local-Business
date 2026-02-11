@@ -72,14 +72,27 @@ export default function DemoExperience({
 
     vapi.on("error", (err: Record<string, unknown>) => {
       console.error("Vapi error:", err);
-      // Deeply extract message from nested Vapi error structure
-      let message = "Unknown connection error";
+      // Extract nested Vapi error message for user-friendly display
+      let message = "Something went wrong with the call. Please try again.";
       try {
-        message = JSON.stringify(err, null, 2);
+        const nested = err?.error as Record<string, unknown> | undefined;
+        const innerMsg =
+          (nested?.message as Record<string, unknown>)?.message ??
+          nested?.message ??
+          err?.message;
+        if (typeof innerMsg === "string") {
+          if (innerMsg.toLowerCase().includes("invalid key")) {
+            message = "Voice service configuration error. Please contact support.";
+          } else if (innerMsg.toLowerCase().includes("unauthorized")) {
+            message = "Voice service authorization failed. Please contact support.";
+          } else {
+            message = innerMsg;
+          }
+        }
       } catch {
-        message = String(err);
+        // keep default message
       }
-      setError(`Call error: ${message}`);
+      setError(message);
       setCallStatus("idle");
     });
 
