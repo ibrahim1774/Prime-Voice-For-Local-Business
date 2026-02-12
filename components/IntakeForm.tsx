@@ -146,7 +146,7 @@ export default function IntakeForm() {
           <div>
             <textarea
               name="businessDescription"
-              placeholder="What does your business do? (e.g., 'We're a plumbing company in Austin specializing in residential repairs, drain cleaning, and water heater installation.')"
+              placeholder="Type in here: What does your business do? (e.g., residential plumbing, HVAC repair, roofing, etc.)"
               value={formData.businessDescription}
               onChange={handleChange}
               rows={3}

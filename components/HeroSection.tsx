@@ -12,18 +12,21 @@ export default function HeroSection() {
       <div className="relative z-10 mx-auto max-w-4xl w-full text-center">
         {/* Main headline */}
         <h1 className="font-serif text-3xl font-bold leading-[1.15] text-white sm:text-4xl md:text-5xl lg:text-6xl">
-          Generate a Custom Voice Receptionist for{" "}
-          <span className="text-gold">Your Contracting Business Within 20 Seconds</span>
+          Your Custom Contracting AI Receptionist,{" "}
+          <span className="text-gold">Ready in 20 Seconds.</span>
         </h1>
 
         {/* Subtext */}
-        <p className="mx-auto mt-4 max-w-2xl font-sans text-base leading-relaxed text-muted md:mt-6 md:text-lg">
-          Don&apos;t Lose a Big Job to a Missed Call Again. Get a 24/7
-          receptionist for your contracting business.
+        <p className="mx-auto mt-3 max-w-2xl font-sans text-sm leading-relaxed text-muted md:mt-4 md:text-base">
+          Every missed call is a potential missed job from $500 to maybe over
+          $10,000. Get A Custom AI receptionist, that can answer customers 24/7
+          and can help book more jobs automatically. See A Custom Live Demo In
+          About 20 Seconds On How It Can Potentially Work For Your Contracting
+          Business
         </p>
 
         {/* Intake Form */}
-        <div className="mt-6 md:mt-8">
+        <div className="mt-4 md:mt-6">
           <IntakeForm />
         </div>
       </div>
