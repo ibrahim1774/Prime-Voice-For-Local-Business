@@ -93,7 +93,7 @@ export default function StickyCartBar() {
               </span>
             </p>
             <span className="shrink-0 rounded-lg bg-gold px-5 py-2.5 font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light md:px-6">
-              Get Started
+              Start Free Trial
             </span>
           </button>
         </div>
@@ -187,7 +187,7 @@ export default function StickyCartBar() {
                     boxShadow: "0 0 20px rgba(201, 168, 76, 0.3)",
                   }}
                 >
-                  Get Started
+                  Start Your 3-Day Free Trial
                 </a>
                 <p className="mt-3 text-center font-sans text-xs text-subtle">
                   *Additional minor charges apply depending on how many minutes
@@ -222,7 +222,7 @@ export default function StickyCartBar() {
                   <span className="text-2xl text-gold/60">/month</span>
                 </p>
                 <p className="mt-2 font-sans text-sm text-muted">
-                  Cancel anytime. No contracts.
+                  3-day free trial. Cancel anytime. No contracts.
                 </p>
               </div>
             </div>

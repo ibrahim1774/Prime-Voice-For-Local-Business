@@ -320,7 +320,7 @@ export default function DemoExperience({
           onClick={() => window.dispatchEvent(new Event("open-pricing-drawer"))}
           className="block w-full rounded-xl bg-gold py-3.5 text-center font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light"
         >
-          Get Your 24/7 AI Receptionist — $29/month
+          Start Your 3-Day Free Trial — $29/month
         </button>
       </div>
     </div>
