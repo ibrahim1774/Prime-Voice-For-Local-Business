@@ -240,10 +240,6 @@ export default function DemoExperience({
         )}
       </div>
 
-      <p className="text-center font-sans text-[11px] text-subtle -mt-2 mb-2 shrink-0">
-        *Additional charges apply based on the number of call minutes used, billed at $0.06–$0.13/min.
-      </p>
-
       {/* Active call indicator */}
       {callStatus === "active" && (
         <div className="flex justify-center mb-3 shrink-0">
@@ -320,7 +316,7 @@ export default function DemoExperience({
           onClick={() => window.dispatchEvent(new Event("open-pricing-drawer"))}
           className="block w-full rounded-xl bg-gold py-3.5 text-center font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light"
         >
-          Start Your 3-Day Free Trial — $29/month
+          Implement for {businessName} — 3-Day Free Trial, $29/month
         </button>
       </div>
     </div>
