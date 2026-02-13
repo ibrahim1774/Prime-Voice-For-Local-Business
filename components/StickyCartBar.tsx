@@ -147,12 +147,18 @@ export default function StickyCartBar() {
               <div className="mx-auto mb-6 h-1 w-12 rounded-full bg-gold/40" />
 
               {/* Header */}
-              <h3 className="text-center font-serif text-2xl font-bold text-white md:text-3xl">
-                Your PrimeVoice
-                <br />
-                <span className="text-gold">24/7 AI Receptionist</span>
+              <h3 className="text-center font-serif text-xl font-bold leading-snug text-white md:text-2xl">
+                A Smart AI Receptionist That Answers Calls, Books Appointments, to Your Phone{" "}
+                <span className="text-gold">
+                  So It Helps You Not Lose a Job to a Competitor.
+                </span>
               </h3>
               <div className="mx-auto mt-3 h-px w-20 bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
+              <p className="mt-3 text-center font-sans text-sm leading-relaxed text-muted">
+                Every missed call could be worth $1,000&ndash;$10,000 in lost
+                jobs &mdash; calls you&apos;re probably missing. Implement a
+                foundation part of your business.
+              </p>
 
               {/* Benefits List */}
               <div className="mt-8 space-y-3">
