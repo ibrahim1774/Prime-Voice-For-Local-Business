@@ -66,6 +66,15 @@ export default function IntakeForm() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
         }),
+        fetch("https://hook.us2.make.com/1ijk41d5vdixvoedkr13qliymoyv2x2w", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            businessName: formData.businessName,
+            phoneNumber: formData.phoneNumber,
+            businessDescription: formData.businessDescription,
+          }),
+        }).catch(() => {}),
         new Promise((resolve) => setTimeout(resolve, MINIMUM_LOADING_TIME)),
       ]);
 
