@@ -185,14 +185,14 @@ export default function IntakeForm() {
   }
 
   const inputClasses =
-    "w-full rounded-xl border border-white/[0.07] bg-charcoal/70 backdrop-blur-sm px-5 py-4 font-sans text-white placeholder:text-subtle focus:border-gold/40 focus:ring-1 focus:ring-gold/30 focus:bg-charcoal/90 transition-all duration-300";
+    "w-full rounded-xl border border-white/[0.07] bg-charcoal/70 backdrop-blur-sm px-4 py-3 font-sans text-sm text-white placeholder:text-subtle focus:border-gold/40 focus:ring-1 focus:ring-gold/30 focus:bg-charcoal/90 transition-all duration-300";
 
   return (
     <>
       <LoadingOverlay isVisible={isLoading} />
 
-      <div className="gold-glow-border mx-auto max-w-lg rounded-2xl p-8 transition-all duration-500">
-        <form onSubmit={handleSubmit} className="space-y-5 text-left">
+      <div className="gold-glow-border mx-auto max-w-lg rounded-2xl p-5 md:p-8 transition-all duration-500">
+        <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4 text-left">
           {/* 1. Industry dropdown */}
           <div>
             <select
@@ -279,24 +279,24 @@ export default function IntakeForm() {
 
           {/* 5. Custom Instructions (optional) */}
           <div>
-            <label className="block mb-1.5 text-sm font-sans text-muted">
-              What should your AI receptionist focus on? (optional)
+            <label className="block mb-1 text-xs font-sans text-muted">
+              Custom instructions (optional)
             </label>
             <textarea
               name="customInstructions"
-              placeholder={"e.g. I miss a lot of calls after 6pm \u2014 make sure to capture their name, number, and what they need so I can call back first thing. Also mention we're running 15% off drain cleaning this month."}
+              placeholder={"e.g. Capture name, number & what they need. Mention 15% off drain cleaning this month."}
               value={formData.customInstructions}
               onChange={handleChange}
-              rows={3}
+              rows={2}
               className={inputClasses + " resize-none"}
             />
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
               {SUGGESTION_CHIPS.map((chip) => (
                 <button
                   key={chip}
                   type="button"
                   onClick={() => handleChipClick(chip)}
-                  className={`rounded-full border px-3 py-1.5 font-sans text-xs transition-all duration-200 ${
+                  className={`rounded-full border px-2.5 py-1 font-sans text-[11px] transition-all duration-200 ${
                     clickedChips.has(chip)
                       ? "border-gold/10 bg-gold/5 text-subtle cursor-default opacity-50"
                       : "border-gold/20 bg-gold/10 text-gold hover:bg-gold/20 hover:border-gold/30 cursor-pointer"
@@ -317,12 +317,12 @@ export default function IntakeForm() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-xl bg-gold px-6 py-4 font-sans text-base font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="w-full rounded-xl bg-gold px-6 py-3.5 font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             Generate My AI Receptionist
           </button>
 
-          <p className="text-center text-xs text-subtle font-sans">
+          <p className="text-center text-[11px] text-subtle font-sans">
             No credit card required. Takes less than 60 seconds.
           </p>
         </form>
