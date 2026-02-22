@@ -319,7 +319,7 @@ export default function IntakeForm() {
             disabled={isLoading}
             className="w-full rounded-xl bg-gold px-6 py-4 font-sans text-base font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 animate-pulse-glow"
           >
-            Build My AI Receptionist
+            Generate My AI Receptionist
           </button>
 
           <p className="text-center text-xs text-subtle font-sans">
