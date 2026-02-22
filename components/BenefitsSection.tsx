@@ -108,14 +108,6 @@ export default function BenefitsSection() {
     <section className="px-4 py-28 relative section-glow-divider overflow-hidden">
       {/* Depth gradient */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(20,20,20,0.9)_0%,rgba(10,10,10,1)_70%)]" />
-      {/* Ambient orb */}
-      <div
-        className="ambient-orb animate-glow-pulse"
-        style={{ top: "20%", right: "20%", width: "400px", height: "400px", background: "rgba(201, 168, 76, 0.025)", animationDelay: "1s" }}
-      />
-      {/* Floating particles */}
-      <div className="particle particle-sm animate-float-particle" style={{ top: "10%", right: "25%" }} />
-      <div className="particle particle-md animate-float-particle-slow" style={{ top: "70%", left: "15%" }} />
 
       <div className="relative mx-auto max-w-6xl">
         <ScrollReveal className="text-center mb-20">

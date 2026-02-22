@@ -32,15 +32,6 @@ export default function PainPoints() {
     <section className="px-4 py-28 relative section-glow-divider overflow-hidden">
       {/* Depth gradient */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(20,20,20,0.8)_0%,rgba(10,10,10,1)_80%)]" />
-      {/* Ambient glow orb */}
-      <div
-        className="ambient-orb animate-glow-pulse"
-        style={{ top: "30%", left: "50%", transform: "translateX(-50%)", width: "500px", height: "300px", background: "rgba(201, 168, 76, 0.03)" }}
-      />
-      {/* Floating particles */}
-      <div className="particle particle-sm animate-float-particle" style={{ top: "15%", left: "8%" }} />
-      <div className="particle particle-md animate-float-particle-delayed" style={{ top: "60%", right: "12%" }} />
-      <div className="particle particle-sm animate-float-particle-slow" style={{ top: "40%", left: "75%" }} />
 
       <div className="relative mx-auto max-w-6xl">
         <ScrollReveal className="text-center mb-20">

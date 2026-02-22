@@ -159,7 +159,7 @@ export default function DemoExperience({
         {callStatus === "idle" && (
           <button
             onClick={startCall}
-            className="group relative rounded-full bg-gold px-10 py-5 font-sans text-lg font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.03] active:scale-[0.97] animate-pulse-glow"
+            className="group relative rounded-full bg-gold px-10 py-5 font-sans text-lg font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.03] active:scale-[0.97]"
           >
             <span className="flex items-center gap-3">
               <svg
