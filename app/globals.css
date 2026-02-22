@@ -294,6 +294,12 @@ body {
 }
 
 /* Input focus ring */
-input:focus, textarea:focus {
+input:focus, textarea:focus, select:focus {
   outline: none;
+}
+
+/* Dropdown option styling for dark theme */
+select option {
+  background: #1a1a1a;
+  color: #ffffff;
 }
