@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Vapi from "@vapi-ai/web";
+import { BOOKING_URL } from "@/lib/constants";
 
 interface TranscriptEntry {
   role: "assistant" | "user";
@@ -303,21 +304,23 @@ export default function DemoExperience({
         </div>
       </div>
 
-      {/* Money-back guarantee banner */}
-      <div className="shrink-0 mt-3 rounded-lg bg-red-600 px-4 py-2.5 text-center">
-        <p className="font-sans text-xs font-semibold text-white">
-          100% Money-Back Guarantee — Not satisfied? Get a full refund.
+      {/* Setup promise banner */}
+      <div className="shrink-0 mt-3 rounded-lg bg-gold/10 border border-gold/20 px-4 py-2.5 text-center">
+        <p className="font-sans text-xs font-semibold text-gold">
+          Setup in 24 Hours — We Build Your Entire System for You
         </p>
       </div>
 
       {/* Bottom CTA — always visible */}
       <div className="shrink-0 pt-3 pb-1">
-        <button
-          onClick={() => window.dispatchEvent(new Event("open-pricing-drawer"))}
+        <a
+          href={BOOKING_URL}
+          target="_blank"
+          rel="noopener noreferrer"
           className="block w-full rounded-xl bg-gold py-3.5 text-center font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light"
         >
-          Implement for {businessName} — 3-Day Free Trial, $29/month
-        </button>
+          Book a Call to Implement This for Your Business
+        </a>
       </div>
     </div>
   );

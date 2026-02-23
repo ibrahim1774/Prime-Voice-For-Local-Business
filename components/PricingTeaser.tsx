@@ -1,4 +1,5 @@
 import ScrollReveal from "./ScrollReveal";
+import { BOOKING_URL } from "@/lib/constants";
 
 const FEATURES = [
   "Dedicated AI receptionist for your business",
@@ -20,24 +21,18 @@ export default function PricingTeaser() {
 
             <div className="relative">
               <p className="font-sans text-sm uppercase tracking-[0.25em] text-gold mb-6">
-                Simple Pricing
+                Get Started
               </p>
 
               <h2 className="font-serif text-4xl font-bold text-white md:text-5xl">
-                Starting at
+                Ready to Never Miss
+                <br />a Call Again?
               </h2>
-              <p className="mt-2 font-serif text-7xl font-bold text-gold md:text-8xl">
-                $29
-                <span className="text-3xl text-gold/60">/mo</span>
-              </p>
 
               <p className="mt-6 font-sans text-muted max-w-md mx-auto">
-                Everything you need to never miss a call again. No setup fees.
-                No hidden charges. Cancel anytime.
-              </p>
-
-              <p className="mt-2 font-sans text-xs text-subtle">
-                *Additional charges apply based on call volume at $0.06–$0.13 per minute.
+                Everything you need to capture every lead, book every
+                appointment, and grow your business — set up for you within 24
+                hours.
               </p>
 
               <div className="mt-10 space-y-3 text-left max-w-sm mx-auto">
@@ -65,10 +60,12 @@ export default function PricingTeaser() {
               </div>
 
               <a
-                href="https://buy.stripe.com/5kQ3cu9i416e8Zc1vU3cc0d"
+                href={BOOKING_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="mt-10 inline-block rounded-xl bg-gold px-10 py-4 font-sans text-base font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.02] active:scale-[0.98]"
               >
-                Get Started
+                Book a Call to Implement This for Your Business
               </a>
 
               <p className="mt-4 font-sans text-xs text-subtle">

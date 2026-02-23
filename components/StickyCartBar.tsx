@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
+import { BOOKING_URL } from "@/lib/constants";
 
 const BENEFITS = [
   "Never miss another lead or big job \u2014 24/7 call answering",
@@ -39,7 +40,6 @@ const INCLUDED_ITEMS = [
   },
 ];
 
-const STRIPE_URL = "https://buy.stripe.com/5kQ3cu9i416e8Zc1vU3cc0d";
 
 export default function StickyCartBar() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -71,31 +71,31 @@ export default function StickyCartBar() {
   return (
     <>
       {/* Sticky Bottom Bar */}
-      {!isHomePage && !pathname.startsWith("/demo") && (
+      {!isHomePage && !pathname.startsWith("/demo") && !pathname.startsWith("/booking-confirmation") && !pathname.startsWith("/thank-you") && (
         <div
           className="fixed bottom-0 left-0 right-0 z-40 border-t border-gold/30 bg-background/95 backdrop-blur-md"
           style={{
             boxShadow: "0 -4px 20px rgba(201, 168, 76, 0.15)",
           }}
         >
-          <button
-            onClick={openDrawer}
+          <a
+            href={BOOKING_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex w-full items-center justify-between px-4 py-3.5 md:px-8"
           >
             <p className="font-sans text-sm text-muted md:text-base">
               <span className="hidden md:inline">
-                Add a 24/7 AI Receptionist to Your Business &mdash; Only{" "}
-                <span className="font-semibold text-gold">$29/month</span>
+                Get a 24/7 AI Receptionist for Your Business
               </span>
               <span className="md:hidden">
-                24/7 AI Receptionist &mdash;{" "}
-                <span className="font-semibold text-gold">$29/mo</span>
+                24/7 AI Receptionist
               </span>
             </p>
             <span className="shrink-0 rounded-lg bg-gold px-5 py-2.5 font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light md:px-6">
-              Start Free Trial
+              Book a Call
             </span>
-          </button>
+          </a>
         </div>
       )}
 
@@ -187,18 +187,19 @@ export default function StickyCartBar() {
               {/* CTA Button Moved to Middle */}
               <div className="mt-10">
                 <a
-                  href={STRIPE_URL}
+                  href={BOOKING_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="block w-full rounded-xl bg-gold py-4 text-center font-sans text-base font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.01] active:scale-[0.99]"
                   style={{
                     boxShadow: "0 0 20px rgba(201, 168, 76, 0.3)",
                   }}
                 >
-                  Start Your 3-Day Free Trial
+                  Book a Call to Implement This for Your Business
                 </a>
                 <p className="mt-3 text-center font-sans text-xs text-subtle">
-                  *Additional minor charges apply depending on how many minutes
-                  used a month&mdash; more calls caught means more potential
-                  jobs.
+                  We&apos;ll walk you through setup and have you live within 24
+                  hours.
                 </p>
               </div>
 
@@ -221,14 +222,12 @@ export default function StickyCartBar() {
                 </div>
               </div>
 
-              {/* Price */}
               <div className="mt-10 text-center">
-                <p className="font-serif text-5xl font-bold text-gold md:text-6xl">
-                  $29
-                  <span className="text-2xl text-gold/60">/month</span>
+                <p className="font-serif text-2xl font-bold text-white md:text-3xl">
+                  Ready to Stop Missing Calls?
                 </p>
                 <p className="mt-2 font-sans text-sm text-muted">
-                  3-day free trial. Cancel anytime. No contracts.
+                  Book a quick call and we&apos;ll have you set up within 24 hours.
                 </p>
               </div>
             </div>

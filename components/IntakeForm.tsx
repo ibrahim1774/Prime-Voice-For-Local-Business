@@ -321,10 +321,6 @@ export default function IntakeForm() {
           >
             Generate My AI Receptionist
           </button>
-
-          <p className="text-center text-[11px] text-subtle font-sans">
-            No credit card required. Takes less than 60 seconds.
-          </p>
         </form>
       </div>
     </>
