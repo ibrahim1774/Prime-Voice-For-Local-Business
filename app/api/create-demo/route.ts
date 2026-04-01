@@ -265,7 +265,7 @@ Return ONLY the system prompt text. No markdown formatting, no explanations, no 
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        name: `PrimeVoice Demo - ${body.businessName}`,
+        name: `PrimeVoice Demo - ${body.businessName}`.substring(0, 40),
         model: {
           provider: "anthropic",
           model: "claude-sonnet-4-5-20250929",
