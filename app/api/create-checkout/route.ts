@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!);
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const stripe = getStripe();
     const body = await request.json().catch(() => ({}));
     const businessName: string = body.businessName || "";
     const unitAmount: number = body.price ? Math.round(body.price * 100) : 2900;
