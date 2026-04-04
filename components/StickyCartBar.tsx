@@ -40,11 +40,43 @@ const INCLUDED_ITEMS = [
   },
 ];
 
-
 export default function StickyCartBar() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const pathname = usePathname();
   const isHomePage = pathname === "/";
+
+  // Route-aware pricing
+  const isBookingRoute = pathname.startsWith("/3");
+  const priceConfig = pathname.startsWith("/1")
+    ? { price: 19, trialDays: 0, label: "$19/mo", labelLong: "$19/month", trialText: "" }
+    : pathname.startsWith("/2")
+    ? { price: 19, trialDays: 3, label: "$19/mo", labelLong: "$19/month", trialText: " \u2014 3-day trial" }
+    : isBookingRoute
+    ? null
+    : { price: 29, trialDays: 0, label: "$29/mo", labelLong: "$29/month", trialText: "" };
+
+  async function handleCheckout() {
+    if (isCheckingOut || !priceConfig) return;
+    setIsCheckingOut(true);
+    try {
+      const businessName =
+        new URLSearchParams(window.location.search).get("businessName") || "";
+      const res = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessName,
+          price: priceConfig.price,
+          trialDays: priceConfig.trialDays,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch {
+      setIsCheckingOut(false);
+    }
+  }
 
   // Listen for custom event to open drawer (used by demo page CTA)
   useEffect(() => {
@@ -68,10 +100,20 @@ export default function StickyCartBar() {
   const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
 
+  // Hide sticky bar on home, /1, /2, /3, all demo pages, booking-confirmation, thank-you
+  const showStickyBar =
+    !isHomePage &&
+    !pathname.includes("/demo") &&
+    pathname !== "/1" &&
+    pathname !== "/2" &&
+    pathname !== "/3" &&
+    !pathname.startsWith("/booking-confirmation") &&
+    !pathname.startsWith("/thank-you");
+
   return (
     <>
       {/* Sticky Bottom Bar */}
-      {!isHomePage && !pathname.startsWith("/demo") && !pathname.startsWith("/booking-confirmation") && !pathname.startsWith("/thank-you") && (
+      {showStickyBar && (
         <div
           className="fixed bottom-0 left-0 right-0 z-40 border-t border-gold/30 bg-background/95 backdrop-blur-md"
           style={{
@@ -184,23 +226,49 @@ export default function StickyCartBar() {
                 ))}
               </div>
 
-              {/* CTA Button Moved to Middle */}
+              {/* CTA — Stripe checkout or Booking URL */}
               <div className="mt-10">
-                <a
-                  href={BOOKING_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full rounded-xl bg-gold py-4 text-center font-sans text-base font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.01] active:scale-[0.99]"
-                  style={{
-                    boxShadow: "0 0 20px rgba(201, 168, 76, 0.3)",
-                  }}
-                >
-                  Book a Call to Implement This for Your Business
-                </a>
-                <p className="mt-3 text-center font-sans text-xs text-subtle">
-                  We&apos;ll walk you through setup and have you live within 24
-                  hours.
-                </p>
+                {priceConfig ? (
+                  <>
+                    <p className="text-center font-sans text-sm font-semibold text-white mb-1">
+                      Start for {priceConfig.labelLong}{priceConfig.trialText} &mdash; cancel anytime
+                    </p>
+                    <p className="text-center font-sans text-xs text-subtle mb-4">
+                      No setup fees &bull; Takes 2 minutes
+                    </p>
+                    <button
+                      onClick={handleCheckout}
+                      disabled={isCheckingOut}
+                      className="block w-full rounded-xl bg-gold py-4 text-center font-sans text-base font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      style={{
+                        boxShadow: "0 0 20px rgba(201, 168, 76, 0.3)",
+                      }}
+                    >
+                      {isCheckingOut ? "Redirecting..." : "Set This Up For My Business"}
+                    </button>
+                    <p className="mt-3 text-center font-sans text-xs text-subtle">
+                      *Additional minor charges apply depending on call volume.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <a
+                      href={BOOKING_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full rounded-xl bg-gold py-4 text-center font-sans text-base font-semibold text-background transition-all duration-300 hover:bg-gold-light hover:scale-[1.01] active:scale-[0.99]"
+                      style={{
+                        boxShadow: "0 0 20px rgba(201, 168, 76, 0.3)",
+                      }}
+                    >
+                      Book a Call to Implement This for Your Business
+                    </a>
+                    <p className="mt-3 text-center font-sans text-xs text-subtle">
+                      We&apos;ll walk you through setup and have you live within 24
+                      hours.
+                    </p>
+                  </>
+                )}
               </div>
 
               {/* What's Included Table */}
@@ -222,13 +290,31 @@ export default function StickyCartBar() {
                 </div>
               </div>
 
+              {/* Bottom section — price or booking CTA */}
               <div className="mt-10 text-center">
-                <p className="font-serif text-2xl font-bold text-white md:text-3xl">
-                  Ready to Stop Missing Calls?
-                </p>
-                <p className="mt-2 font-sans text-sm text-muted">
-                  Book a quick call and we&apos;ll have you set up within 24 hours.
-                </p>
+                {priceConfig ? (
+                  <>
+                    <p className="font-serif text-5xl font-bold text-gold md:text-6xl">
+                      ${priceConfig.price}
+                      <span className="text-2xl text-gold/60">/month</span>
+                    </p>
+                    <p className="mt-2 font-sans text-sm text-muted">
+                      {priceConfig.trialDays > 0
+                        ? `${priceConfig.trialDays}-day free trial. `
+                        : ""}
+                      Cancel anytime. No contracts.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-serif text-2xl font-bold text-white md:text-3xl">
+                      Ready to Stop Missing Calls?
+                    </p>
+                    <p className="mt-2 font-sans text-sm text-muted">
+                      Book a quick call and we&apos;ll have you set up within 24 hours.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>
