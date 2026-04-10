@@ -164,6 +164,10 @@ export default function DemoExperience({
           about your services, try to book an appointment, or see how it handles
           tough questions.
         </p>
+
+        <p className="mt-2 font-sans text-xs text-red-400 max-w-lg mx-auto leading-relaxed">
+          Note: Please allow access to your microphone when prompted — the demo requires it to work. If denied, the call will fail.
+        </p>
       </div>
 
       {/* Call Controls */}

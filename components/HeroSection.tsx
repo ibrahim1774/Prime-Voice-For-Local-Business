@@ -30,16 +30,15 @@ export default function HeroSection() {
       <div className="relative z-10 mx-auto max-w-4xl w-full text-center">
         {/* Main headline */}
         <h1 className="font-serif text-xl font-bold leading-[1.2] text-white sm:text-2xl md:text-3xl lg:text-4xl">
-          Your Instant 24/7 Call Captain: Custom Demo Built in 20 Seconds{" "}
-          <span className="text-gold">– Don&#39;t Lose Out On Appointments or Jobs To Your Competitors</span>
+          Local Businesses: Stop missing calls. Start booking customers —{" "}
+          <span className="text-gold">even at 2am.</span>
         </h1>
 
         {/* Subtext */}
         <p className="mx-auto mt-2 max-w-xl font-sans text-xs leading-relaxed text-muted md:mt-3 md:text-sm">
-          Missed calls cost contractors thousands. Your custom AI receptionist
-          answers every call, day or night — capturing leads and booking jobs
-          while you&#39;re on-site or after hours. Tell us your business and
-          we&#39;ll build a working demo you can talk to right now.
+          An AI receptionist that answers your phone, talks to your customers,
+          and books appointments while you&apos;re busy running your business.
+          Enter your info below and hear a live demo in about 20 seconds.
         </p>
 
         {/* Intake Form */}
