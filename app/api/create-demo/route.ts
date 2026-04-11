@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
 
     // Voice selection
     const voiceId = body.voiceGender === "male"
-      ? "iP95p4xoKVk53GoZ742B"
-      : "paula";
+      ? "95856005-0332-41b0-935f-352e296aa0df"
+      : "f786b574-daa5-4673-aa0c-cbe3e8534c02";
 
     // Step 1: Generate custom receptionist system prompt with Claude
     const claudeResponse = await anthropic.messages.create({
@@ -96,13 +96,9 @@ Return ONLY the system prompt text. No markdown formatting, no explanations, no 
           maxTokens: 300,
         },
         voice: {
-          provider: "11labs",
+          provider: "cartesia",
           voiceId: voiceId,
-          model: "eleven_v3",
-          stability: 0.25,
-          similarityBoost: 0.88,
-          style: 0.8,
-          useSpeakerBoost: true,
+          model: "sonic-3",
         },
         transcriber: {
           provider: "deepgram",
