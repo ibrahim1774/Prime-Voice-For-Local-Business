@@ -8,7 +8,7 @@ const anthropic = new Anthropic({
 interface CreateDemoRequest {
   businessName: string;
   phoneNumber: string;
-  industry: string;
+  goal: string;
   voiceGender?: "female" | "male";
 }
 
@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!body.industry?.trim()) {
+    if (!body.goal?.trim()) {
       return NextResponse.json(
-        { error: "Industry is required" },
+        { error: "Goal is required" },
         { status: 400 }
       );
     }
@@ -44,14 +44,14 @@ export async function POST(request: NextRequest) {
           role: "user",
           content: `You are an expert at creating AI receptionist system prompts for local businesses. Generate a custom system prompt for this business:
 
-Industry: ${body.industry}
+Goal: ${body.goal}
 Business Name: "${body.businessName}"
 
 The system prompt you generate must:
 
 1. Greet callers warmly using the business name: "${body.businessName}"
 2. Sound like a real human receptionist — use contractions, casual phrasing, and a friendly tone
-3. Ask the right questions for a ${body.industry} business in a natural conversational order, not all at once
+3. Focus on the business's primary goal: "${body.goal}" — tailor your questions and conversation flow around achieving this
 4. Ask ONE question at a time, wait for the answer, then ask the next
 5. Always work toward the primary goal: getting the caller booked or their info captured
 6. Keep every response to 1-3 sentences max — this is a phone call, not an email

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import Vapi from "@vapi-ai/web";
 import { BOOKING_URL } from "@/lib/constants";
+import BookingModal from "./BookingModal";
 
 interface TranscriptEntry {
   role: "assistant" | "user";
@@ -36,6 +37,7 @@ export default function DemoExperience({
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
   const vapiRef = useRef<Vapi | null>(null);
   const scrollableRef = useRef<HTMLDivElement>(null);
 
@@ -327,7 +329,7 @@ export default function DemoExperience({
       </div>
 
       {/* Bottom CTA — always visible */}
-      <div className="shrink-0 pt-3 pb-1">
+      <div className="shrink-0 pt-3 pb-1 space-y-2">
         {priceLabel && (
           <p className="text-center font-sans text-xs text-subtle mb-2">
             Start for {priceLabel} — cancel anytime
@@ -355,7 +357,15 @@ export default function DemoExperience({
             Set This Up For My {businessName}
           </button>
         )}
+        <button
+          onClick={() => setIsBookingOpen(true)}
+          className="block w-full rounded-xl bg-gold py-3.5 text-center font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light"
+        >
+          Book a Call to Set This Up
+        </button>
       </div>
+
+      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
     </div>
   );
 }

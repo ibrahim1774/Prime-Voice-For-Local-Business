@@ -1,31 +1,22 @@
 "use client";
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import LoadingOverlay from "./LoadingOverlay";
 
-const INDUSTRIES = [
-  "Salon",
-  "Auto Repair",
-  "Gym",
-  "Day Spa",
-  "Law Firm",
-  "Accounting",
-  "Real Estate",
-  "Photography",
-];
+const GOALS = ["Book Appointments", "Answer Customer Questions", "Handle Pricing Inquiries", "After-Hours Coverage", "Full Front Desk Coverage"];
 
 interface FormData {
   businessName: string;
   phoneNumber: string;
-  industry: string;
+  goal: string;
   voiceGender: "female" | "male";
 }
 
 interface FormErrors {
   businessName?: string;
   phoneNumber?: string;
-  industry?: string;
+  goal?: string;
 }
 
 const MINIMUM_LOADING_TIME = 4500;
@@ -36,20 +27,12 @@ export default function IntakeForm() {
   const [formData, setFormData] = useState<FormData>({
     businessName: "",
     phoneNumber: "",
-    industry: "",
+    goal: "",
     voiceGender: "female",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPlaceholderIndex((prev) => (prev + 1) % INDUSTRIES.length);
-    }, 2500);
-    return () => clearInterval(interval);
-  }, []);
 
   function validate(): boolean {
     const newErrors: FormErrors = {};
@@ -63,8 +46,8 @@ export default function IntakeForm() {
       newErrors.phoneNumber = "Enter a valid phone number";
     }
 
-    if (!formData.industry.trim()) {
-      newErrors.industry = "Please enter your industry";
+    if (!formData.goal) {
+      newErrors.goal = "Please select a goal";
     }
 
     setErrors(newErrors);
@@ -92,7 +75,7 @@ export default function IntakeForm() {
           body: JSON.stringify({
             businessName: formData.businessName,
             phoneNumber: formData.phoneNumber,
-            industry: formData.industry,
+            goal: formData.goal,
             voiceGender: formData.voiceGender,
           }),
         }).catch(() => {}),
@@ -129,7 +112,7 @@ export default function IntakeForm() {
   }
 
   function handleChange(
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -183,21 +166,21 @@ export default function IntakeForm() {
             )}
           </div>
 
-          {/* 3. Industry (cycling placeholder) */}
+          {/* 3. Goal Dropdown */}
           <div>
-            <input
-              type="text"
-              name="industry"
-              placeholder={INDUSTRIES[placeholderIndex]}
-              value={formData.industry}
+            <select
+              name="goal"
+              value={formData.goal}
               onChange={handleChange}
-              className={inputClasses}
-              autoComplete="off"
-            />
-            {errors.industry && (
-              <p className="mt-1.5 text-sm text-red-400 font-sans">
-                {errors.industry}
-              </p>
+              className={`${inputClasses} ${!formData.goal ? "text-subtle" : ""}`}
+            >
+              <option value="" disabled>What&apos;s the #1 goal for your AI receptionist?</option>
+              {GOALS.map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+            {errors.goal && (
+              <p className="mt-1.5 text-sm text-red-400 font-sans">{errors.goal}</p>
             )}
           </div>
 
