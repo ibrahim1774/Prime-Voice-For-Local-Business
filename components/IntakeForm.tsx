@@ -76,7 +76,6 @@ export default function IntakeForm() {
             businessName: formData.businessName,
             phoneNumber: formData.phoneNumber,
             goal: formData.goal,
-            voiceGender: formData.voiceGender,
           }),
         }).catch(() => {}),
         new Promise((resolve) => setTimeout(resolve, MINIMUM_LOADING_TIME)),
