@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
 
     // Voice selection
     const voiceId = body.voiceGender === "male"
-      ? "95856005-0332-41b0-935f-352e296aa0df"
-      : "f786b574-daa5-4673-aa0c-cbe3e8534c02";
+      ? "34575e71-908f-4ab6-ab54-b08c95d6597d"
+      : "e3827ec5-697a-4b7c-9704-1a23041bbc51";
 
     // Step 1: Generate custom receptionist system prompt with Claude
     const claudeResponse = await anthropic.messages.create({
