@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 
-const PIXEL_ID = "1287427660086229";
+const PIXEL_ID = "26490568997297314";
 
 export async function POST(request: NextRequest) {
   const accessToken = process.env.META_ACCESS_TOKEN;
