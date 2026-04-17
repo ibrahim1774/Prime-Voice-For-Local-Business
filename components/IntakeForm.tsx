@@ -4,6 +4,12 @@ import { useState, FormEvent } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import LoadingOverlay from "./LoadingOverlay";
 
+declare global {
+  interface Window {
+    fbq?: (...args: unknown[]) => void;
+  }
+}
+
 const GOALS = ["Book Appointments", "Answer Customer Questions", "Handle Pricing Inquiries", "After-Hours Coverage", "Full Front Desk Coverage"];
 
 interface FormData {
@@ -60,6 +66,15 @@ export default function IntakeForm() {
 
     if (!validate()) return;
 
+    const leadEventId = `lead_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+    if (window.fbq) {
+      window.fbq("track", "Lead", {
+        content_name: formData.businessName,
+        content_category: formData.goal,
+      }, { eventID: leadEventId });
+    }
+
     setIsLoading(true);
 
     try {
@@ -76,6 +91,14 @@ export default function IntakeForm() {
             businessName: formData.businessName,
             phoneNumber: formData.phoneNumber,
             goal: formData.goal,
+          }),
+        }).catch(() => {}),
+        fetch("/api/meta-lead-conversion", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phoneNumber: formData.phoneNumber,
+            eventId: leadEventId,
           }),
         }).catch(() => {}),
         new Promise((resolve) => setTimeout(resolve, MINIMUM_LOADING_TIME)),

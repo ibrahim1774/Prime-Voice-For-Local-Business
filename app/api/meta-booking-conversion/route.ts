@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash } from "crypto";
 
 const PIXEL_ID = "26490568997297314";
 
@@ -17,9 +16,6 @@ export async function POST(request: NextRequest) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
     const userAgent = request.headers.get("user-agent") || "";
 
-    const hashedIp = createHash("sha256").update(ip).digest("hex");
-    const hashedUa = createHash("sha256").update(userAgent).digest("hex");
-
     const eventData = {
       data: [
         {
@@ -28,8 +24,8 @@ export async function POST(request: NextRequest) {
           action_source: "website",
           event_source_url: request.headers.get("referer") || "",
           user_data: {
-            client_ip_address: hashedIp,
-            client_user_agent: hashedUa,
+            client_ip_address: ip,
+            client_user_agent: userAgent,
           },
         },
       ],
