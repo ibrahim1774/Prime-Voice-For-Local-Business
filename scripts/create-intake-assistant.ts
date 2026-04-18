@@ -2,8 +2,8 @@
  * Provision the persistent VAPI assistant for the /call tap-to-dial flow.
  *
  * Usage:
- *   1. Set VAPI_API_KEY and (optionally) VAPI_WEBHOOK_SECRET in .env.local.
- *   2. Edit PRODUCTION_DOMAIN below to point at your deployed /api/vapi-webhook.
+ *   1. Set VAPI_API_KEY in .env.local.
+ *   2. Ensure the 4 GHL tool IDs in TOOL_IDS below match your VAPI dashboard.
  *   3. Run:  npx tsx scripts/create-intake-assistant.ts
  *   4. Copy the printed assistant ID, go to VAPI dashboard → Phone Numbers,
  *      buy a US number, assign this assistant to it.
@@ -20,10 +20,6 @@ import { join } from "node:path";
 // Cartesia Sonic-3 — Southern Man (original voice). Softer emotion tags + calm
 // first message keep the early-word pitch in check.
 const VOICE_ID = "98a34ef2-2140-4c28-9c71-663dc4dd7022";
-
-const PRODUCTION_DOMAIN =
-  process.env.PRODUCTION_DOMAIN ||
-  "https://prime-voice-for-local-business.vercel.app";
 
 function buildDateHeader(): string {
   const now = new Date();
@@ -53,10 +49,11 @@ Exact flow — follow in this order, one question at a time:
 1. First, get their name. ("Cool, who am I talkin' to?")
 2. Then, get their best callback number in case the line drops. Repeat it back digit by digit to confirm.
 3. Ask what kind of business they run — one line, just so you know who you're talking to.
-4. Then ask what day and time works for a quick 15-minute setup call. If they're vague ("maybe sometime this week"), offer two concrete options — e.g. "How's tomorrow at 2pm work? Or Thursday morning?"
+4. Then ask what day and time works for a quick 30-minute setup call. If they're vague ("maybe sometime this week"), offer two concrete options — e.g. "How's tomorrow at 2pm work? Or Thursday morning?"
 5. Once they pick a specific day + time, confirm it out loud: "Alright, so that's Thursday the 24th at 3pm your time, right?"
-6. As soon as they confirm, call the \`bookAppointment\` tool with their name, phone, and the time in ISO 8601 format (e.g. 2026-04-24T15:00:00). Use their local time — the calendar handles timezone.
-7. After the tool returns success, tell them: "Perfect, you're locked in. You'll get a confirmation text in a sec. Anything else before I let you go?"
+6. As soon as they confirm, create them as a contact using the go_high_level_contact_create_tool (firstName, lastName if given, phone). Then book them with ghl_calendar_create_event_tool — pass startTime in ISO 8601 (e.g. 2026-04-24T15:00:00) using the caller's local time. The calendar is already wired up in the tool config.
+7. After both tools succeed, tell them: "Perfect, you're locked in. You'll get a confirmation text in a sec. Anything else before I let you go?"
+8. If a tool fails, apologize lightly and offer to have the team follow up: "Hmm, my system's actin' up — I've got your info though, and someone from the team'll reach out within the hour to nail that down."
 
 Offer details (only mention if asked):
 - $99/month for a 24/7 AI receptionist
@@ -74,35 +71,13 @@ Style rules:
 - Keep the call under 3 minutes if you can. Don't drag it out.
 - Never invent info about the business or pricing.`;
 
-const bookAppointmentTool = {
-  type: "function",
-  function: {
-    name: "bookAppointment",
-    description:
-      "Book a 30-minute PrimeVoice Setup Call on the calendar. Call this ONLY after you've confirmed the day and time out loud with the caller.",
-    parameters: {
-      type: "object",
-      properties: {
-        name: { type: "string", description: "Caller's full name" },
-        phone: {
-          type: "string",
-          description:
-            "Caller's callback phone, E.164 format if possible (e.g. +15551234567)",
-        },
-        businessName: {
-          type: "string",
-          description: "Name or rough description of their business",
-        },
-        preferredDateTimeISO: {
-          type: "string",
-          description:
-            "Appointment start time in ISO 8601, in the caller's local time (e.g. 2026-04-24T15:00:00). No email needed.",
-        },
-      },
-      required: ["name", "phone", "preferredDateTimeISO"],
-    },
-  },
-};
+// VAPI org-level tool IDs (GoHighLevel native integration — configured in VAPI dashboard).
+const TOOL_IDS = [
+  "64dc63f7-ff1f-49cf-b810-b590a9f3b81b", // go_high_level_contact_create_tool
+  "832e2d24-73ba-49ca-ad0a-5034cce7bdcc", // go_high_level_calendar_check_availability_tool
+  "52103d57-ed00-4e70-a1d6-daae1c9cfa3b", // ghl_calendar_create_event_tool (calendar: PrimeVoice Setup Call)
+  "bf9c4ca1-df4a-40b5-a888-afa048298e21", // go_high_level_mcp_contact_get_tool
+];
 
 const analysisPlan = {
   structuredDataPlan: {
@@ -167,8 +142,6 @@ async function main() {
   const updateIdx = process.argv.indexOf("--update");
   const existingId = updateIdx !== -1 ? process.argv[updateIdx + 1] : null;
 
-  const serverUrl = `${PRODUCTION_DOMAIN.replace(/\/$/, "")}/api/vapi-webhook`;
-
   const assistantConfig: Record<string, unknown> = {
     name: "PrimeVoice Intake (Persistent)",
     model: {
@@ -177,7 +150,7 @@ async function main() {
       systemPrompt: SYSTEM_PROMPT,
       temperature: 0.7,
       maxTokens: 150,
-      tools: [bookAppointmentTool],
+      toolIds: TOOL_IDS,
     },
     voice: {
       provider: "cartesia",
@@ -201,7 +174,6 @@ async function main() {
     firstMessage:
       "Hey... thanks for callin' PrimeVoice. This is Alex — how's your day goin'?",
     firstMessageMode: "assistant-speaks-first",
-    serverUrl,
     silenceTimeoutSeconds: 20,
     maxDurationSeconds: 300,
     backgroundDenoisingEnabled: true,
@@ -217,15 +189,12 @@ async function main() {
     analysisPlan,
   };
 
-  const secret = process.env.VAPI_WEBHOOK_SECRET;
-  if (secret) assistantConfig.serverUrlSecret = secret;
-
   const url = existingId
     ? `https://api.vapi.ai/assistant/${existingId}`
     : "https://api.vapi.ai/assistant";
 
   console.log(`${existingId ? "Updating" : "Creating"} assistant...`);
-  console.log(`  Server URL: ${serverUrl}`);
+  console.log(`  Tools:      ${TOOL_IDS.length} GHL native tools attached`);
   console.log(`  Voice ID:   ${VOICE_ID}`);
 
   const res = await fetch(url, {
