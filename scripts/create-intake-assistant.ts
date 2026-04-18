@@ -190,7 +190,7 @@ async function main() {
       ],
     },
     firstMessage:
-      "Hey... thanks for callin' PrimeVoice. This is Alex — how's your day goin'?",
+      "Thanks for calling the local service business 24/7 AI receptionist... this is Alex — how's your day goin'?",
     firstMessageMode: "assistant-speaks-first",
     silenceTimeoutSeconds: 20,
     maxDurationSeconds: 300,
