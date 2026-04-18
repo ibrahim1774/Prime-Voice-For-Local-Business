@@ -83,12 +83,20 @@ async function upsertContact(args: BookAppointmentArgs, callerPhone?: string): P
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`GHL contact upsert failed: ${res.status} ${err}`);
+    console.error("[vapi-webhook] GHL contact upsert non-2xx:", {
+      status: res.status,
+      body: err.slice(0, 500),
+      locationIdSet: !!locationId,
+    });
+    throw new Error(`GHL contact upsert failed: ${res.status}`);
   }
 
   const data = await res.json();
   const contactId = data?.contact?.id || data?.id;
-  if (!contactId) throw new Error("GHL contact upsert returned no contact id");
+  if (!contactId) {
+    console.error("[vapi-webhook] GHL contact upsert returned no id:", data);
+    throw new Error("GHL contact upsert returned no contact id");
+  }
   return contactId;
 }
 
@@ -127,7 +135,15 @@ async function createAppointment(
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`GHL appointment create failed: ${res.status} ${err}`);
+    console.error("[vapi-webhook] GHL appointment create non-2xx:", {
+      status: res.status,
+      body: err.slice(0, 500),
+      calendarIdSet: !!calendarId,
+      locationIdSet: !!locationId,
+      contactId,
+      startTime: start.toISOString(),
+    });
+    throw new Error(`GHL appointment create failed: ${res.status}`);
   }
 }
 
@@ -171,18 +187,40 @@ async function handleBook(
     };
   }
 
+  const requested = new Date(args.preferredDateTimeISO);
+  if (Number.isNaN(requested.getTime())) {
+    console.warn("[vapi-webhook] unparseable date:", args.preferredDateTimeISO);
+    return {
+      toolCallId: toolCall.id,
+      result:
+        "I couldn't quite catch that date — can you give me the day and time one more time?",
+    };
+  }
+  if (requested.getTime() < Date.now() - 60_000) {
+    console.warn("[vapi-webhook] past-date rejected:", {
+      requested: args.preferredDateTimeISO,
+      serverNow: new Date().toISOString(),
+    });
+    return {
+      toolCallId: toolCall.id,
+      result:
+        "That time looks like it's already passed — can you give me a day and time in the future?",
+    };
+  }
+
   try {
     const contactId = await upsertContact(args, callerPhone);
     await createAppointment(contactId, args);
     await fireMetaSchedule(request);
 
     const human = formatForHuman(args.preferredDateTimeISO);
+    console.log("[vapi-webhook] booked", { contactId, startTime: requested.toISOString(), name: args.name });
     return {
       toolCallId: toolCall.id,
       result: `Booked for ${human}. Confirmation text is on the way.`,
     };
   } catch (err) {
-    console.error("[vapi-webhook] booking error:", err);
+    console.error("[vapi-webhook] booking error:", err instanceof Error ? err.message : err);
     return {
       toolCallId: toolCall.id,
       result:

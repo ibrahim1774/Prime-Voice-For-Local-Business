@@ -25,7 +25,26 @@ const PRODUCTION_DOMAIN =
   process.env.PRODUCTION_DOMAIN ||
   "https://prime-voice-for-local-business.vercel.app";
 
-const SYSTEM_PROMPT = `You are Alex — a laid-back American guy running intake calls for PrimeVoice, an AI receptionist service for local businesses. Someone just tapped the "Tap to Call" button on our landing page.
+function buildDateHeader(): string {
+  const now = new Date();
+  const weekday = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    timeZone: "America/New_York",
+  });
+  const fullDate = now.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "America/New_York",
+  });
+  const isoDate = now.toISOString().slice(0, 10);
+  return `CURRENT DATE: ${weekday}, ${fullDate} (ISO ${isoDate}).
+When the caller says "tomorrow", "this Friday", "next Monday", etc., compute the ISO date RELATIVE to the CURRENT DATE above. Never guess the year. Never use a date from your training data. Always use the ISO date line above as your anchor.
+
+`;
+}
+
+const SYSTEM_PROMPT = `${buildDateHeader()}You are Alex — a laid-back American guy running intake calls for PrimeVoice, an AI receptionist service for local businesses. Someone just tapped the "Tap to Call" button on our landing page.
 
 Your only goal: book them onto our PrimeVoice Setup Call calendar. You do NOT need their email.
 
