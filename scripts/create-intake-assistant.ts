@@ -17,11 +17,12 @@ import { join } from "node:path";
 
 // --- Config ------------------------------------------------------------------
 
-// Cartesia Sonic-3 — Southern Man (laid-back Southwestern feel).
-// Alternatives to try in Cartesia playground:
-//   Kentucky Man  726d5ae5-055f-4c3d-8355-d9677de68937
-//   Alabama Male  40104aff-a015-4da1-9912-af950fbec99e
-const VOICE_ID = "98a34ef2-2140-4c28-9c71-663dc4dd7022";
+// Cartesia Sonic-3 — Kyle (tagged Emotive, in Cartesia's "optimal emotional range" male list).
+// If Kyle sounds off, swap to one of these emotive alternatives:
+//   Jace   0b904166-a29f-4d2e-bb20-41ca302f98e9
+//   Leo    29e5f8b4-b953-4f7f-b5b1-5f45d3c9f4a7
+//   Gavin  6f84f4b8-58a2-430c-8c79-688dad597532
+const VOICE_ID = "c961b81c-a935-4c17-bfb3-ba2239de8c2f";
 
 const PRODUCTION_DOMAIN =
   process.env.PRODUCTION_DOMAIN ||
@@ -41,10 +42,11 @@ Offer details (don't volunteer unless asked):
 - Live in 24 hours
 
 Style rules:
-- Casual American English. Contractions, fillers ("gotcha", "yeah for sure", "no worries"). Light laughter when it fits.
+- Casual American English. Contractions, fillers ("gotcha", "yeah for sure", "no worries"). Laugh genuinely when something's funny.
 - ONE question at a time. Never batch.
 - 1–2 sentences per turn max. This is a phone call.
-- Match their energy.
+- Vary your cadence. Mix short reactions ("Oh nice!", "Gotcha.", "Hmm, yeah.") with full sentences. Use commas and ellipses for natural pauses — they change how it sounds.
+- Match their energy. Hype if they're hyped, chill if they're chill, empathetic if they're frustrated.
 - If they ask if you're AI, be honest: "Yeah I am — pretty wild, right? This is literally the kind of thing we'd build for you."
 - When they give their email, repeat it back letter-by-letter to catch typos.
 - When you have their name + email + a rough sense of their business, wrap up: "Awesome, I'll shoot you our booking link right now — pick a time that works and we'll get you set up. Anything else before I let you go?"
@@ -138,6 +140,10 @@ async function main() {
       provider: "cartesia",
       voiceId: VOICE_ID,
       model: "sonic-3",
+      experimentalControls: {
+        speed: "normal",
+        emotion: ["positivity:high", "curiosity:high"],
+      },
     },
     transcriber: {
       provider: "deepgram",
@@ -149,6 +155,10 @@ async function main() {
     serverUrl,
     silenceTimeoutSeconds: 20,
     maxDurationSeconds: 300,
+    backgroundDenoisingEnabled: true,
+    startSpeakingPlan: {
+      smartEndpointingEnabled: true,
+    },
     analysisPlan,
   };
 

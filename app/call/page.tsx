@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Countdown from "@/components/Countdown";
 import CallCTAButton from "@/components/CallCTAButton";
 
 export const metadata: Metadata = {
@@ -63,17 +62,13 @@ export default function CallPage() {
           <p className="mt-1 text-sm text-[#0c1a4b]/70">(Limited Time Only)</p>
         </div>
 
-        {/* Flash offer card */}
+        {/* Offer card */}
         <div className="mt-8 rounded-2xl bg-[#f4c01c] p-5 shadow-[0_4px_24px_rgba(244,192,28,0.35)] sm:p-6">
           <p className="text-center text-sm font-bold uppercase tracking-wide text-[#0c1a4b]">
-            Flash Offer: $0 Setup Fee Ends In
+            $0 Setup Fee — Limited Time
           </p>
 
-          <div className="mt-4">
-            <Countdown durationHours={72} />
-          </div>
-
-          <div className="mt-6">
+          <div className="mt-5">
             <CallCTAButton phone={PHONE_NUMBER}>
               <span className="block text-base font-bold uppercase leading-tight sm:text-lg">
                 Tap to Call &amp; Lock In Free Setup
