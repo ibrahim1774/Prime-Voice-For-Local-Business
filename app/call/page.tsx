@@ -68,13 +68,18 @@ export default function CallPage() {
             $0 Setup Fee — Limited Time
           </p>
 
+          <p className="mt-3 text-center text-sm leading-snug text-[#0c1a4b]/90 sm:text-base">
+            Plus: our AI receptionist will book your setup call —
+            or answer any questions you have — right now.
+          </p>
+
           <div className="mt-5">
             <CallCTAButton phone={PHONE_NUMBER}>
               <span className="block text-base font-bold uppercase leading-tight sm:text-lg">
                 Tap to Call &amp; Lock In Free Setup
               </span>
               <span className="mt-1 block text-sm font-normal text-white/90">
-                Hear a Live Demo in 60 Seconds
+                Hear a Live Demo in 10 Seconds
               </span>
             </CallCTAButton>
           </div>

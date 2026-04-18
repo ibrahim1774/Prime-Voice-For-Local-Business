@@ -17,12 +17,9 @@ import { join } from "node:path";
 
 // --- Config ------------------------------------------------------------------
 
-// Cartesia Sonic-3 — Kyle (tagged Emotive, in Cartesia's "optimal emotional range" male list).
-// If Kyle sounds off, swap to one of these emotive alternatives:
-//   Jace   0b904166-a29f-4d2e-bb20-41ca302f98e9
-//   Leo    29e5f8b4-b953-4f7f-b5b1-5f45d3c9f4a7
-//   Gavin  6f84f4b8-58a2-430c-8c79-688dad597532
-const VOICE_ID = "c961b81c-a935-4c17-bfb3-ba2239de8c2f";
+// Cartesia Sonic-3 — Southern Man (original voice). Softer emotion tags + calm
+// first message keep the early-word pitch in check.
+const VOICE_ID = "98a34ef2-2140-4c28-9c71-663dc4dd7022";
 
 const PRODUCTION_DOMAIN =
   process.env.PRODUCTION_DOMAIN ||
