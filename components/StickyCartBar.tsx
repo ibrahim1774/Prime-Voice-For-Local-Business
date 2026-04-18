@@ -100,13 +100,14 @@ export default function StickyCartBar() {
   const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
 
-  // Hide sticky bar on home, /1, /2, /3, all demo pages, booking-confirmation, thank-you
+  // Hide sticky bar on home, /1, /2, /3, /call, all demo pages, booking-confirmation, thank-you
   const showStickyBar =
     !isHomePage &&
     !pathname.includes("/demo") &&
     pathname !== "/1" &&
     pathname !== "/2" &&
     pathname !== "/3" &&
+    !pathname.startsWith("/call") &&
     !pathname.startsWith("/booking-confirmation") &&
     !pathname.startsWith("/thank-you");
 
