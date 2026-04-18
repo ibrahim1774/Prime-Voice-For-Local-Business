@@ -17,9 +17,10 @@ import { join } from "node:path";
 
 // --- Config ------------------------------------------------------------------
 
-// Cartesia Sonic-3 — Southern Man (original voice). Softer emotion tags + calm
-// first message keep the early-word pitch in check.
-const VOICE_ID = "98a34ef2-2140-4c28-9c71-663dc4dd7022";
+// Cartesia Sonic-3 — Kyle (Emotive-tagged, most realistic male in Sonic-3's
+// "optimal emotional range" list). Softer emotion tags + pause-led first
+// message keep the early-word pitch spike in check.
+const VOICE_ID = "c961b81c-a935-4c17-bfb3-ba2239de8c2f";
 
 function buildDateHeader(): string {
   const now = new Date();
