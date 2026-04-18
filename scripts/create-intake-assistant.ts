@@ -28,30 +28,65 @@ const PRODUCTION_DOMAIN =
   process.env.PRODUCTION_DOMAIN ||
   "https://prime-voice-for-local-business.vercel.app";
 
-const SYSTEM_PROMPT = `You are Alex — a laid-back American guy with a friendly Southwestern accent. You run intake calls for PrimeVoice, an AI receptionist service for local businesses. The person on the phone just tapped a link on our landing page.
+const SYSTEM_PROMPT = `You are Alex — a laid-back American guy running intake calls for PrimeVoice, an AI receptionist service for local businesses. Someone just tapped the "Tap to Call" button on our landing page.
 
-Your job is a quick, friendly chat to learn:
-1. Their name
-2. What kind of business they run
-3. What's frustrating them about their current phone setup (missed calls, voicemail, after-hours, etc.)
-4. If they want us to set them up — grab their email so we can text the booking link
+Your only goal: book them onto our PrimeVoice Setup Call calendar. You do NOT need their email.
 
-Offer details (don't volunteer unless asked):
-- $99/month for 24/7 AI receptionist
+Exact flow — follow in this order, one question at a time:
+
+1. First, get their name. ("Cool, who am I talkin' to?")
+2. Then, get their best callback number in case the line drops. Repeat it back digit by digit to confirm.
+3. Ask what kind of business they run — one line, just so you know who you're talking to.
+4. Then ask what day and time works for a quick 15-minute setup call. If they're vague ("maybe sometime this week"), offer two concrete options — e.g. "How's tomorrow at 2pm work? Or Thursday morning?"
+5. Once they pick a specific day + time, confirm it out loud: "Alright, so that's Thursday the 24th at 3pm your time, right?"
+6. As soon as they confirm, call the \`bookAppointment\` tool with their name, phone, and the time in ISO 8601 format (e.g. 2026-04-24T15:00:00). Use their local time — the calendar handles timezone.
+7. After the tool returns success, tell them: "Perfect, you're locked in. You'll get a confirmation text in a sec. Anything else before I let you go?"
+
+Offer details (only mention if asked):
+- $99/month for a 24/7 AI receptionist
 - Setup is free right now (normally $250)
-- Live in 24 hours
+- We'll have you live in 24 hours after the setup call
 
 Style rules:
-- Casual American English. Contractions, fillers ("gotcha", "yeah for sure", "no worries"). Laugh genuinely when something's funny.
+- Casual American English. Contractions, fillers ("gotcha", "yeah for sure", "no worries", "right on").
 - ONE question at a time. Never batch.
-- 1–2 sentences per turn max. This is a phone call.
-- Vary your cadence. Mix short reactions ("Oh nice!", "Gotcha.", "Hmm, yeah.") with full sentences. Use commas and ellipses for natural pauses — they change how it sounds.
-- Match their energy. Hype if they're hyped, chill if they're chill, empathetic if they're frustrated.
-- If they ask if you're AI, be honest: "Yeah I am — pretty wild, right? This is literally the kind of thing we'd build for you."
-- When they give their email, repeat it back letter-by-letter to catch typos.
-- When you have their name + email + a rough sense of their business, wrap up: "Awesome, I'll shoot you our booking link right now — pick a time that works and we'll get you set up. Anything else before I let you go?"
-- Keep the whole call under 3 minutes if you can. Don't drag it out.
+- Keep each turn to 1–2 sentences. This is a phone call.
+- Use natural pauses — commas and ellipses matter for cadence.
+- Match their energy. Don't be over-excited if they're just curious.
+- If they ask if you're AI, be honest: "Yeah, I'm an AI — this is the kind of thing we'd build for your business."
+- If they don't want to book, still get their name + phone and end warmly: "No worries, I'll have someone on the team follow up when you're ready."
+- Keep the call under 3 minutes if you can. Don't drag it out.
 - Never invent info about the business or pricing.`;
+
+const bookAppointmentTool = {
+  type: "function",
+  function: {
+    name: "bookAppointment",
+    description:
+      "Book a 30-minute PrimeVoice Setup Call on the calendar. Call this ONLY after you've confirmed the day and time out loud with the caller.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Caller's full name" },
+        phone: {
+          type: "string",
+          description:
+            "Caller's callback phone, E.164 format if possible (e.g. +15551234567)",
+        },
+        businessName: {
+          type: "string",
+          description: "Name or rough description of their business",
+        },
+        preferredDateTimeISO: {
+          type: "string",
+          description:
+            "Appointment start time in ISO 8601, in the caller's local time (e.g. 2026-04-24T15:00:00). No email needed.",
+        },
+      },
+      required: ["name", "phone", "preferredDateTimeISO"],
+    },
+  },
+};
 
 const analysisPlan = {
   structuredDataPlan: {
@@ -60,26 +95,17 @@ const analysisPlan = {
       type: "object",
       properties: {
         name: { type: "string", description: "Caller's full name" },
-        email: { type: "string", description: "Caller's email address" },
         phone: {
           type: "string",
           description: "Caller's callback phone in E.164 if they gave one",
         },
         businessName: {
           type: "string",
-          description: "Name of the caller's business",
+          description: "Name or type of the caller's business",
         },
-        businessType: {
-          type: "string",
-          description: "Type of business (e.g. dental, HVAC, law office)",
-        },
-        painPoints: {
-          type: "string",
-          description: "One-sentence summary of their current phone pain",
-        },
-        wantsCallback: {
+        bookedAppointment: {
           type: "boolean",
-          description: "True if they want us to book/set them up, false if just browsing",
+          description: "True if bookAppointment tool was called successfully",
         },
       },
     },
@@ -135,6 +161,7 @@ async function main() {
       systemPrompt: SYSTEM_PROMPT,
       temperature: 0.8,
       maxTokens: 300,
+      tools: [bookAppointmentTool],
     },
     voice: {
       provider: "cartesia",
@@ -142,7 +169,7 @@ async function main() {
       model: "sonic-3",
       experimentalControls: {
         speed: "normal",
-        emotion: ["positivity:high", "curiosity:high"],
+        emotion: ["positivity:low"],
       },
     },
     transcriber: {
@@ -150,7 +177,8 @@ async function main() {
       model: "nova-2",
       language: "en-US",
     },
-    firstMessage: "Hey what's up, this is Alex from PrimeVoice — who am I talkin' to?",
+    firstMessage:
+      "Hey... thanks for callin' PrimeVoice. This is Alex — how's your day goin'?",
     firstMessageMode: "assistant-speaks-first",
     serverUrl,
     silenceTimeoutSeconds: 20,
