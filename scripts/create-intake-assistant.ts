@@ -154,10 +154,10 @@ async function main() {
     name: "PrimeVoice Intake (Persistent)",
     model: {
       provider: "anthropic",
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-haiku-4-5-20251001",
       systemPrompt: SYSTEM_PROMPT,
-      temperature: 0.8,
-      maxTokens: 300,
+      temperature: 0.7,
+      maxTokens: 150,
       tools: [bookAppointmentTool],
     },
     voice: {
@@ -168,11 +168,16 @@ async function main() {
         speed: "normal",
         emotion: ["positivity:low"],
       },
+      chunkPlan: {
+        enabled: true,
+        minCharacters: 20,
+      },
     },
     transcriber: {
       provider: "deepgram",
       model: "nova-2",
       language: "en-US",
+      endpointing: 150,
     },
     firstMessage:
       "Hey... thanks for callin' PrimeVoice. This is Alex — how's your day goin'?",
@@ -182,7 +187,13 @@ async function main() {
     maxDurationSeconds: 300,
     backgroundDenoisingEnabled: true,
     startSpeakingPlan: {
+      waitSeconds: 0.3,
       smartEndpointingEnabled: true,
+      transcriptionEndpointingPlan: {
+        onPunctuationSeconds: 0.1,
+        onNoPunctuationSeconds: 1.2,
+        onNumberSeconds: 0.5,
+      },
     },
     analysisPlan,
   };
