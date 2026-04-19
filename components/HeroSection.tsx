@@ -40,12 +40,9 @@ export default function HeroSection() {
           <IntakeForm />
         </div>
 
-        {/* Secondary CTA — direct to checkout */}
+        {/* Secondary CTA — direct to checkout (route-aware price) */}
         <div className="mt-5 flex flex-col items-center gap-2">
           <StartTrialButton />
-          <p className="text-xs text-muted/80">
-            3-day free trial · $99/mo or $599/yr · Cancel anytime
-          </p>
         </div>
 
         {/* Trust Badge */}
