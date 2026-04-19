@@ -38,6 +38,12 @@ const INCLUDED_ITEMS = [
     detail:
       "We tailor the AI specifically to your business, services, and customer base",
   },
+  {
+    feature: "Usage-Based Call Pricing",
+    detail:
+      "Extra charges based on the number of calls and/or minutes used with the voice AI receptionist",
+    italic: true,
+  },
 ];
 
 type BillingInterval = "month" | "year";
@@ -316,8 +322,9 @@ export default function StickyCartBar() {
                     >
                       {isCheckingOut ? "Redirecting..." : "Set This Up For My Business"}
                     </button>
-                    <p className="mt-3 text-center font-sans text-xs text-subtle">
-                      *Additional minor charges apply depending on call volume.
+                    <p className="mt-3 text-center font-sans text-xs italic text-subtle">
+                      *Extra charges based on the number of calls and/or minutes
+                      used with the voice AI receptionist.
                     </p>
                   </>
                 ) : (
@@ -354,7 +361,13 @@ export default function StickyCartBar() {
                         }`}
                     >
                       <p className="font-medium text-white">{item.feature}</p>
-                      <p className="mt-0.5 text-muted">{item.detail}</p>
+                      <p
+                        className={`mt-0.5 text-muted ${
+                          "italic" in item && item.italic ? "italic" : ""
+                        }`}
+                      >
+                        {item.detail}
+                      </p>
                     </div>
                   ))}
                 </div>
