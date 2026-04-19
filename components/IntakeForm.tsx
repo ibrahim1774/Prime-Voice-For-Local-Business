@@ -120,14 +120,17 @@ export default function IntakeForm() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt: prompt.trim() }),
         }),
-        fetch("https://hook.us2.make.com/1ijk41d5vdixvoedkr13qliymoyv2x2w", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            businessDescription: prompt.trim(),
-            ...utmParamsRef.current,
-          }),
-        }).catch(() => {}),
+        (process.env.NEXT_PUBLIC_GOOGLE_SHEET_WEBHOOK_URL
+          ? fetch(process.env.NEXT_PUBLIC_GOOGLE_SHEET_WEBHOOK_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                businessDescription: prompt.trim(),
+                route: pathname,
+                ...utmParamsRef.current,
+              }),
+            }).catch(() => {})
+          : Promise.resolve()),
         fetch("/api/meta-lead-conversion", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
