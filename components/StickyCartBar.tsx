@@ -31,18 +31,39 @@ const HOW_IT_WORKS = [
   },
   {
     step: "2",
-    title: "We reach out to map your setup",
-    detail: "The team confirms how you want the AI to answer, screen, and book.",
+    title: "Your AI custom agent is built for your business",
+    detail:
+      "Tell us about your pricing, services, hours, and how you want it to sound \u2014 we train the AI to match exactly.",
   },
   {
     step: "3",
-    title: "We assign a number + train the AI",
-    detail: "A dedicated business line is connected and customized to your services.",
+    title: "We assign a number + connect everything",
+    detail:
+      "A dedicated business line is set up and wired into your calendar and CRM.",
   },
   {
     step: "4",
     title: "Live in 24\u201348 hours",
     detail: "You start receiving calls, leads, and booked appointments.",
+  },
+];
+
+const OPTIONAL_INTEGRATIONS = [
+  {
+    title: "Your own CRM",
+    detail: "GoHighLevel, HubSpot, Salesforce, or others.",
+  },
+  {
+    title: "Your existing phone number",
+    detail: "Keep your current line \u2014 we forward and answer calls you don\u2019t pick up.",
+  },
+  {
+    title: "Your own booking platform",
+    detail: "Calendly, Acuity, Google Calendar, or custom endpoints.",
+  },
+  {
+    title: "Zapier & webhooks",
+    detail: "Pipe caller data and leads anywhere in your stack.",
   },
 ];
 
@@ -251,9 +272,9 @@ export default function StickyCartBar() {
           : "invisible opacity-0 pointer-events-none"
           }`}
       >
-        {/* Backdrop */}
+        {/* Backdrop (solid — no blur for smooth open) */}
         <div
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/70"
           onClick={closeDrawer}
         />
 
@@ -263,6 +284,8 @@ export default function StickyCartBar() {
             }`}
           style={{
             boxShadow: "0 -8px 40px rgba(201, 168, 76, 0.1)",
+            willChange: "transform",
+            WebkitOverflowScrolling: "touch",
           }}
         >
           <div className="relative p-6 md:p-10">
@@ -290,6 +313,27 @@ export default function StickyCartBar() {
 
               {/* Drag Handle */}
               <div className="mx-auto mb-6 h-1 w-12 rounded-full bg-gold/40" />
+
+              {/* No Setup Fee badge (all paid plans) */}
+              {priceConfig && (
+                <div className="mb-4 flex items-center justify-center">
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 font-sans text-[11px] font-bold uppercase tracking-[0.15em] text-gold"
+                    style={{ boxShadow: "0 0 16px rgba(201, 168, 76, 0.25)" }}
+                  >
+                    <svg
+                      className="h-3 w-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={3}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    No Setup Fee
+                  </span>
+                </div>
+              )}
 
               {/* Header */}
               {supportsYearlyToggle ? (
@@ -464,6 +508,33 @@ export default function StickyCartBar() {
                             "italic" in item && item.italic ? "italic" : ""
                           }`}
                         >
+                          {item.detail}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Optional Integrations (root/demo only) */}
+              {supportsYearlyToggle && (
+                <div className="mt-8">
+                  <h4 className="mb-1 text-center font-sans text-xs uppercase tracking-[0.2em] text-gold">
+                    Optional Integrations
+                  </h4>
+                  <p className="mb-4 text-center font-sans text-xs text-subtle">
+                    Already have tools? We plug right in.
+                  </p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {OPTIONAL_INTEGRATIONS.map((item) => (
+                      <div
+                        key={item.title}
+                        className="rounded-lg border border-gold/10 bg-card/60 px-4 py-3"
+                      >
+                        <p className="font-sans text-sm font-medium text-white">
+                          {item.title}
+                        </p>
+                        <p className="mt-0.5 font-sans text-xs text-muted">
                           {item.detail}
                         </p>
                       </div>
