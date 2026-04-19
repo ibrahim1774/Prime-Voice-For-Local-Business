@@ -24,15 +24,15 @@ export default function HeroSection() {
       <div className="relative z-10 mx-auto flex min-h-[100dvh] max-w-4xl flex-col items-center justify-center px-5 py-24 text-center">
         {/* Main headline */}
         <h1 className="font-serif text-3xl font-semibold leading-[1.15] tracking-tight text-foreground sm:text-4xl md:text-5xl lg:text-[56px]">
-          <span className="text-muted">Generate Your Custom AI Local Business Receptionist Demo</span>{" "}
+          <span className="text-muted">Build Your Custom AI Receptionist</span>{" "}
           <span className="font-bold text-foreground">in 20 Seconds</span>
         </h1>
 
         {/* Subtext */}
         <p className="mx-auto mt-5 max-w-2xl font-sans text-sm leading-relaxed text-muted md:mt-6 md:text-base">
-          Stop losing big jobs to missed calls. Your AI receptionist answers
-          24/7 — booking appointments, answering pricing questions, and handling
-          emergencies while you&apos;re on the job.
+          Don&apos;t lose big jobs to missed calls. Your AI picks up 24/7. It books
+          jobs. It answers pricing questions. It covers emergencies while you
+          work.
         </p>
 
         {/* Intake Form */}

@@ -46,8 +46,8 @@ export default function CallPage() {
         </h1>
 
         <p className="mt-5 text-center text-base leading-relaxed text-[#0c1a4b]/85 sm:text-lg">
-          Stop paying $3,000/mo for a front desk. Our AI answers, screens, and
-          fills your calendar while you keep your existing number.
+          Stop paying $3,000/mo for a front desk. Our AI answers your calls and
+          books your jobs. Keep your current number.
         </p>
 
         {/* Setup fee */}
@@ -69,8 +69,8 @@ export default function CallPage() {
           </p>
 
           <p className="mt-3 text-center text-sm leading-snug text-[#0c1a4b]/90 sm:text-base">
-            Plus: our AI receptionist will book your setup call —
-            or answer any questions you have — right now.
+            Our AI will book your setup call or answer your questions.
+            Right now.
           </p>
 
           <div className="mt-5">

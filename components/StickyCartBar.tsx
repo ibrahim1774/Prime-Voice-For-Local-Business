@@ -5,46 +5,46 @@ import { usePathname } from "next/navigation";
 import { BOOKING_URL } from "@/lib/constants";
 
 const BENEFITS = [
-  "Never miss another lead or big job \u2014 24/7 call answering",
-  "Capture every caller\u2019s details automatically",
-  "Professional first impression on every call",
-  "Smart appointment scheduling built in",
-  "After-hours and emergency call coverage",
-  "Custom-trained AI that knows your specific business and services",
-  "Dedicated lead follow-up app",
-  "Replace your expensive answering service",
+  "Catch every lead \u2014 24/7 call answering",
+  "Saves every caller\u2019s details for you",
+  "Sounds professional on every call",
+  "Books appointments built in",
+  "Covers after-hours and emergencies",
+  "Trained on your business and services",
+  "Lead follow-up app included",
+  "Replaces your costly answering service",
 ];
 
 // Compact layout used for the $99/mo root page — fewer, higher-level bullets.
 const ROOT_BENEFITS = [
-  "24/7 call answering \u2014 never miss a lead",
-  "Books appointments straight into your calendar",
-  "Custom-trained on your business and services",
-  "Replaces a $3,000/mo front desk for a fraction of the cost",
+  "24/7 call answering so you don\u2019t miss leads",
+  "Books jobs straight into your calendar",
+  "Trained on your business and services",
+  "Replaces a $3,000/mo front desk at a fraction of the cost",
 ];
 
 const HOW_IT_WORKS = [
   {
     step: "1",
     title: "Fill out a short onboarding form",
-    detail: "After checkout, tell us about your business in a couple of minutes.",
+    detail: "After checkout, tell us about your business. Takes two minutes.",
   },
   {
     step: "2",
-    title: "Your AI custom agent is built for your business",
+    title: "We build your AI for your business",
     detail:
-      "Tell us about your pricing, services, hours, and how you want it to sound \u2014 we train the AI to match exactly.",
+      "Share your pricing, services, hours, and voice style. We train the AI to match.",
   },
   {
     step: "3",
-    title: "We assign a number + connect everything",
+    title: "We set up your number and connect everything",
     detail:
-      "A dedicated business line is set up and wired into your calendar and CRM.",
+      "You get a business line wired into your calendar and CRM.",
   },
   {
     step: "4",
     title: "Live in 24\u201348 hours",
-    detail: "You start receiving calls, leads, and booked appointments.",
+    detail: "You start getting calls, leads, and booked jobs.",
   },
 ];
 
@@ -55,7 +55,7 @@ const OPTIONAL_INTEGRATIONS = [
   },
   {
     title: "Your existing phone number",
-    detail: "Keep your current line \u2014 we forward and answer calls you don\u2019t pick up.",
+    detail: "Keep your current line. We answer the calls you don\u2019t pick up.",
   },
   {
     title: "Your own booking platform",
@@ -63,37 +63,36 @@ const OPTIONAL_INTEGRATIONS = [
   },
   {
     title: "Zapier & webhooks",
-    detail: "Pipe caller data and leads anywhere in your stack.",
+    detail: "Send caller data and leads anywhere you want.",
   },
 ];
 
 const INCLUDED_ITEMS = [
   {
     feature: "Lead Capture App",
-    detail: "An app for all your leads so you can follow up fast",
+    detail: "One app for all your leads. Follow up fast.",
   },
   {
     feature: "CRM System",
-    detail: "Manage and organize all your leads in one place",
+    detail: "Manage all your leads in one place.",
   },
   {
     feature: "Dedicated Phone Number",
-    detail: "A real business number connected to your AI receptionist",
+    detail: "A real business number for your AI receptionist.",
   },
   {
     feature: "24-Hour Setup",
-    detail:
-      "We build your entire backend system within 24 hours so you\u2019re ready to go",
+    detail: "We build your setup in 24 hours. You\u2019re ready to go.",
   },
   {
     feature: "Custom AI Training",
     detail:
-      "We tailor the AI specifically to your business, services, and customer base",
+      "We train the AI on your business, services, and customers.",
   },
   {
     feature: "Usage-Based Call Pricing",
     detail:
-      "Extra charges based on the number of calls and/or minutes used with the voice AI receptionist",
+      "Extra charges apply for calls and minutes used.",
     italic: true,
   },
 ];
@@ -339,26 +338,26 @@ export default function StickyCartBar() {
               {supportsYearlyToggle ? (
                 <>
                   <h3 className="mx-auto max-w-md text-balance text-center font-serif text-2xl font-bold leading-tight text-white md:text-3xl">
-                    Never Miss a Call. <span className="text-gold">Never Lose a Job.</span>
+                    Don&apos;t Miss a Call. <span className="text-gold">Don&apos;t Lose a Job.</span>
                   </h3>
                   <div className="mx-auto mt-3 h-px w-20 bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
                   <p className="mx-auto mt-3 max-w-md text-center font-sans text-sm leading-relaxed text-muted">
-                    A 24/7 AI receptionist that answers, books, and follows up &mdash; trained on your business.
+                    A 24/7 AI receptionist. It answers calls and books jobs. Trained on your business.
                   </p>
                 </>
               ) : (
                 <>
                   <h3 className="text-center font-serif text-xl font-bold leading-snug text-white md:text-2xl">
-                    A Smart AI Receptionist That Answers Calls, Books Appointments, to Your Phone{" "}
+                    A Smart AI Receptionist That Answers Your Calls and Books Your Jobs{" "}
                     <span className="text-gold">
-                      So It Helps You Not Lose a Job to a Competitor.
+                      So You Don&apos;t Lose Work to Competitors.
                     </span>
                   </h3>
                   <div className="mx-auto mt-3 h-px w-20 bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
                   <p className="mt-3 text-center font-sans text-sm leading-relaxed text-muted">
-                    Every missed call could be worth $1,000&ndash;$10,000 in lost
-                    jobs &mdash; calls you&apos;re probably missing. Implement a
-                    foundation part of your business.
+                    Every missed call could be worth $1,000 to $10,000 in lost
+                    jobs. You&apos;re probably missing them now. This is a foundation
+                    for your business.
                   </p>
                 </>
               )}
@@ -422,10 +421,10 @@ export default function StickyCartBar() {
                 {priceConfig ? (
                   <>
                     <p className="text-center font-sans text-sm font-semibold text-white mb-1">
-                      Start for {priceConfig.labelLong}{priceConfig.trialText} &mdash; cancel anytime
+                      Start for {priceConfig.labelLong}{priceConfig.trialText}. Cancel anytime.
                     </p>
                     <p className="text-center font-sans text-xs text-subtle mb-4">
-                      No setup fees &bull; Takes 2 minutes
+                      No setup fees. Takes 2 minutes.
                     </p>
                     <button
                       onClick={handleCheckout}
@@ -438,8 +437,7 @@ export default function StickyCartBar() {
                       {isCheckingOut ? "Redirecting..." : "Set This Up For My Business"}
                     </button>
                     <p className="mt-3 text-center font-sans text-xs italic text-subtle">
-                      *Extra charges based on the number of calls and/or minutes
-                      used with the voice AI receptionist.
+                      *Extra charges apply for calls and minutes used.
                     </p>
                   </>
                 ) : (
@@ -453,11 +451,10 @@ export default function StickyCartBar() {
                         boxShadow: "0 0 20px rgba(201, 168, 76, 0.3)",
                       }}
                     >
-                      Book a Call to Implement This for Your Business
+                      Book a Call to Set This Up
                     </a>
                     <p className="mt-3 text-center font-sans text-xs text-subtle">
-                      We&apos;ll walk you through setup and have you live within 24
-                      hours.
+                      We walk you through setup. You go live in 24 hours.
                     </p>
                   </>
                 )}
@@ -563,10 +560,10 @@ export default function StickyCartBar() {
                 ) : (
                   <>
                     <p className="font-serif text-2xl font-bold text-white md:text-3xl">
-                      Ready to Stop Missing Calls?
+                      Ready to Catch Every Call?
                     </p>
                     <p className="mt-2 font-sans text-sm text-muted">
-                      Book a quick call and we&apos;ll have you set up within 24 hours.
+                      Book a quick call. We set you up in 24 hours.
                     </p>
                   </>
                 )}
