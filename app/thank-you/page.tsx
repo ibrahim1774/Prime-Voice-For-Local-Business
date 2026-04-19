@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
 declare global {
   interface Window {
@@ -8,23 +9,62 @@ declare global {
   }
 }
 
-export default function ThankYouPage() {
+function ThankYouContent() {
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("session_id");
   const firedRef = useRef(false);
+  const [displayValue, setDisplayValue] = useState<number | null>(null);
 
   useEffect(() => {
     if (firedRef.current) return;
     firedRef.current = true;
 
-    // Client-side: fire Facebook Purchase pixel
-    if (window.fbq) {
-      window.fbq("track", "Purchase", { value: 29.0, currency: "USD" });
+    async function fireConversion() {
+      const eventId = `purchase_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+      // Fallback defaults if session lookup fails
+      let value = 99;
+      let currency = "USD";
+      let email = "";
+
+      if (sessionId) {
+        try {
+          const res = await fetch(
+            `/api/stripe-session?session_id=${encodeURIComponent(sessionId)}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (typeof data.value === "number" && data.value > 0) value = data.value;
+            if (data.currency) currency = data.currency;
+            if (data.email) email = data.email;
+          }
+        } catch {
+          // fall through to defaults
+        }
+      }
+
+      setDisplayValue(value);
+
+      // Browser-side Pixel (deduped via eventID)
+      if (window.fbq) {
+        window.fbq(
+          "track",
+          "Purchase",
+          { value, currency },
+          { eventID: eventId }
+        );
+      }
+
+      // Server-side CAPI (same eventId for dedup, plus hashed email for matching)
+      fetch("/api/meta-conversion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value, currency, eventId, email }),
+      }).catch(() => {});
     }
 
-    // Server-side: fire Meta Conversions API
-    fetch("/api/meta-conversion", { method: "POST" }).catch(() => {
-      // Silent fail — client-side pixel is the primary tracker
-    });
-  }, []);
+    fireConversion();
+  }, [sessionId]);
 
   return (
     <section className="relative flex min-h-[100dvh] items-center justify-center px-4 py-16 grid-bg overflow-hidden">
@@ -32,7 +72,6 @@ export default function ThankYouPage() {
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
 
       <div className="relative z-10 mx-auto max-w-lg w-full text-center">
-        {/* Checkmark icon */}
         <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border-2 border-gold/30 bg-gold/10">
           <svg
             className="h-10 w-10 text-gold"
@@ -56,6 +95,12 @@ export default function ThankYouPage() {
         <p className="mx-auto mt-4 max-w-md font-sans text-base leading-relaxed text-muted">
           Your PrimeVoice AI Receptionist is on the way. Complete the next step
           so we can get your system set up within 24 hours.
+          {displayValue !== null && displayValue > 0 && (
+            <span className="mt-1 block text-sm text-subtle">
+              Subscription: ${displayValue}
+              {displayValue >= 500 ? "/year" : "/month"} · 3-day free trial active.
+            </span>
+          )}
         </p>
 
         <div className="mt-8">
@@ -75,5 +120,13 @@ export default function ThankYouPage() {
         </p>
       </div>
     </section>
+  );
+}
+
+export default function ThankYouPage() {
+  return (
+    <Suspense fallback={null}>
+      <ThankYouContent />
+    </Suspense>
   );
 }

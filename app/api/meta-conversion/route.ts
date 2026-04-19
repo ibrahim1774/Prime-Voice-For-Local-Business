@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 
 const PIXEL_ID = "26490568997297314";
+
+interface PurchaseBody {
+  value?: number;
+  currency?: string;
+  eventId?: string;
+  email?: string;
+}
+
+function sha256(input: string): string {
+  return createHash("sha256").update(input.trim().toLowerCase()).digest("hex");
+}
 
 export async function POST(request: NextRequest) {
   const accessToken = process.env.META_ACCESS_TOKEN;
@@ -13,24 +25,33 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const body = (await request.json().catch(() => ({}))) as PurchaseBody;
+    const value = typeof body.value === "number" && body.value > 0 ? body.value : 99;
+    const currency = (body.currency || "USD").toUpperCase();
+    const eventId = body.eventId;
+    const email = body.email?.trim();
+
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
     const userAgent = request.headers.get("user-agent") || "";
+
+    const userData: Record<string, unknown> = {
+      client_ip_address: ip,
+      client_user_agent: userAgent,
+    };
+    if (email) {
+      userData.em = [sha256(email)];
+    }
 
     const eventData = {
       data: [
         {
           event_name: "Purchase",
           event_time: Math.floor(Date.now() / 1000),
+          ...(eventId ? { event_id: eventId } : {}),
           action_source: "website",
           event_source_url: request.headers.get("referer") || "",
-          user_data: {
-            client_ip_address: ip,
-            client_user_agent: userAgent,
-          },
-          custom_data: {
-            value: 29.0,
-            currency: "USD",
-          },
+          user_data: userData,
+          custom_data: { value, currency },
         },
       ],
     };
