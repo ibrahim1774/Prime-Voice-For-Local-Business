@@ -15,6 +15,37 @@ const BENEFITS = [
   "Replace your expensive answering service",
 ];
 
+// Compact layout used for the $99/mo root page — fewer, higher-level bullets.
+const ROOT_BENEFITS = [
+  "24/7 call answering \u2014 never miss a lead",
+  "Books appointments straight into your calendar",
+  "Custom-trained on your business and services",
+  "Replaces a $3,000/mo front desk for a fraction of the cost",
+];
+
+const HOW_IT_WORKS = [
+  {
+    step: "1",
+    title: "Fill out a short onboarding form",
+    detail: "After checkout, tell us about your business in a couple of minutes.",
+  },
+  {
+    step: "2",
+    title: "We reach out to map your setup",
+    detail: "The team confirms how you want the AI to answer, screen, and book.",
+  },
+  {
+    step: "3",
+    title: "We assign a number + train the AI",
+    detail: "A dedicated business line is connected and customized to your services.",
+  },
+  {
+    step: "4",
+    title: "Live in 24\u201348 hours",
+    detail: "You start receiving calls, leads, and booked appointments.",
+  },
+];
+
 const INCLUDED_ITEMS = [
   {
     feature: "Lead Capture App",
@@ -261,22 +292,36 @@ export default function StickyCartBar() {
               <div className="mx-auto mb-6 h-1 w-12 rounded-full bg-gold/40" />
 
               {/* Header */}
-              <h3 className="text-center font-serif text-xl font-bold leading-snug text-white md:text-2xl">
-                A Smart AI Receptionist That Answers Calls, Books Appointments, to Your Phone{" "}
-                <span className="text-gold">
-                  So It Helps You Not Lose a Job to a Competitor.
-                </span>
-              </h3>
-              <div className="mx-auto mt-3 h-px w-20 bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
-              <p className="mt-3 text-center font-sans text-sm leading-relaxed text-muted">
-                Every missed call could be worth $1,000&ndash;$10,000 in lost
-                jobs &mdash; calls you&apos;re probably missing. Implement a
-                foundation part of your business.
-              </p>
+              {supportsYearlyToggle ? (
+                <>
+                  <h3 className="mx-auto max-w-md text-balance text-center font-serif text-2xl font-bold leading-tight text-white md:text-3xl">
+                    Never Miss a Call. <span className="text-gold">Never Lose a Job.</span>
+                  </h3>
+                  <div className="mx-auto mt-3 h-px w-20 bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
+                  <p className="mx-auto mt-3 max-w-md text-center font-sans text-sm leading-relaxed text-muted">
+                    A 24/7 AI receptionist that answers, books, and follows up &mdash; trained on your business.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-center font-serif text-xl font-bold leading-snug text-white md:text-2xl">
+                    A Smart AI Receptionist That Answers Calls, Books Appointments, to Your Phone{" "}
+                    <span className="text-gold">
+                      So It Helps You Not Lose a Job to a Competitor.
+                    </span>
+                  </h3>
+                  <div className="mx-auto mt-3 h-px w-20 bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
+                  <p className="mt-3 text-center font-sans text-sm leading-relaxed text-muted">
+                    Every missed call could be worth $1,000&ndash;$10,000 in lost
+                    jobs &mdash; calls you&apos;re probably missing. Implement a
+                    foundation part of your business.
+                  </p>
+                </>
+              )}
 
-              {/* Benefits List */}
-              <div className="mt-8 space-y-3">
-                {BENEFITS.map((benefit) => (
+              {/* Benefits List (compact on root) */}
+              <div className={supportsYearlyToggle ? "mt-6 space-y-2.5" : "mt-8 space-y-3"}>
+                {(supportsYearlyToggle ? ROOT_BENEFITS : BENEFITS).map((benefit) => (
                   <div key={benefit} className="flex items-start gap-3">
                     <svg
                       className="mt-0.5 h-5 w-5 shrink-0 text-gold"
@@ -374,33 +419,61 @@ export default function StickyCartBar() {
                 )}
               </div>
 
-              {/* What's Included Table */}
-              <div className="mt-10">
-                <h4 className="mb-4 font-sans text-xs uppercase tracking-[0.2em] text-gold">
-                  What&apos;s Included
-                </h4>
-                <div className="gold-glow-border overflow-hidden rounded-xl">
-                  {INCLUDED_ITEMS.map((item, i) => (
-                    <div
-                      key={item.feature}
-                      className={`px-5 py-3.5 font-sans text-sm ${i % 2 === 0 ? "bg-card" : "bg-charcoal/50"
-                        }`}
-                    >
-                      <p className="font-medium text-white">{item.feature}</p>
-                      <p
-                        className={`mt-0.5 text-muted ${
-                          "italic" in item && item.italic ? "italic" : ""
-                        }`}
+              {/* How It Works (root/demo only) OR What's Included table (legacy routes) */}
+              {supportsYearlyToggle ? (
+                <div className="mt-8">
+                  <h4 className="mb-4 text-center font-sans text-xs uppercase tracking-[0.2em] text-gold">
+                    How It Works
+                  </h4>
+                  <div className="space-y-3">
+                    {HOW_IT_WORKS.map((s) => (
+                      <div
+                        key={s.step}
+                        className="flex items-start gap-3 rounded-xl border border-gold/10 bg-card/60 px-4 py-3"
                       >
-                        {item.detail}
-                      </p>
-                    </div>
-                  ))}
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gold/15 font-sans text-xs font-bold text-gold">
+                          {s.step}
+                        </span>
+                        <div>
+                          <p className="font-sans text-sm font-medium text-white">
+                            {s.title}
+                          </p>
+                          <p className="mt-0.5 font-sans text-xs text-muted">
+                            {s.detail}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="mt-10">
+                  <h4 className="mb-4 font-sans text-xs uppercase tracking-[0.2em] text-gold">
+                    What&apos;s Included
+                  </h4>
+                  <div className="gold-glow-border overflow-hidden rounded-xl">
+                    {INCLUDED_ITEMS.map((item, i) => (
+                      <div
+                        key={item.feature}
+                        className={`px-5 py-3.5 font-sans text-sm ${i % 2 === 0 ? "bg-card" : "bg-charcoal/50"
+                          }`}
+                      >
+                        <p className="font-medium text-white">{item.feature}</p>
+                        <p
+                          className={`mt-0.5 text-muted ${
+                            "italic" in item && item.italic ? "italic" : ""
+                          }`}
+                        >
+                          {item.detail}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Bottom section — price or booking CTA */}
-              <div className="mt-10 text-center">
+              <div className={supportsYearlyToggle ? "mt-6 text-center" : "mt-10 text-center"}>
                 {priceConfig ? (
                   <>
                     <p className="font-serif text-5xl font-bold text-gold md:text-6xl">
