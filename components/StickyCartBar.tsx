@@ -337,18 +337,25 @@ export default function StickyCartBar() {
               {/* Header */}
               {supportsYearlyToggle ? (
                 <>
+                  <p className="mb-2 text-center font-sans text-[11px] font-bold uppercase tracking-[0.2em] text-gold/80">
+                    Built for Local Businesses
+                  </p>
                   <h3 className="mx-auto max-w-md text-balance text-center font-serif text-2xl font-bold leading-tight text-white md:text-3xl">
                     Don&apos;t Miss a Call. <span className="text-gold">Don&apos;t Lose a Job.</span>
                   </h3>
                   <div className="mx-auto mt-3 h-px w-20 bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
                   <p className="mx-auto mt-3 max-w-md text-center font-sans text-sm leading-relaxed text-muted">
-                    A 24/7 AI receptionist. It answers calls and books jobs. Trained on your business.
+                    A 24/7 AI receptionist for local businesses. It answers calls
+                    and books jobs. Trained on your business.
                   </p>
                 </>
               ) : (
                 <>
+                  <p className="mb-2 text-center font-sans text-[11px] font-bold uppercase tracking-[0.2em] text-gold/80">
+                    Built for Local Businesses
+                  </p>
                   <h3 className="text-center font-serif text-xl font-bold leading-snug text-white md:text-2xl">
-                    A Smart AI Receptionist That Answers Your Calls and Books Your Jobs{" "}
+                    A Smart AI Receptionist for Local Businesses{" "}
                     <span className="text-gold">
                       So You Don&apos;t Lose Work to Competitors.
                     </span>

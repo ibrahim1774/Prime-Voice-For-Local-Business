@@ -16,7 +16,7 @@ export default function HeroSection() {
       {/* Logo */}
       <div className="absolute top-5 left-5 z-20 md:top-7 md:left-8">
         <span className="font-serif text-lg font-bold text-foreground md:text-xl">
-          Prime<span className="text-muted">Voice</span>
+          Montivaro<span className="text-muted"> AI</span>
         </span>
       </div>
 
@@ -24,8 +24,8 @@ export default function HeroSection() {
       <div className="relative z-10 mx-auto flex min-h-[100dvh] max-w-4xl flex-col items-center justify-center px-5 py-24 text-center">
         {/* Main headline */}
         <h1 className="font-serif text-3xl font-semibold leading-[1.15] tracking-tight text-foreground sm:text-4xl md:text-5xl lg:text-[56px]">
-          <span className="text-muted">Build Your Custom AI Receptionist</span>{" "}
-          <span className="font-bold text-foreground">in 20 Seconds</span>
+          <span className="text-muted">Custom AI Receptionist for Local Businesses.</span>{" "}
+          <span className="font-bold text-foreground">Built in 20 Seconds.</span>
         </h1>
 
         {/* Subtext */}

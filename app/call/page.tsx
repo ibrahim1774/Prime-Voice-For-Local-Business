@@ -30,7 +30,7 @@ export default function CallPage() {
         {/* Header */}
         <header className="mb-10 flex items-center justify-between">
           <span className="font-serif text-2xl font-bold tracking-tight text-[#0c1a4b]">
-            prime<span className="text-[#f4c01c]">voice</span>
+            montivaro<span className="text-[#f4c01c]"> AI</span>
           </span>
           <a
             href={telHref}
@@ -99,7 +99,7 @@ export default function CallPage() {
         </div>
 
         <p className="mt-10 text-center text-xs text-[#0c1a4b]/50">
-          © {new Date().getFullYear()} PrimeVoice. All rights reserved.
+          © {new Date().getFullYear()} Montivaro AI. All rights reserved.
         </p>
       </main>
     </div>
