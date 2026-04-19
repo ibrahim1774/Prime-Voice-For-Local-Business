@@ -25,7 +25,7 @@ export default function HeroSection() {
         {/* Main headline */}
         <h1 className="font-serif text-3xl font-semibold leading-[1.15] tracking-tight text-foreground sm:text-4xl md:text-5xl lg:text-[56px]">
           <span className="text-muted">Custom AI Receptionist for Local Businesses.</span>{" "}
-          <span className="font-bold text-foreground">Built in 20 Seconds.</span>
+          <span className="font-bold text-foreground">Generate Your Live Demo in 20 Seconds.</span>
         </h1>
 
         {/* Subtext */}
