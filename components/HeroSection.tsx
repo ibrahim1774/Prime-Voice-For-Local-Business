@@ -2,48 +2,63 @@ import IntakeForm from "./IntakeForm";
 
 export default function HeroSection() {
   return (
-    <section className="relative flex min-h-[100dvh] items-center justify-center px-4 py-4 md:py-12 aurora-bg overflow-hidden">
-      {/* Subtle radial glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_50%,rgba(201,168,76,0.08)_0%,transparent_70%)]" />
-
-      {/* Static ambient orb for depth */}
+    <section className="relative min-h-[100dvh] overflow-hidden dotted-grid-bg">
+      {/* Soft radial glow overlay */}
       <div
-        className="absolute rounded-full pointer-events-none"
+        className="pointer-events-none absolute inset-0"
         style={{
-          top: "20%",
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: "500px",
-          height: "400px",
-          background: "rgba(201, 168, 76, 0.04)",
-          filter: "blur(60px)",
+          background:
+            "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(255,255,255,0.9) 0%, rgba(250,250,250,0) 70%)",
         }}
       />
 
-      {/* Top edge glow line */}
-      <div
-        className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent"
-        style={{ boxShadow: "0 0 15px rgba(201, 168, 76, 0.2)" }}
-      />
+      {/* Logo */}
+      <div className="absolute top-5 left-5 z-20 md:top-7 md:left-8">
+        <span className="font-serif text-lg font-bold text-foreground md:text-xl">
+          Prime<span className="text-muted">Voice</span>
+        </span>
+      </div>
 
       {/* === CONTENT === */}
-      <div className="relative z-10 mx-auto max-w-4xl w-full text-center">
+      <div className="relative z-10 mx-auto flex min-h-[100dvh] max-w-4xl flex-col items-center justify-center px-5 py-24 text-center">
         {/* Main headline */}
-        <h1 className="font-serif text-xl font-bold leading-[1.2] text-white sm:text-2xl md:text-3xl lg:text-4xl">
-          Local Businesses: Stop missing calls. Start booking customers —{" "}
-          <span className="text-gold">even at 2am.</span>
+        <h1 className="font-serif text-3xl font-semibold leading-[1.15] tracking-tight text-foreground sm:text-4xl md:text-5xl lg:text-[56px]">
+          <span className="text-muted">Generate Your Custom AI Receptionist Demo</span>{" "}
+          <span className="font-bold text-foreground">in 20 Seconds</span>
         </h1>
 
         {/* Subtext */}
-        <p className="mx-auto mt-2 max-w-xl font-sans text-xs leading-relaxed text-muted md:mt-3 md:text-sm">
-          An AI receptionist that answers your phone, talks to your customers,
-          and books appointments while you&apos;re busy running your business.
-          Enter your info below and hear a live demo in about 20 seconds.
+        <p className="mx-auto mt-5 max-w-2xl font-sans text-sm leading-relaxed text-muted md:mt-6 md:text-base">
+          Stop losing big jobs to missed calls. Your AI receptionist answers
+          24/7 — booking appointments, answering pricing questions, and handling
+          emergencies while you&apos;re on the job.
         </p>
 
         {/* Intake Form */}
-        <div className="mt-3 md:mt-5">
+        <div className="mt-10 w-full md:mt-12">
           <IntakeForm />
+        </div>
+
+        {/* Trust Badge */}
+        <div className="mt-6 flex items-center justify-center">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white/70 px-3 py-1 backdrop-blur-sm">
+            <svg
+              className="h-3.5 w-3.5 text-muted"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+              />
+            </svg>
+            <span className="text-xs font-medium tracking-wide text-muted">
+              Built for Local Service Pros
+            </span>
+          </div>
         </div>
       </div>
     </section>
