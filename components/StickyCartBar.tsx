@@ -55,14 +55,37 @@ export default function StickyCartBar() {
   const pathname = usePathname();
   const isHomePage = pathname === "/";
 
-  // Route-aware pricing. Root (/) + /demo use the $99/$599 toggle.
-  // /1, /2 keep their fixed A/B pricing. /3 stays booking-only.
-  const isBookingRoute = pathname.startsWith("/3");
+  // Route-aware pricing.
+  //   /      + /demo          → $99/mo or $599/yr toggle, 3-day trial
+  //   /19    + /19/demo       → $19/month, 3-day trial
+  //   /29    + /29/demo       → $29/month, 3-day trial
+  //   /49    + /49/demo       → $49/month, 3-day trial
+  //   /1, /2 (legacy)         → $19/month (A/B historical variants)
+  //   /3                      → booking-only (no Stripe)
+  const prefixMatch = (prefix: string) =>
+    pathname === prefix || pathname.startsWith(prefix + "/");
+
+  const isBookingRoute = prefixMatch("/3");
   const isRootPricing =
     isHomePage || pathname === "/demo" || pathname.startsWith("/demo?");
   const supportsYearlyToggle = isRootPricing;
 
-  const priceConfig = pathname.startsWith("/1")
+  const fixedMonthly = (price: number) => ({
+    price,
+    trialDays: 3,
+    interval: "month" as BillingInterval,
+    label: `$${price}/mo`,
+    labelLong: `$${price}/month`,
+    trialText: " \u2014 3-day free trial",
+  });
+
+  const priceConfig = prefixMatch("/19")
+    ? fixedMonthly(19)
+    : prefixMatch("/29")
+    ? fixedMonthly(29)
+    : prefixMatch("/49")
+    ? fixedMonthly(49)
+    : prefixMatch("/1")
     ? {
         price: 19,
         trialDays: 0,
@@ -71,7 +94,7 @@ export default function StickyCartBar() {
         labelLong: "$19/month",
         trialText: "",
       }
-    : pathname.startsWith("/2")
+    : prefixMatch("/2")
     ? {
         price: 19,
         trialDays: 3,
@@ -145,13 +168,16 @@ export default function StickyCartBar() {
   const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
 
-  // Hide sticky bar on home, /1, /2, /3, /call, all demo pages, booking-confirmation, thank-you
+  // Hide sticky bar on all landing pages + demo + post-checkout pages.
   const showStickyBar =
     !isHomePage &&
     !pathname.includes("/demo") &&
     pathname !== "/1" &&
     pathname !== "/2" &&
     pathname !== "/3" &&
+    pathname !== "/19" &&
+    pathname !== "/29" &&
+    pathname !== "/49" &&
     !pathname.startsWith("/call") &&
     !pathname.startsWith("/booking-confirmation") &&
     !pathname.startsWith("/thank-you");

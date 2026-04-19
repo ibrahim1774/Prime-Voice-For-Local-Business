@@ -25,13 +25,24 @@ export default function DemoExperience({
 }: DemoExperienceProps) {
   const pathname = usePathname();
   const isBookingRoute = pathname.startsWith("/3");
-  const priceLabel = pathname.includes("/1")
-    ? "$19/month"
-    : pathname.includes("/2")
-    ? "$19/month \u2014 3-day trial"
-    : pathname.includes("/3")
+  const prefixMatch = (prefix: string) =>
+    pathname === prefix || pathname.startsWith(prefix + "/");
+
+  const priceInfo: { amount: number; label: string } | null = prefixMatch("/19")
+    ? { amount: 19, label: "$19/month \u2014 3-day free trial" }
+    : prefixMatch("/29")
+    ? { amount: 29, label: "$29/month \u2014 3-day free trial" }
+    : prefixMatch("/49")
+    ? { amount: 49, label: "$49/month \u2014 3-day free trial" }
+    : prefixMatch("/1")
+    ? { amount: 19, label: "$19/month" }
+    : prefixMatch("/2")
+    ? { amount: 19, label: "$19/month \u2014 3-day trial" }
+    : prefixMatch("/3")
     ? null
-    : "$99/month \u2014 3-day free trial";
+    : { amount: 99, label: "$99/month \u2014 3-day free trial" };
+
+  const priceLabel = priceInfo?.label ?? null;
 
   const [callStatus, setCallStatus] = useState<CallStatus>("idle");
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
@@ -354,9 +365,9 @@ export default function DemoExperience({
             }`}
             style={callStatus !== "idle" ? { boxShadow: "0 0 20px rgba(201, 168, 76, 0.35)" } : {}}
           >
-            {pathname === "/demo" || !pathname.match(/^\/[123]/)
-              ? "Start Free Trial — Then $99/Month"
-              : `Set This Up For My ${businessName}`}
+            {prefixMatch("/1") || prefixMatch("/2")
+              ? `Set This Up For My ${businessName}`
+              : `Start Free Trial — Then $${priceInfo?.amount ?? 99}/Month`}
           </button>
         )}
         <button
