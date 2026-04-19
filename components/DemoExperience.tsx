@@ -31,7 +31,7 @@ export default function DemoExperience({
     ? "$19/month \u2014 3-day trial"
     : pathname.includes("/3")
     ? null
-    : "$29/month";
+    : "$99/month \u2014 3-day free trial";
 
   const [callStatus, setCallStatus] = useState<CallStatus>("idle");
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
@@ -354,7 +354,9 @@ export default function DemoExperience({
             }`}
             style={callStatus !== "idle" ? { boxShadow: "0 0 20px rgba(201, 168, 76, 0.35)" } : {}}
           >
-            Set This Up For My {businessName}
+            {pathname === "/demo" || !pathname.match(/^\/[123]/)
+              ? "Start Free Trial — Then $99/Month"
+              : `Set This Up For My ${businessName}`}
           </button>
         )}
         <button

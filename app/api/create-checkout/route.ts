@@ -10,8 +10,10 @@ export async function POST(request: NextRequest) {
     const stripe = getStripe();
     const body = await request.json().catch(() => ({}));
     const businessName: string = body.businessName || "";
-    const unitAmount: number = body.price ? Math.round(body.price * 100) : 2900;
-    const trialDays: number = body.trialDays || 0;
+    const interval: "month" | "year" = body.interval === "year" ? "year" : "month";
+    const defaultAmount = interval === "year" ? 59900 : 9900;
+    const unitAmount: number = body.price ? Math.round(body.price * 100) : defaultAmount;
+    const trialDays: number = body.trialDays ?? 3;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -26,19 +28,19 @@ export async function POST(request: NextRequest) {
                 : "AI Receptionist — 24/7 call answering for your business",
             },
             unit_amount: unitAmount,
-            recurring: { interval: "month" },
+            recurring: { interval },
           },
           quantity: 1,
         },
       ],
       subscription_data: {
-        metadata: { businessName },
+        metadata: { businessName, interval },
         ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
       },
       success_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://www.primevoiceai.com"}/thank-you`,
       cancel_url:
         process.env.NEXT_PUBLIC_SITE_URL || "https://www.primevoiceai.com",
-      metadata: { businessName },
+      metadata: { businessName, interval },
     });
 
     return NextResponse.json({ url: session.url });

@@ -1,4 +1,5 @@
 import IntakeForm from "./IntakeForm";
+import StartTrialButton from "./StartTrialButton";
 
 export default function HeroSection() {
   return (
@@ -37,6 +38,14 @@ export default function HeroSection() {
         {/* Intake Form */}
         <div className="mt-10 w-full md:mt-12">
           <IntakeForm />
+        </div>
+
+        {/* Secondary CTA — direct to checkout */}
+        <div className="mt-5 flex flex-col items-center gap-2">
+          <StartTrialButton />
+          <p className="text-xs text-muted/80">
+            3-day free trial · $99/mo or $599/yr · Cancel anytime
+          </p>
         </div>
 
         {/* Trust Badge */}

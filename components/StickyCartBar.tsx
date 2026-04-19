@@ -40,21 +40,59 @@ const INCLUDED_ITEMS = [
   },
 ];
 
+type BillingInterval = "month" | "year";
+
 export default function StickyCartBar() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>("month");
   const pathname = usePathname();
   const isHomePage = pathname === "/";
 
-  // Route-aware pricing
+  // Route-aware pricing. Root (/) + /demo use the $99/$599 toggle.
+  // /1, /2 keep their fixed A/B pricing. /3 stays booking-only.
   const isBookingRoute = pathname.startsWith("/3");
+  const isRootPricing =
+    isHomePage || pathname === "/demo" || pathname.startsWith("/demo?");
+  const supportsYearlyToggle = isRootPricing;
+
   const priceConfig = pathname.startsWith("/1")
-    ? { price: 19, trialDays: 0, label: "$19/mo", labelLong: "$19/month", trialText: "" }
+    ? {
+        price: 19,
+        trialDays: 0,
+        interval: "month" as BillingInterval,
+        label: "$19/mo",
+        labelLong: "$19/month",
+        trialText: "",
+      }
     : pathname.startsWith("/2")
-    ? { price: 19, trialDays: 3, label: "$19/mo", labelLong: "$19/month", trialText: " \u2014 3-day trial" }
+    ? {
+        price: 19,
+        trialDays: 3,
+        interval: "month" as BillingInterval,
+        label: "$19/mo",
+        labelLong: "$19/month",
+        trialText: " \u2014 3-day trial",
+      }
     : isBookingRoute
     ? null
-    : { price: 29, trialDays: 0, label: "$29/mo", labelLong: "$29/month", trialText: "" };
+    : billingInterval === "year"
+    ? {
+        price: 599,
+        trialDays: 3,
+        interval: "year" as BillingInterval,
+        label: "$599/yr",
+        labelLong: "$599/year",
+        trialText: " \u2014 3-day free trial",
+      }
+    : {
+        price: 99,
+        trialDays: 3,
+        interval: "month" as BillingInterval,
+        label: "$99/mo",
+        labelLong: "$99/month",
+        trialText: " \u2014 3-day free trial",
+      };
 
   async function handleCheckout() {
     if (isCheckingOut || !priceConfig) return;
@@ -69,6 +107,7 @@ export default function StickyCartBar() {
           businessName,
           price: priceConfig.price,
           trialDays: priceConfig.trialDays,
+          interval: priceConfig.interval,
         }),
       });
       const data = await res.json();
@@ -227,8 +266,38 @@ export default function StickyCartBar() {
                 ))}
               </div>
 
+              {/* Billing interval toggle (root/demo only) */}
+              {supportsYearlyToggle && priceConfig && (
+                <div className="mt-8 flex items-center justify-center">
+                  <div className="inline-flex rounded-full border border-gold/30 bg-charcoal/60 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setBillingInterval("month")}
+                      className={`rounded-full px-4 py-1.5 font-sans text-xs font-semibold transition-colors ${
+                        billingInterval === "month"
+                          ? "bg-gold text-background"
+                          : "text-muted hover:text-white"
+                      }`}
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBillingInterval("year")}
+                      className={`rounded-full px-4 py-1.5 font-sans text-xs font-semibold transition-colors ${
+                        billingInterval === "year"
+                          ? "bg-gold text-background"
+                          : "text-muted hover:text-white"
+                      }`}
+                    >
+                      Yearly <span className="ml-1 text-[10px] opacity-80">save ~50%</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* CTA — Stripe checkout or Booking URL */}
-              <div className="mt-10">
+              <div className="mt-6">
                 {priceConfig ? (
                   <>
                     <p className="text-center font-sans text-sm font-semibold text-white mb-1">
@@ -297,7 +366,9 @@ export default function StickyCartBar() {
                   <>
                     <p className="font-serif text-5xl font-bold text-gold md:text-6xl">
                       ${priceConfig.price}
-                      <span className="text-2xl text-gold/60">/month</span>
+                      <span className="text-2xl text-gold/60">
+                        /{priceConfig.interval === "year" ? "year" : "month"}
+                      </span>
                     </p>
                     <p className="mt-2 font-sans text-sm text-muted">
                       {priceConfig.trialDays > 0
