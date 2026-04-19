@@ -121,10 +121,10 @@ export default function IntakeForm() {
           body: JSON.stringify({ prompt: prompt.trim() }),
         }),
         fetch(
-          "https://script.google.com/macros/s/AKfycbw6GnOA6RtCz_xIdewhLO2LAs5iCLXjis1x35yV_xtQg18oxBuW0AgnGZeRN8PNO5Z9/exec",
+          "https://script.google.com/macros/s/AKfycby_-ET6bfJfjPgmO-zPCiUCEemfG8IU7uajj46NQvKaeMuZWzYaFY9BXlK5hAAlAwIB/exec",
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify({
               businessDescription: prompt.trim(),
               route: pathname,
