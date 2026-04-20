@@ -10,33 +10,30 @@ declare global {
   }
 }
 
-const EXAMPLE_PROMPTS = [
-  "My business is Smith HVAC in Dallas and I want a male AI to answer calls and book service appointments.",
-  "We run Acme Plumbing in Chicago. I need a female AI to handle after-hours emergency calls.",
-  "Johnson Landscaping — I want an AI that books lawn-care quotes and answers pricing questions.",
-  "My company is Precision Electric in Phoenix. I need help reducing missed calls during busy days.",
-  "Brightside Roofing in Atlanta — I want a female AI that handles new customer intake and insurance estimates.",
-];
+interface FormData {
+  businessName: string;
+  phoneNumber: string;
+  voiceGender: "female" | "male";
+}
+
+interface FormErrors {
+  businessName?: string;
+  phoneNumber?: string;
+}
 
 const MINIMUM_LOADING_TIME = 4500;
-const TYPE_SPEED_MS = 35;
-const ERASE_SPEED_MS = 15;
-const HOLD_AFTER_TYPE_MS = 2200;
-const HOLD_AFTER_ERASE_MS = 400;
 
 export default function IntakeForm() {
   const router = useRouter();
   const pathname = usePathname();
-  const [prompt, setPrompt] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [formData, setFormData] = useState<FormData>({
+    businessName: "",
+    phoneNumber: "",
+    voiceGender: "female",
+  });
+  const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
-
-  // Typewriter placeholder state
-  const [typedText, setTypedText] = useState("");
-  const [exampleIndex, setExampleIndex] = useState(0);
-  const [phase, setPhase] = useState<"typing" | "holding" | "erasing" | "waiting">("typing");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Capture UTM params + fbclid from URL on mount (client-only, no Suspense needed)
   const utmParamsRef = useRef<Record<string, string>>({});
@@ -52,49 +49,17 @@ export default function IntakeForm() {
     utmParamsRef.current = params;
   }, []);
 
-  // Typewriter animation loop
-  useEffect(() => {
-    if (prompt.length > 0) return; // Pause animation when user has typed something
-
-    const currentExample = EXAMPLE_PROMPTS[exampleIndex];
-    let timeoutId: NodeJS.Timeout;
-
-    if (phase === "typing") {
-      if (typedText.length < currentExample.length) {
-        timeoutId = setTimeout(() => {
-          setTypedText(currentExample.slice(0, typedText.length + 1));
-        }, TYPE_SPEED_MS);
-      } else {
-        timeoutId = setTimeout(() => setPhase("holding"), 0);
-      }
-    } else if (phase === "holding") {
-      timeoutId = setTimeout(() => setPhase("erasing"), HOLD_AFTER_TYPE_MS);
-    } else if (phase === "erasing") {
-      if (typedText.length > 0) {
-        timeoutId = setTimeout(() => {
-          setTypedText(typedText.slice(0, -1));
-        }, ERASE_SPEED_MS);
-      } else {
-        timeoutId = setTimeout(() => setPhase("waiting"), 0);
-      }
-    } else if (phase === "waiting") {
-      timeoutId = setTimeout(() => {
-        setExampleIndex((i) => (i + 1) % EXAMPLE_PROMPTS.length);
-        setPhase("typing");
-      }, HOLD_AFTER_ERASE_MS);
-    }
-
-    return () => clearTimeout(timeoutId);
-  }, [typedText, phase, exampleIndex, prompt.length]);
-
   function validate(): boolean {
-    const trimmed = prompt.trim();
-    if (trimmed.length < 10) {
-      setError("Tell us a bit about your business and what you'd like your AI to do.");
-      return false;
+    const newErrors: FormErrors = {};
+    if (!formData.businessName.trim()) {
+      newErrors.businessName = "Business name is required";
     }
-    setError(null);
-    return true;
+    const phoneDigits = formData.phoneNumber.replace(/\D/g, "");
+    if (phoneDigits.length < 10) {
+      newErrors.phoneNumber = "Enter a valid phone number";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -107,6 +72,7 @@ export default function IntakeForm() {
 
     if (window.fbq) {
       window.fbq("track", "Lead", {
+        content_name: formData.businessName,
         content_category: "Local Business",
       }, { eventID: leadEventId });
     }
@@ -118,7 +84,7 @@ export default function IntakeForm() {
         fetch("/api/create-demo", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: prompt.trim() }),
+          body: JSON.stringify(formData),
         }),
         fetch(
           "https://script.google.com/macros/s/AKfycby_-ET6bfJfjPgmO-zPCiUCEemfG8IU7uajj46NQvKaeMuZWzYaFY9BXlK5hAAlAwIB/exec",
@@ -126,7 +92,9 @@ export default function IntakeForm() {
             method: "POST",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify({
-              businessDescription: prompt.trim(),
+              businessName: formData.businessName,
+              phoneNumber: formData.phoneNumber,
+              voiceGender: formData.voiceGender,
               route: pathname,
               ...utmParamsRef.current,
             }),
@@ -135,7 +103,10 @@ export default function IntakeForm() {
         fetch("/api/meta-lead-conversion", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ eventId: leadEventId }),
+          body: JSON.stringify({
+            phoneNumber: formData.phoneNumber,
+            eventId: leadEventId,
+          }),
         }).catch(() => {}),
         new Promise((resolve) => setTimeout(resolve, MINIMUM_LOADING_TIME)),
       ]);
@@ -175,46 +146,104 @@ export default function IntakeForm() {
     }
   }
 
-  const showTypewriter = prompt.length === 0;
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name as keyof FormErrors]) {
+      setErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
+  }
+
+  const inputClasses =
+    "w-full rounded-xl border border-zinc-200 bg-white px-4 py-3.5 font-sans text-base text-foreground placeholder:text-subtle focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200 transition-all duration-200";
 
   return (
     <>
       <LoadingOverlay isVisible={isLoading} />
 
-      <form onSubmit={handleSubmit} className="mx-auto w-full max-w-2xl">
-        <div className="prompt-card relative">
-          {/* Placeholder overlay (only visible when empty) */}
-          {showTypewriter && (
-            <div className="pointer-events-none absolute inset-x-0 top-0 px-6 pt-6 text-left">
-              <p className="font-sans text-base leading-relaxed text-subtle md:text-lg">
-                <em className="italic text-zinc-500">Example prompt:</em>{" "}
-                {typedText}
-                <span className="typewriter-caret" style={{ height: "1.1em", verticalAlign: "text-bottom" }} />
-              </p>
+      <form onSubmit={handleSubmit} className="mx-auto w-full max-w-lg">
+        <div className="prompt-card p-6 md:p-7">
+          <div className="space-y-4 text-left">
+            {/* Business Name */}
+            <div>
+              <input
+                type="text"
+                name="businessName"
+                placeholder="Your Business Name"
+                value={formData.businessName}
+                onChange={handleChange}
+                className={inputClasses}
+                autoComplete="organization"
+              />
+              {errors.businessName && (
+                <p className="mt-1.5 text-sm text-red-500 font-sans">
+                  {errors.businessName}
+                </p>
+              )}
             </div>
-          )}
 
-          <textarea
-            ref={textareaRef}
-            value={prompt}
-            onChange={(e) => {
-              setPrompt(e.target.value);
-              if (error) setError(null);
-            }}
-            rows={4}
-            className="relative w-full resize-none bg-transparent px-6 pt-6 pb-4 font-sans text-base leading-relaxed text-foreground placeholder:text-transparent focus:outline-none md:text-lg"
-            placeholder=" "
-            autoComplete="off"
-            spellCheck={true}
-          />
+            {/* Phone Number */}
+            <div>
+              <input
+                type="tel"
+                name="phoneNumber"
+                placeholder="Your Phone Number"
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                className={inputClasses}
+                autoComplete="tel"
+              />
+              {errors.phoneNumber && (
+                <p className="mt-1.5 text-sm text-red-500 font-sans">
+                  {errors.phoneNumber}
+                </p>
+              )}
+            </div>
 
-          <div className="flex items-center justify-center gap-3 px-4 pb-4 pt-2">
+            {/* Voice Gender Toggle */}
+            <div>
+              <p className="mb-2 font-sans text-xs font-medium uppercase tracking-wider text-subtle">
+                Voice
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, voiceGender: "female" }))}
+                  className={`flex-1 rounded-lg py-2.5 font-sans text-sm font-medium transition-all duration-200 ${
+                    formData.voiceGender === "female"
+                      ? "bg-foreground text-background"
+                      : "border border-zinc-200 bg-white text-muted hover:text-foreground"
+                  }`}
+                >
+                  Female
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, voiceGender: "male" }))}
+                  className={`flex-1 rounded-lg py-2.5 font-sans text-sm font-medium transition-all duration-200 ${
+                    formData.voiceGender === "male"
+                      ? "bg-foreground text-background"
+                      : "border border-zinc-200 bg-white text-muted hover:text-foreground"
+                  }`}
+                >
+                  Male
+                </button>
+              </div>
+            </div>
+
+            {apiError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                <p className="text-sm text-red-600 font-sans">{apiError}</p>
+              </div>
+            )}
+
+            {/* Submit */}
             <button
               type="submit"
               disabled={isLoading}
-              className="group inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3 font-sans text-sm font-medium text-background transition-all duration-200 hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full bg-foreground px-6 py-3.5 font-sans text-sm font-semibold text-background transition-all duration-200 hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Generate Live Demo Now
+              Generate Live Demo
               <svg
                 className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
                 viewBox="0 0 24 24"
@@ -227,15 +256,6 @@ export default function IntakeForm() {
             </button>
           </div>
         </div>
-
-        {error && (
-          <p className="mt-3 text-center text-sm text-red-500 font-sans">{error}</p>
-        )}
-        {apiError && (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <p className="text-sm text-red-600 font-sans">{apiError}</p>
-          </div>
-        )}
       </form>
     </>
   );
