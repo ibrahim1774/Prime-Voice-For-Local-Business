@@ -120,6 +120,13 @@ export default function StickyCartBar() {
   const isRootPricing =
     isHomePage || pathname === "/demo" || pathname.startsWith("/demo?");
   const supportsYearlyToggle = isRootPricing;
+  // Compact layout used by root + all numeric price-variant routes.
+  // /1 and /2 keep the legacy 8-bullet layout since they're older A/B variants.
+  const useCompactLayout =
+    isRootPricing ||
+    prefixMatch("/19") ||
+    prefixMatch("/29") ||
+    prefixMatch("/49");
 
   const fixedMonthly = (price: number) => ({
     price,
@@ -335,7 +342,7 @@ export default function StickyCartBar() {
               )}
 
               {/* Header */}
-              {supportsYearlyToggle ? (
+              {useCompactLayout ? (
                 <>
                   <p className="mb-2 text-center font-sans text-[11px] font-bold uppercase tracking-[0.2em] text-gold/80">
                     Built for Local Businesses
@@ -370,8 +377,8 @@ export default function StickyCartBar() {
               )}
 
               {/* Benefits List (compact on root) */}
-              <div className={supportsYearlyToggle ? "mt-6 space-y-2.5" : "mt-8 space-y-3"}>
-                {(supportsYearlyToggle ? ROOT_BENEFITS : BENEFITS).map((benefit) => (
+              <div className={useCompactLayout ? "mt-6 space-y-2.5" : "mt-8 space-y-3"}>
+                {(useCompactLayout ? ROOT_BENEFITS : BENEFITS).map((benefit) => (
                   <div key={benefit} className="flex items-start gap-3">
                     <svg
                       className="mt-0.5 h-5 w-5 shrink-0 text-gold"
@@ -467,8 +474,8 @@ export default function StickyCartBar() {
                 )}
               </div>
 
-              {/* How It Works (root/demo only) OR What's Included table (legacy routes) */}
-              {supportsYearlyToggle ? (
+              {/* How It Works (compact routes) OR What's Included table (legacy routes) */}
+              {useCompactLayout ? (
                 <div className="mt-8">
                   <h4 className="mb-4 text-center font-sans text-xs uppercase tracking-[0.2em] text-gold">
                     How It Works
@@ -520,8 +527,8 @@ export default function StickyCartBar() {
                 </div>
               )}
 
-              {/* Optional Integrations (root/demo only) */}
-              {supportsYearlyToggle && (
+              {/* Optional Integrations (compact routes only) */}
+              {useCompactLayout && (
                 <div className="mt-8">
                   <h4 className="mb-1 text-center font-sans text-xs uppercase tracking-[0.2em] text-gold">
                     Optional Integrations
@@ -548,7 +555,7 @@ export default function StickyCartBar() {
               )}
 
               {/* Bottom section — price or booking CTA */}
-              <div className={supportsYearlyToggle ? "mt-6 text-center" : "mt-10 text-center"}>
+              <div className={useCompactLayout ? "mt-6 text-center" : "mt-10 text-center"}>
                 {priceConfig ? (
                   <>
                     <p className="font-serif text-5xl font-bold text-gold md:text-6xl">
