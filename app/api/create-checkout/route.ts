@@ -19,12 +19,8 @@ export async function POST(request: NextRequest) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.primevoiceai.com";
     const successUrl = `${siteUrl}/thank-you?session_id={CHECKOUT_SESSION_ID}`;
 
-    const session = await stripe.checkout.sessions.create({
+    const params: Stripe.Checkout.SessionCreateParams = {
       mode: "subscription",
-      ...(embedded
-        ? { ui_mode: "embedded" as const, redirect_on_completion: "always" as const, return_url: successUrl }
-        : { success_url: successUrl, cancel_url: siteUrl }
-      ),
       line_items: [
         {
           price_data: {
@@ -46,7 +42,18 @@ export async function POST(request: NextRequest) {
         ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
       },
       metadata: { businessName, interval },
-    });
+    };
+
+    if (embedded) {
+      params.ui_mode = "embedded";
+      params.redirect_on_completion = "always";
+      params.return_url = successUrl;
+    } else {
+      params.success_url = successUrl;
+      params.cancel_url = siteUrl;
+    }
+
+    const session = await stripe.checkout.sessions.create(params);
 
     return NextResponse.json(
       embedded
