@@ -6,9 +6,16 @@ import { loadStripe } from "@stripe/stripe-js";
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
 import { BOOKING_URL } from "@/lib/constants";
 
-const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
-  : null;
+const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = PUBLISHABLE_KEY ? loadStripe(PUBLISHABLE_KEY) : null;
+
+if (typeof window !== "undefined" && !stripePromise) {
+  console.warn(
+    "[Checkout] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set at build time — " +
+    "falling back to hosted Stripe. Add it in Vercel → Settings → Environment Variables " +
+    "(exact name, Production scope) and REDEPLOY so the key is inlined into the browser bundle."
+  );
+}
 
 const BENEFITS = [
   "Catch every lead \u2014 24/7 call answering",
