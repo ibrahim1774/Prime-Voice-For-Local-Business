@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
+import { loadStripe } from "@stripe/stripe-js";
+import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
 import { BOOKING_URL } from "@/lib/constants";
+
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 const BENEFITS = [
   "Catch every lead \u2014 24/7 call answering",
@@ -103,6 +109,13 @@ export default function StickyCartBar() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("month");
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+
+  const closeCheckout = useCallback(() => {
+    setIsCheckoutOpen(false);
+    setClientSecret(null);
+  }, []);
   const pathname = usePathname();
   const isHomePage = pathname === "/";
 
@@ -195,14 +208,36 @@ export default function StickyCartBar() {
           price: priceConfig.price,
           trialDays: priceConfig.trialDays,
           interval: priceConfig.interval,
+          embedded: !!stripePromise,
         }),
       });
       const data = await res.json();
-      if (data.url) window.location.href = data.url;
+      if (data.clientSecret) {
+        setClientSecret(data.clientSecret);
+        setIsCheckoutOpen(true);
+        setIsDrawerOpen(false);
+      } else if (data.url) {
+        window.location.href = data.url;
+      }
     } catch {
+      // fall through
+    } finally {
       setIsCheckingOut(false);
     }
   }
+
+  // Lock body scroll + handle Escape for the Stripe checkout modal
+  useEffect(() => {
+    if (!isCheckoutOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeCheckout(); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [isCheckoutOpen, closeCheckout]);
 
   // Listen for custom event to open drawer (used by demo page CTA)
   useEffect(() => {
@@ -586,6 +621,41 @@ export default function StickyCartBar() {
           </div>
         </div>
       </div>
+
+      {/* Embedded Stripe Checkout modal */}
+      {isCheckoutOpen && clientSecret && stripePromise && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/90 backdrop-blur-md animate-fade-in-up"
+          onClick={closeCheckout}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative w-full max-w-[440px] max-h-[calc(100vh-32px)] rounded-3xl border border-gold/20 bg-card shadow-2xl overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={closeCheckout}
+              aria-label="Close checkout"
+              className="absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-gold/20 bg-background/80 text-subtle transition-colors hover:text-foreground hover:border-gold/40"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <div className="flex-1 overflow-y-auto">
+              <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
+                <EmbeddedCheckout />
+              </EmbeddedCheckoutProvider>
+            </div>
+            {/* Bottom fade + scroll hint */}
+            <div className="pointer-events-none absolute left-0 right-0 bottom-0 h-14 bg-gradient-to-t from-card via-card/85 to-transparent" />
+            <div className="pointer-events-none absolute left-1/2 bottom-2 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-full border border-gold/20 bg-background/90 px-3 py-1 font-sans text-[9px] font-bold uppercase tracking-[0.25em] text-subtle animate-bounce">
+              Scroll
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -14,9 +14,17 @@ export async function POST(request: NextRequest) {
     const defaultAmount = interval === "year" ? 59900 : 9900;
     const unitAmount: number = body.price ? Math.round(body.price * 100) : defaultAmount;
     const trialDays: number = body.trialDays ?? 3;
+    const embedded: boolean = body.embedded === true;
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.primevoiceai.com";
+    const successUrl = `${siteUrl}/thank-you?session_id={CHECKOUT_SESSION_ID}`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
+      ...(embedded
+        ? { ui_mode: "embedded" as const, redirect_on_completion: "always" as const, return_url: successUrl }
+        : { success_url: successUrl, cancel_url: siteUrl }
+      ),
       line_items: [
         {
           price_data: {
@@ -37,13 +45,14 @@ export async function POST(request: NextRequest) {
         metadata: { businessName, interval },
         ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
       },
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://www.primevoiceai.com"}/thank-you?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:
-        process.env.NEXT_PUBLIC_SITE_URL || "https://www.primevoiceai.com",
       metadata: { businessName, interval },
     });
 
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json(
+      embedded
+        ? { clientSecret: session.client_secret }
+        : { url: session.url }
+    );
   } catch (error) {
     console.error("Stripe checkout error:", error);
     return NextResponse.json(
