@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.primevoiceai.com";
     const successUrl = `${siteUrl}/thank-you?session_id={CHECKOUT_SESSION_ID}`;
 
-    const params: Stripe.Checkout.SessionCreateParams = {
+    const params: Parameters<typeof stripe.checkout.sessions.create>[0] = {
       mode: "subscription",
       line_items: [
         {
