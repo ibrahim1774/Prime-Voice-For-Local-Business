@@ -19,7 +19,10 @@ export async function POST(request: NextRequest) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.primevoiceai.com";
     const successUrl = `${siteUrl}/thank-you?session_id={CHECKOUT_SESSION_ID}`;
 
-    const params: Parameters<typeof stripe.checkout.sessions.create>[0] = {
+    // Typed as `any` because Stripe v22 types narrow `ui_mode` per overload,
+    // which blocks conditional mutation between 'hosted' and 'embedded'. The
+    // Stripe runtime accepts both shapes just fine.
+    const params: any = {
       mode: "subscription",
       line_items: [
         {
