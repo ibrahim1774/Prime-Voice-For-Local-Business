@@ -200,27 +200,48 @@ export default function StickyCartBar() {
     try {
       const businessName =
         new URLSearchParams(window.location.search).get("businessName") || "";
-      const res = await fetch("/api/create-checkout", {
+      const basePayload = {
+        businessName,
+        price: priceConfig.price,
+        trialDays: priceConfig.trialDays,
+        interval: priceConfig.interval,
+      };
+
+      // Try embedded first when Stripe.js is available; fall back to hosted URL.
+      const tryEmbedded = !!stripePromise;
+      let res = await fetch("/api/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          businessName,
-          price: priceConfig.price,
-          trialDays: priceConfig.trialDays,
-          interval: priceConfig.interval,
-          embedded: !!stripePromise,
-        }),
+        body: JSON.stringify({ ...basePayload, embedded: tryEmbedded }),
       });
-      const data = await res.json();
-      if (data.clientSecret) {
+      let data: { clientSecret?: string; url?: string; error?: string } = await res.json().catch(() => ({}));
+
+      if (tryEmbedded && data.clientSecret) {
         setClientSecret(data.clientSecret);
         setIsCheckoutOpen(true);
         setIsDrawerOpen(false);
-      } else if (data.url) {
-        window.location.href = data.url;
+        return;
       }
-    } catch {
-      // fall through
+
+      // Fallback: request hosted URL (handles cases where embedded mode fails)
+      if (!data.url) {
+        res = await fetch("/api/create-checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...basePayload, embedded: false }),
+        });
+        data = await res.json().catch(() => ({}));
+      }
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        console.error("Checkout failed:", data.error || "no url/clientSecret returned");
+        alert("Something went wrong starting checkout. Please try again or contact support.");
+      }
+    } catch (err) {
+      console.error("Checkout error:", err);
+      alert("Something went wrong starting checkout. Please try again or contact support.");
     } finally {
       setIsCheckingOut(false);
     }
