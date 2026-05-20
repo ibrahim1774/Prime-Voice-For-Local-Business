@@ -98,7 +98,7 @@ function ThankYouContent() {
           {displayValue !== null && displayValue > 0 && (
             <span className="mt-1 block text-sm text-subtle">
               Subscription: ${displayValue}
-              {displayValue >= 500 ? "/year" : "/month"} · 3-day free trial active.
+              {displayValue >= 500 ? "/year" : "/month"} · Free trial active.
             </span>
           )}
         </p>

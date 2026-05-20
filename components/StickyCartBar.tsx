@@ -33,7 +33,6 @@ const ROOT_BENEFITS = [
   "24/7 call answering so you don\u2019t miss leads",
   "Books jobs straight into your calendar",
   "Trained on your business and services",
-  "Replaces a $3,000/mo front desk at a fraction of the cost",
 ];
 
 const HOW_IT_WORKS = [
@@ -148,19 +147,19 @@ export default function StickyCartBar() {
     prefixMatch("/29") ||
     prefixMatch("/49");
 
-  const fixedMonthly = (price: number) => ({
+  const fixedMonthly = (price: number, trialDays: number = 3) => ({
     price,
-    trialDays: 3,
+    trialDays,
     interval: "month" as BillingInterval,
     label: `$${price}/mo`,
     labelLong: `$${price}/month`,
-    trialText: " \u2014 3-day free trial",
+    trialText: trialDays > 0 ? ` \u2014 ${trialDays}-day free trial` : "",
   });
 
   const priceConfig = prefixMatch("/19")
-    ? fixedMonthly(19)
+    ? fixedMonthly(19, 1)
     : prefixMatch("/29")
-    ? fixedMonthly(29)
+    ? fixedMonthly(29, 1)
     : prefixMatch("/49")
     ? fixedMonthly(49)
     : prefixMatch("/1")

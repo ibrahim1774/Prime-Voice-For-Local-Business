@@ -29,9 +29,9 @@ export default function DemoExperience({
     pathname === prefix || pathname.startsWith(prefix + "/");
 
   const priceInfo: { amount: number; label: string } | null = prefixMatch("/19")
-    ? { amount: 19, label: "$19/month \u2014 3-day free trial" }
+    ? { amount: 19, label: "$19/month \u2014 1-day free trial" }
     : prefixMatch("/29")
-    ? { amount: 29, label: "$29/month \u2014 3-day free trial" }
+    ? { amount: 29, label: "$29/month \u2014 1-day free trial" }
     : prefixMatch("/49")
     ? { amount: 49, label: "$49/month \u2014 3-day free trial" }
     : prefixMatch("/1")
@@ -385,12 +385,14 @@ export default function DemoExperience({
               : `Start Free Trial — Then $${priceInfo?.amount ?? 99}/Month`}
           </button>
         )}
-        <button
-          onClick={() => setIsBookingOpen(true)}
-          className="block w-full rounded-xl bg-gold py-3.5 text-center font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light"
-        >
-          Book a Call to Set This Up
-        </button>
+        {!(prefixMatch("/19") || prefixMatch("/29") || prefixMatch("/49")) && (
+          <button
+            onClick={() => setIsBookingOpen(true)}
+            className="block w-full rounded-xl bg-gold py-3.5 text-center font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light"
+          >
+            Book a Call to Set This Up
+          </button>
+        )}
       </div>
 
       <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
