@@ -135,7 +135,22 @@ export default function DemoExperience({
     setError(null);
 
     try {
-      await vapiRef.current.start(assistantId);
+      // Override voice + transcriber at call-time so every subpage uses
+      // the same warm Cartesia "Brooke" voice (matches Amalvera/Mia).
+      // Existing dashboard-side prompt + model + tools stay untouched.
+      await vapiRef.current.start(assistantId, {
+        voice: {
+          provider: "cartesia",
+          voiceId: "6f84f4b8-58a2-430c-8c79-688dad597532",
+          model: "sonic-2",
+          language: "en",
+        },
+        transcriber: {
+          provider: "deepgram",
+          model: "nova-2",
+          language: "en-US",
+        },
+      } as Parameters<typeof vapiRef.current.start>[1]);
     } catch (err) {
       console.error("Failed to start call:", err);
       const message =
