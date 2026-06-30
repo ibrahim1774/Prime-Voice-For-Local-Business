@@ -1,7 +1,14 @@
 import IntakeForm from "./IntakeForm";
 import StartTrialButton from "./StartTrialButton";
 
-export default function HeroSection() {
+interface HeroSectionProps {
+  // Optional copy overrides. Default = the standard home/variant copy; the
+  // /199 page passes its own headline + subtext.
+  headline?: React.ReactNode;
+  subtext?: React.ReactNode;
+}
+
+export default function HeroSection({ headline, subtext }: HeroSectionProps = {}) {
   return (
     <section className="relative min-h-[100dvh] overflow-hidden dotted-grid-bg">
       {/* Soft radial glow overlay */}
@@ -24,15 +31,23 @@ export default function HeroSection() {
       <div className="relative z-10 mx-auto flex min-h-[100dvh] max-w-4xl flex-col items-center justify-center px-5 py-24 text-center">
         {/* Main headline */}
         <h1 className="font-serif text-3xl font-semibold leading-[1.15] tracking-tight text-foreground sm:text-4xl md:text-5xl lg:text-[56px]">
-          <span className="text-muted">Custom AI Receptionist for Local Businesses.</span>{" "}
-          <span className="font-bold text-foreground">Generate Your Live Demo in 20 Seconds.</span>
+          {headline ?? (
+            <>
+              <span className="text-muted">Custom AI Receptionist for Local Businesses.</span>{" "}
+              <span className="font-bold text-foreground">Generate Your Live Demo in 20 Seconds.</span>
+            </>
+          )}
         </h1>
 
         {/* Subtext */}
         <p className="mx-auto mt-5 max-w-2xl font-sans text-sm leading-relaxed text-muted md:mt-6 md:text-base">
-          Don&apos;t lose big jobs to missed calls. Your AI picks up 24/7. It books
-          jobs. It answers pricing questions. It covers emergencies while you
-          work.
+          {subtext ?? (
+            <>
+              Don&apos;t lose big jobs to missed calls. Your AI picks up 24/7. It books
+              jobs. It answers pricing questions. It covers emergencies while you
+              work.
+            </>
+          )}
         </p>
 
         {/* Intake Form */}

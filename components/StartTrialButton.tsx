@@ -15,7 +15,9 @@ export default function StartTrialButton() {
   const prefixMatch = (p: string) =>
     pathname === p || pathname.startsWith(p + "/");
 
-  const priceInfo: PriceInfo | null = prefixMatch("/19")
+  const priceInfo: PriceInfo | null = prefixMatch("/199")
+    ? { amount: 199, trial: true, hasYearly: false }
+    : prefixMatch("/19")
     ? { amount: 19, trial: true, hasYearly: false }
     : prefixMatch("/29")
     ? { amount: 29, trial: true, hasYearly: false }

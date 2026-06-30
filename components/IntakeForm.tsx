@@ -132,6 +132,8 @@ export default function IntakeForm() {
           ? "/29/demo"
           : pathname === "/49"
           ? "/49/demo"
+          : pathname === "/199"
+          ? "/199/demo"
           : "/demo";
       router.push(
         `${demoBase}?assistantId=${data.assistantId}&businessName=${encodeURIComponent(data.businessName)}`

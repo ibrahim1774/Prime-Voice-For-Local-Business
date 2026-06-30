@@ -28,7 +28,9 @@ export default function DemoExperience({
   const prefixMatch = (prefix: string) =>
     pathname === prefix || pathname.startsWith(prefix + "/");
 
-  const priceInfo: { amount: number; label: string } | null = prefixMatch("/19")
+  const priceInfo: { amount: number; label: string } | null = prefixMatch("/199")
+    ? { amount: 199, label: "$199/month \u2014 3-day free trial" }
+    : prefixMatch("/19")
     ? { amount: 19, label: "$19/month \u2014 1-day free trial" }
     : prefixMatch("/29")
     ? { amount: 29, label: "$29/month \u2014 1-day free trial" }
@@ -385,7 +387,7 @@ export default function DemoExperience({
               : `Start Free Trial — Then $${priceInfo?.amount ?? 99}/Month`}
           </button>
         )}
-        {!(prefixMatch("/19") || prefixMatch("/29") || prefixMatch("/49")) && (
+        {!(prefixMatch("/19") || prefixMatch("/29") || prefixMatch("/49") || prefixMatch("/199")) && (
           <button
             onClick={() => setIsBookingOpen(true)}
             className="block w-full rounded-xl bg-gold py-3.5 text-center font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light"
