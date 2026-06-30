@@ -145,7 +145,8 @@ export default function StickyCartBar() {
     isRootPricing ||
     prefixMatch("/19") ||
     prefixMatch("/29") ||
-    prefixMatch("/49");
+    prefixMatch("/49") ||
+    prefixMatch("/199");
 
   const fixedMonthly = (price: number, trialDays: number = 3) => ({
     price,
@@ -156,7 +157,9 @@ export default function StickyCartBar() {
     trialText: trialDays > 0 ? ` \u2014 ${trialDays}-day free trial` : "",
   });
 
-  const priceConfig = prefixMatch("/19")
+  const priceConfig = prefixMatch("/199")
+    ? fixedMonthly(199)
+    : prefixMatch("/19")
     ? fixedMonthly(19, 1)
     : prefixMatch("/29")
     ? fixedMonthly(29, 1)
@@ -298,6 +301,7 @@ export default function StickyCartBar() {
     pathname !== "/19" &&
     pathname !== "/29" &&
     pathname !== "/49" &&
+    pathname !== "/199" &&
     !pathname.startsWith("/call") &&
     !pathname.startsWith("/booking-confirmation") &&
     !pathname.startsWith("/thank-you");
