@@ -196,16 +196,17 @@ select option {
   letter-spacing: -0.022em;
 }
 
-/* The signature: a blue gradient hero panel evoking a live call screen. */
-.mv-hero-panel {
-  background:
-    radial-gradient(120% 130% at 50% -10%, #c3d5ff 0%, #93b1ff 32%, #5680ff 66%, #2f6bff 100%);
+/* Hero card — a light rounded panel on a soft-gray page, with a blue glow
+   rising from the bottom (matching the reference). Black headline sits on the
+   white upper area; the glow fills the lower half behind the buttons. */
+.mv-hero-card {
+  background: #ffffff;
+  border: 1px solid #e9ebf1;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 24px 70px rgba(16, 24, 40, 0.08);
 }
-
-/* Soft inner sheen + faint sparkle, matching the reference's hero. */
-.mv-hero-sheen {
+.mv-hero-glow {
   background:
-    radial-gradient(60% 45% at 50% 12%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 70%);
+    radial-gradient(80% 80% at 50% 118%, #2f6bff 0%, #6a90ff 34%, #cdd9ff 62%, rgba(233, 239, 255, 0) 82%);
 }
 
 /* Feature / step card. */
