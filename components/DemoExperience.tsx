@@ -340,7 +340,11 @@ export default function DemoExperience({
                 <p className="text-[10px] uppercase tracking-wider text-gold/60 mb-1 font-sans font-bold">
                   {entry.role === "assistant" ? "AI Receptionist" : "You"}
                 </p>
-                <p className="font-sans text-[15px] text-white leading-relaxed">
+                <p
+                  className={`font-sans text-[15px] leading-relaxed ${
+                    entry.role === "assistant" ? "text-[#0a0a0a]" : "text-white"
+                  }`}
+                >
                   {entry.text}
                 </p>
               </div>

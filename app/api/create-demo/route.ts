@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { scrapeSite } from "@/lib/scrapeSite";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -21,6 +22,9 @@ interface CreateDemoRequest {
   businessName: string;
   phoneNumber: string;
   voiceGender?: "female" | "male";
+  // Optional. When provided, the homepage is scraped and its content is used
+  // to tailor the receptionist to the business's real services / hours / tone.
+  businessWebsite?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -45,6 +49,23 @@ export async function POST(request: NextRequest) {
     const businessName = body.businessName.trim();
     const voiceGender = body.voiceGender === "male" ? "male" : "female";
 
+    // Optional website scrape — fail-soft. When it succeeds, its content is
+    // injected below so the generated prompt is grounded in the business's
+    // real services, service area, hours, and tone. When it fails or no URL
+    // was given, generation falls back to name-only (unchanged behavior).
+    const businessWebsite = (body.businessWebsite || "").trim();
+    const scraped = businessWebsite ? await scrapeSite(businessWebsite) : null;
+    const websiteContext = scraped
+      ? `
+
+This business has a website — content scraped from it is below. Ground the receptionist in it: use the business's REAL services/specialties, service area, hours, and brand tone. Prefer these specifics over generic language, but do NOT invent anything that isn't present here (no made-up prices, owner names, or services not listed).
+
+--- WEBSITE CONTENT START ---
+${scraped.text}
+--- WEBSITE CONTENT END ---
+`
+      : "";
+
     // Generate custom local-business receptionist system prompt with Claude
     const claudeResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5-20250929",
@@ -55,6 +76,7 @@ export async function POST(request: NextRequest) {
           content: `You are an expert at creating AI receptionist system prompts for local service businesses (HVAC, plumbing, landscaping, electrical, roofing, pest control, handyman, painting, cleaning, etc.). Generate a custom system prompt for this business:
 
 Business Name: "${businessName}"
+${websiteContext}
 
 This receptionist answers phone calls for this local business. The goal is to book service appointments, answer customer inquiries, handle emergencies, and capture leads. Here is what you need to know:
 
