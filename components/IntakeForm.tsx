@@ -197,7 +197,7 @@ export default function IntakeForm() {
           ? "/199/demo"
           : "/demo";
       router.push(
-        `${demoBase}?assistantId=${data.assistantId}&businessName=${encodeURIComponent(data.businessName)}`
+        `${demoBase}?assistantId=${data.assistantId}&businessName=${encodeURIComponent(data.businessName)}&voiceGender=${formData.voiceGender}`
       );
     } catch (err) {
       setIsLoading(false);

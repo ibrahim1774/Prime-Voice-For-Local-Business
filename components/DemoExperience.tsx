@@ -17,11 +17,19 @@ type CallStatus = "idle" | "connecting" | "active" | "ended";
 interface DemoExperienceProps {
   assistantId: string;
   businessName: string;
+  voiceGender?: "female" | "male";
 }
+
+// Cartesia sonic-2 voices used for the call-time override. Female keeps the
+// warm "Brooke"; male uses "Customer Support Man" so the gender toggle is
+// actually honored on the live call.
+const FEMALE_VOICE_ID = "6f84f4b8-58a2-430c-8c79-688dad597532"; // Brooke
+const MALE_VOICE_ID = "a167e0f3-df7e-4d52-a9c3-f949145efdab"; // Customer Support Man
 
 export default function DemoExperience({
   assistantId,
   businessName,
+  voiceGender = "female",
 }: DemoExperienceProps) {
   const pathname = usePathname();
   const isBookingRoute = pathname.startsWith("/3");
@@ -146,13 +154,14 @@ export default function DemoExperience({
     setError(null);
 
     try {
-      // Override voice + transcriber at call-time so every subpage uses
-      // the same warm Cartesia "Brooke" voice (matches Amalvera/Mia).
-      // Existing dashboard-side prompt + model + tools stay untouched.
+      // Override voice + transcriber at call-time. The voice honors the
+      // visitor's gender choice (female → warm "Brooke", male → "Customer
+      // Support Man"); both are sonic-2 so they resolve to their real
+      // genders. Existing dashboard-side prompt + model + tools stay untouched.
       await vapiRef.current.start(assistantId, {
         voice: {
           provider: "cartesia",
-          voiceId: "6f84f4b8-58a2-430c-8c79-688dad597532",
+          voiceId: voiceGender === "male" ? MALE_VOICE_ID : FEMALE_VOICE_ID,
           model: "sonic-2",
           language: "en",
         },

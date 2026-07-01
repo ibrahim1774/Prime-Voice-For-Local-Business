@@ -2,12 +2,12 @@ import { redirect } from "next/navigation";
 import DemoExperience from "@/components/DemoExperience";
 
 interface DemoPageProps {
-  searchParams: Promise<{ assistantId?: string; businessName?: string }>;
+  searchParams: Promise<{ assistantId?: string; businessName?: string; voiceGender?: string }>;
 }
 
 export default async function Demo49Page({ searchParams }: DemoPageProps) {
   const params = await searchParams;
-  const { assistantId, businessName } = params;
+  const { assistantId, businessName, voiceGender } = params;
 
   if (!assistantId || !businessName) {
     redirect("/49");
@@ -18,6 +18,7 @@ export default async function Demo49Page({ searchParams }: DemoPageProps) {
       <DemoExperience
         assistantId={assistantId}
         businessName={decodeURIComponent(businessName)}
+        voiceGender={voiceGender === "male" ? "male" : "female"}
       />
     </main>
   );
