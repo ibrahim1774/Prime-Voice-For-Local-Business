@@ -121,6 +121,10 @@ Return ONLY the system prompt text. No markdown formatting, no explanations, no 
       throw new Error("Failed to generate system prompt");
     }
 
+    // Classic Cartesia voices — native to the sonic-2 model (see the voice
+    // config below). These UUIDs are NOT in sonic-3's new voice set, so under
+    // sonic-3 the male voice failed to resolve and Vapi fell back to a default
+    // (female-sounding) voice — which is why "male" came out female.
     const voiceId =
       voiceGender === "male"
         ? "a167e0f3-df7e-4d52-a9c3-f949145efdab" // Customer Support Man
@@ -145,7 +149,11 @@ Return ONLY the system prompt text. No markdown formatting, no explanations, no 
         voice: {
           provider: "cartesia",
           voiceId: voiceId,
-          model: "sonic-3",
+          // sonic-2 (not sonic-3): the classic voice IDs above are native to
+          // sonic-2 and resolve to their real genders. sonic-3 ships a new
+          // voice set and dropped these, causing the male voice to fall back
+          // to a female default.
+          model: "sonic-2",
         },
         transcriber: {
           provider: "deepgram",
