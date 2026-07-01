@@ -13,12 +13,14 @@ declare global {
 interface FormData {
   businessName: string;
   phoneNumber: string;
+  businessWebsite: string;
   voiceGender: "female" | "male";
 }
 
 interface FormErrors {
   businessName?: string;
   phoneNumber?: string;
+  businessWebsite?: string;
 }
 
 const MINIMUM_LOADING_TIME = 4500;
@@ -29,6 +31,7 @@ export default function IntakeForm() {
   const [formData, setFormData] = useState<FormData>({
     businessName: "",
     phoneNumber: "",
+    businessWebsite: "",
     voiceGender: "female",
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -57,6 +60,11 @@ export default function IntakeForm() {
     const phoneDigits = formData.phoneNumber.replace(/\D/g, "");
     if (phoneDigits.length < 10) {
       newErrors.phoneNumber = "Enter a valid phone number";
+    }
+    // Website is optional — only validate the shape if something was typed.
+    const website = formData.businessWebsite.trim();
+    if (website && !/^(https?:\/\/)?[^\s.]+\.[^\s]{2,}$/i.test(website)) {
+      newErrors.businessWebsite = "Enter a valid website (or leave it blank)";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -94,6 +102,7 @@ export default function IntakeForm() {
             body: JSON.stringify({
               businessName: formData.businessName,
               phoneNumber: formData.phoneNumber,
+              businessWebsite: formData.businessWebsite,
               voiceGender: formData.voiceGender,
               route: pathname,
               ...utmParamsRef.current,
@@ -161,7 +170,7 @@ export default function IntakeForm() {
 
   return (
     <>
-      <LoadingOverlay isVisible={isLoading} />
+      <LoadingOverlay isVisible={isLoading} hasWebsite={!!formData.businessWebsite.trim()} />
 
       <form onSubmit={handleSubmit} className="mx-auto w-full max-w-lg">
         <div className="prompt-card p-6 md:p-7">
@@ -198,6 +207,30 @@ export default function IntakeForm() {
               {errors.phoneNumber && (
                 <p className="mt-1.5 text-sm text-red-500 font-sans">
                   {errors.phoneNumber}
+                </p>
+              )}
+            </div>
+
+            {/* Business Website (optional) — when provided, we scrape it and
+                tailor the receptionist to the business's real services/tone. */}
+            <div>
+              <input
+                type="url"
+                name="businessWebsite"
+                placeholder="Your Business Website (optional)"
+                value={formData.businessWebsite}
+                onChange={handleChange}
+                className={inputClasses}
+                autoComplete="url"
+                inputMode="url"
+              />
+              {errors.businessWebsite ? (
+                <p className="mt-1.5 text-sm text-red-500 font-sans">
+                  {errors.businessWebsite}
+                </p>
+              ) : (
+                <p className="mt-1.5 text-xs text-subtle font-sans">
+                  Add it and we&apos;ll tailor your receptionist to your services.
                 </p>
               )}
             </div>

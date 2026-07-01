@@ -4,68 +4,79 @@ import { useState, useEffect } from "react";
 
 interface LoadingOverlayProps {
   isVisible: boolean;
+  // When true, adds a "Reading your website..." step to the copy so the
+  // messaging matches the extra scrape work happening behind the scenes.
+  hasWebsite?: boolean;
 }
 
-const LOADING_MESSAGES = [
-  { text: "Analyzing your business...", duration: 1500 },
-  { text: "Training your AI receptionist...", duration: 2000 },
-  { text: "Almost ready...", duration: 1000 },
+const BASE_MESSAGES = [
+  "Analyzing your business...",
+  "Training your AI receptionist...",
+  "Almost ready...",
 ];
 
-export default function LoadingOverlay({ isVisible }: LoadingOverlayProps) {
-  const [messageIndex, setMessageIndex] = useState(0);
-  const [fadeKey, setFadeKey] = useState(0);
+export default function LoadingOverlay({ isVisible, hasWebsite = false }: LoadingOverlayProps) {
+  const [progress, setProgress] = useState(0);
+
+  const messages = hasWebsite
+    ? [
+        "Analyzing your business...",
+        "Reading your website...",
+        "Training your AI receptionist...",
+        "Almost ready...",
+      ]
+    : BASE_MESSAGES;
 
   useEffect(() => {
     if (!isVisible) {
-      setMessageIndex(0);
-      setFadeKey(0);
+      setProgress(0);
       return;
     }
 
-    let timeoutId: NodeJS.Timeout;
-    let currentIndex = 0;
+    // Ease toward ~95% so the bar always feels alive but never claims
+    // completion before the demo is actually ready — the overlay unmounts
+    // the moment generation succeeds (or errors out).
+    const interval = setInterval(() => {
+      setProgress((p) => {
+        if (p >= 95) return 95;
+        const step = Math.max(0.4, (95 - p) * 0.045);
+        return Math.min(95, p + step);
+      });
+    }, 90);
 
-    const advance = () => {
-      if (currentIndex < LOADING_MESSAGES.length - 1) {
-        currentIndex++;
-        setMessageIndex(currentIndex);
-        setFadeKey((prev) => prev + 1);
-        timeoutId = setTimeout(advance, LOADING_MESSAGES[currentIndex].duration);
-      }
-    };
-
-    timeoutId = setTimeout(advance, LOADING_MESSAGES[0].duration);
-
-    return () => clearTimeout(timeoutId);
+    return () => clearInterval(interval);
   }, [isVisible]);
 
   if (!isVisible) return null;
 
+  const pct = Math.round(progress);
+  const messageIndex = Math.min(
+    messages.length - 1,
+    Math.floor((progress / 100) * messages.length)
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm">
-      <div className="text-center">
+      <div className="w-full max-w-xs px-6 text-center">
         {/* Gold spinning ring */}
         <div className="mx-auto mb-8 h-16 w-16 rounded-full border-4 border-gold/20 border-t-gold animate-spin" />
 
         {/* Animated message */}
-        <p
-          key={fadeKey}
-          className="text-xl font-sans text-gold animate-fade-in-up"
-        >
-          {LOADING_MESSAGES[messageIndex].text}
+        <p key={messageIndex} className="text-xl font-sans text-gold animate-fade-in-up">
+          {messages[messageIndex]}
         </p>
 
-        {/* Progress dots */}
-        <div className="mt-6 flex justify-center gap-2">
-          {LOADING_MESSAGES.map((_, i) => (
+        {/* Progress bar + live percentage */}
+        <div className="mt-6">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-gold/15">
             <div
-              key={i}
-              className={`h-1.5 w-1.5 rounded-full transition-colors duration-500 ${
-                i <= messageIndex ? "bg-gold" : "bg-gold/20"
-              }`}
+              className="h-full rounded-full bg-gold transition-[width] duration-150 ease-out"
+              style={{ width: `${pct}%` }}
             />
-          ))}
+          </div>
+          <p className="mt-2 font-sans text-sm font-semibold text-gold tabular-nums">
+            {pct}%
+          </p>
         </div>
 
         <p className="mx-auto mt-8 max-w-xs font-sans text-xs text-subtle leading-relaxed">
