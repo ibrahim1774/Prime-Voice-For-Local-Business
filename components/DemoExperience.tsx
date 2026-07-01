@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import Vapi from "@vapi-ai/web";
-import { BOOKING_URL } from "@/lib/constants";
+import { BOOKING_URL, SETUP_CALL_URL } from "@/lib/constants";
 import BookingModal from "./BookingModal";
 
 interface TranscriptEntry {
@@ -27,6 +27,15 @@ export default function DemoExperience({
   const isBookingRoute = pathname.startsWith("/3");
   const prefixMatch = (prefix: string) =>
     pathname === prefix || pathname.startsWith(prefix + "/");
+  // $99 (home) and $199 subpages: after the demo generates, the CTA books a
+  // setup call (we build it for them) instead of self-serve Stripe checkout.
+  const isSetupCallRoute = pathname === "/" || prefixMatch("/199");
+  // Either kind of route shows a booking CTA instead of the Stripe button.
+  const showBookingCta = isBookingRoute || isSetupCallRoute;
+  const bookingHref = isSetupCallRoute ? SETUP_CALL_URL : BOOKING_URL;
+  const bookingCtaText = isSetupCallRoute
+    ? "Book a Call to Set This Up"
+    : "Book a Call to Implement This for Your Business";
 
   const priceInfo: { amount: number; label: string } | null = prefixMatch("/199")
     ? { amount: 199, label: "$199/month \u2014 3-day free trial" }
@@ -44,7 +53,7 @@ export default function DemoExperience({
     ? null
     : { amount: 99, label: "$99/month \u2014 3-day free trial" };
 
-  const priceLabel = priceInfo?.label ?? null;
+  const priceLabel = isSetupCallRoute ? null : priceInfo?.label ?? null;
 
   const [callStatus, setCallStatus] = useState<CallStatus>("idle");
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
@@ -184,7 +193,7 @@ export default function DemoExperience({
           </span>
         </div>
 
-        <h1 className="font-serif text-xl font-bold text-white md:text-3xl">
+        <h1 className="font-serif text-xl font-bold text-foreground md:text-3xl">
           Your AI Receptionist is Ready,{" "}
           <span className="text-gold">{businessName}</span>
         </h1>
@@ -353,12 +362,26 @@ export default function DemoExperience({
         </div>
       </div>
 
-      {/* Setup promise banner */}
-      <div className="shrink-0 mt-3 rounded-lg bg-gold/10 border border-gold/20 px-4 py-2.5 text-center">
-        <p className="font-sans text-xs font-semibold text-gold">
-          Setup in 24 Hours — We Build Your Entire System for You
-        </p>
-      </div>
+      {/* Setup promise — booking-flow routes explain the done-for-you setup;
+          everyone else keeps the 24-hour promise line. */}
+      {isSetupCallRoute ? (
+        <div className="shrink-0 mt-3 rounded-lg bg-gold/10 border border-gold/20 px-4 py-2.5">
+          <p className="font-sans text-[11px] font-semibold text-gold text-center mb-1.5">
+            How setup works
+          </p>
+          <ul className="font-sans text-[11px] leading-relaxed text-foreground/80 space-y-0.5">
+            <li>• We call you and custom-tailor it to your business</li>
+            <li>• We give you a number and forward your existing line</li>
+            <li>• Live during business hours or after-hours — your call</li>
+          </ul>
+        </div>
+      ) : (
+        <div className="shrink-0 mt-3 rounded-lg bg-gold/10 border border-gold/20 px-4 py-2.5 text-center">
+          <p className="font-sans text-xs font-semibold text-gold">
+            Setup in 24 Hours — We Build Your Entire System for You
+          </p>
+        </div>
+      )}
 
       {/* Bottom CTA — always visible */}
       <div className="shrink-0 pt-3 pb-1 space-y-2">
@@ -367,14 +390,14 @@ export default function DemoExperience({
             Start for {priceLabel} — cancel anytime
           </p>
         )}
-        {isBookingRoute ? (
+        {showBookingCta ? (
           <a
-            href={BOOKING_URL}
+            href={bookingHref}
             target="_blank"
             rel="noopener noreferrer"
             className="block w-full rounded-xl bg-gold py-3.5 text-center font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light"
           >
-            Book a Call to Implement This for Your Business
+            {bookingCtaText}
           </a>
         ) : (
           <button
@@ -391,7 +414,7 @@ export default function DemoExperience({
               : `Start Free Trial — Then $${priceInfo?.amount ?? 99}/Month`}
           </button>
         )}
-        {!(prefixMatch("/19") || prefixMatch("/29") || prefixMatch("/49") || prefixMatch("/199")) && (
+        {!showBookingCta && !(prefixMatch("/19") || prefixMatch("/29") || prefixMatch("/49") || prefixMatch("/199")) && (
           <button
             onClick={() => setIsBookingOpen(true)}
             className="block w-full rounded-xl bg-gold py-3.5 text-center font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light"

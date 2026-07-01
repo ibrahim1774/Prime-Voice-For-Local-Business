@@ -25,6 +25,53 @@ interface FormErrors {
 
 const MINIMUM_LOADING_TIME = 4500;
 
+// Looping placeholder examples typed out in each field while it's empty.
+const NAME_SAMPLES = ["Joe's Plumbing", "Elite HVAC & Air", "Green Lawn Landscaping", "Bright Spark Electric"];
+const PHONE_SAMPLES = ["(415) 555-0132", "(212) 555-0177", "(305) 555-0148"];
+const SITE_SAMPLES = ["joesplumbing.com", "elitehvac.com", "greenlawnco.com"];
+
+// Typewriter placeholder: types then erases each sample on a loop. Only runs
+// while `active` (the field is empty) so it never fights the user's own input.
+function useTypewriter(samples: string[], active: boolean): string {
+  const [text, setText] = useState("");
+  useEffect(() => {
+    if (!active) {
+      setText("");
+      return;
+    }
+    let sampleIdx = 0;
+    let chars = 0;
+    let deleting = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const full = samples[sampleIdx % samples.length];
+      if (!deleting) {
+        chars++;
+        setText(full.slice(0, chars));
+        if (chars >= full.length) {
+          deleting = true;
+          timer = setTimeout(tick, 1500); // hold on the full word
+          return;
+        }
+        timer = setTimeout(tick, 95);
+      } else {
+        chars--;
+        setText(full.slice(0, Math.max(0, chars)));
+        if (chars <= 0) {
+          deleting = false;
+          sampleIdx++;
+          timer = setTimeout(tick, 350);
+          return;
+        }
+        timer = setTimeout(tick, 45);
+      }
+    };
+    timer = setTimeout(tick, 500);
+    return () => clearTimeout(timer);
+  }, [samples, active]);
+  return text;
+}
+
 export default function IntakeForm() {
   const router = useRouter();
   const pathname = usePathname();
@@ -37,6 +84,11 @@ export default function IntakeForm() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // Animated example placeholders — run only while the field is still empty.
+  const namePlaceholder = useTypewriter(NAME_SAMPLES, !formData.businessName);
+  const phonePlaceholder = useTypewriter(PHONE_SAMPLES, !formData.phoneNumber);
+  const sitePlaceholder = useTypewriter(SITE_SAMPLES, !formData.businessWebsite);
 
   // Capture UTM params + fbclid from URL on mount (client-only, no Suspense needed)
   const utmParamsRef = useRef<Record<string, string>>({});
@@ -180,7 +232,7 @@ export default function IntakeForm() {
               <input
                 type="text"
                 name="businessName"
-                placeholder="Your Business Name"
+                placeholder={namePlaceholder || "Your Business Name"}
                 value={formData.businessName}
                 onChange={handleChange}
                 className={inputClasses}
@@ -198,7 +250,7 @@ export default function IntakeForm() {
               <input
                 type="tel"
                 name="phoneNumber"
-                placeholder="Your Phone Number"
+                placeholder={phonePlaceholder || "Your Phone Number"}
                 value={formData.phoneNumber}
                 onChange={handleChange}
                 className={inputClasses}
@@ -217,7 +269,7 @@ export default function IntakeForm() {
               <input
                 type="url"
                 name="businessWebsite"
-                placeholder="Your Business Website (optional)"
+                placeholder={sitePlaceholder || "Your Business Website"}
                 value={formData.businessWebsite}
                 onChange={handleChange}
                 className={inputClasses}
@@ -230,7 +282,7 @@ export default function IntakeForm() {
                 </p>
               ) : (
                 <p className="mt-1.5 text-xs text-subtle font-sans">
-                  Add it and we&apos;ll tailor your receptionist to your services.
+                  Optional — add it and we&apos;ll tailor your receptionist to your services.
                 </p>
               )}
             </div>
