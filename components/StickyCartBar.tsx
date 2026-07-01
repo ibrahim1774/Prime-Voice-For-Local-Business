@@ -126,18 +126,20 @@ export default function StickyCartBar() {
   const isHomePage = pathname === "/";
 
   // Route-aware pricing.
-  //   /      + /demo          → $99/mo or $599/yr toggle, 3-day trial
+  //   /99    + /99/demo       → $99/mo or $599/yr toggle, 3-day trial
+  //   /demo  (home demo)      → $99/mo or $599/yr toggle, 3-day trial
   //   /19    + /19/demo       → $19/month, 3-day trial
   //   /29    + /29/demo       → $29/month, 3-day trial
   //   /49    + /49/demo       → $49/month, 3-day trial
   //   /1, /2 (legacy)         → $19/month (A/B historical variants)
   //   /3                      → booking-only (no Stripe)
+  //   /      (homepage)       → premium marketing, NO pricing (see /99)
   const prefixMatch = (prefix: string) =>
     pathname === prefix || pathname.startsWith(prefix + "/");
 
   const isBookingRoute = prefixMatch("/3");
   const isRootPricing =
-    isHomePage || pathname === "/demo" || pathname.startsWith("/demo?");
+    prefixMatch("/99") || pathname === "/demo" || pathname.startsWith("/demo?");
   const supportsYearlyToggle = isRootPricing;
   // Compact layout used by root + all numeric price-variant routes.
   // /1 and /2 keep the legacy 8-bullet layout since they're older A/B variants.
@@ -302,6 +304,7 @@ export default function StickyCartBar() {
     pathname !== "/29" &&
     pathname !== "/49" &&
     pathname !== "/199" &&
+    pathname !== "/99" &&
     !pathname.startsWith("/call") &&
     !pathname.startsWith("/booking-confirmation") &&
     !pathname.startsWith("/thank-you");
