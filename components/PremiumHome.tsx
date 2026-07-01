@@ -1,12 +1,13 @@
 "use client";
 
-import IntakeForm from "./IntakeForm";
+import { DEMO_CALL_URL } from "@/lib/constants";
 
-// Premium marketing homepage ( / ). Clean white layout with a blue-gradient
-// hero, the live-demo form as the hero's primary action (the product's magic),
-// six capability cards, and a "what happens when a customer calls" flow.
-// No pricing anywhere — the $99 checkout lives on /99. Everything is scoped
-// under .mv-home (see globals.css) so it can't affect the other pages.
+// Premium marketing homepage ( / ). A light rounded hero card with a blue
+// glow (matching the reference design): black headline, a "Request a Demo"
+// button that opens the Calendly scheduling link, and a "How It Works" button
+// that scrolls to the call-flow. Six capability cards + a "what happens when a
+// customer calls" flow follow. No pricing or live-demo form here — the $99
+// funnel + demo live on /99. Scoped under .mv-home so other pages are untouched.
 
 type IconName =
   | "voice"
@@ -130,15 +131,19 @@ const STEPS: { title: string; desc: string }[] = [
   },
 ];
 
-function Waveform() {
-  // Live-call waveform — the signature element. Bars bounce on a stagger.
-  const bars = [0, 0.18, 0.36, 0.12, 0.42, 0.24, 0.06, 0.3];
+function Sparkle({ className, size = 22 }: { className?: string; size?: number }) {
+  // Faint four-point star accents in the hero's blue glow (matches reference).
   return (
-    <div className="mv-wave" aria-hidden="true">
-      {bars.map((delay, i) => (
-        <span key={i} style={{ animationDelay: `${delay}s` }} />
-      ))}
-    </div>
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M12 0c.6 5.7 2.3 9.4 12 12-9.7 2.6-11.4 6.3-12 12-.6-5.7-2.3-9.4-12-12 9.7-2.6 11.4-6.3 12-12z" />
+    </svg>
   );
 }
 
@@ -164,10 +169,12 @@ function Nav() {
         </div>
 
         <a
-          href="#demo"
-          className="rounded-full bg-[var(--mv-ink)] px-4 py-2 font-sans text-sm font-semibold text-white transition-colors hover:bg-black"
+          href={DEMO_CALL_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-full bg-[var(--mv-blue)] px-4 py-2 font-sans text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--mv-blue-600)]"
         >
-          Generate my demo
+          Request a Demo
         </a>
       </nav>
     </header>
@@ -176,43 +183,45 @@ function Nav() {
 
 function Hero() {
   return (
-    <section id="top" className="mx-auto max-w-6xl px-5 pt-8 md:pt-12">
-      {/* Blue gradient hero panel */}
-      <div className="relative overflow-hidden rounded-[28px] px-6 py-14 text-center mv-hero-panel md:rounded-[36px] md:px-10 md:py-20">
-        <div className="pointer-events-none absolute inset-0 mv-hero-sheen" />
-        <div className="relative mx-auto max-w-3xl">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-blue-700/40 px-3.5 py-1.5 font-sans text-[11px] font-bold uppercase tracking-[0.18em] text-white shadow-sm backdrop-blur-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-            24/7 AI Voice Receptionist
-          </span>
+    <section id="top" className="bg-[#eef1f6] px-5 pt-8 pb-14 md:pt-12 md:pb-20">
+      <div className="mx-auto max-w-6xl">
+        <div className="relative overflow-hidden rounded-[28px] mv-hero-card md:rounded-[40px]">
+          {/* Blue glow rising from the bottom + faint sparkles (reference look) */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[60%] mv-hero-glow" />
+          <Sparkle className="pointer-events-none absolute bottom-[15%] left-[15%] text-white/70" size={26} />
+          <Sparkle className="pointer-events-none absolute bottom-[27%] right-[17%] text-white/55" size={17} />
+          <Sparkle className="pointer-events-none absolute bottom-[9%] right-[36%] text-white/45" size={13} />
 
-          <h1 className="mv-display mt-6 text-balance text-4xl font-extrabold leading-[1.05] text-white sm:text-5xl md:text-6xl">
-            A voice agent so human, your callers just book the appointment.
-          </h1>
+          <div className="relative z-10 mx-auto max-w-3xl px-6 pt-16 pb-28 text-center md:px-10 md:pt-24 md:pb-40">
+            <h1 className="mv-display text-balance text-[34px] font-extrabold leading-[1.06] text-[var(--mv-ink)] sm:text-5xl md:text-[64px]">
+              A 24/7 human-like voice agent that books appointments and gets you leads.
+            </h1>
 
-          <p className="mx-auto mt-5 max-w-xl font-sans text-base leading-relaxed text-white/90 md:text-lg">
-            Montivaro answers every call day and night, books jobs into your
-            calendar, and captures every lead — in a natural voice your callers
-            won&apos;t know is AI.
-          </p>
+            <p className="mx-auto mt-5 max-w-xl font-sans text-base leading-relaxed text-[var(--mv-muted)] md:text-lg">
+              Montivaro answers every call in a natural, human voice — booking
+              appointments and capturing leads around the clock, so you never
+              lose a customer to a missed call.
+            </p>
 
-          <div className="mt-8 flex items-center justify-center">
-            <Waveform />
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <a
+                href={DEMO_CALL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--mv-blue)] px-6 py-3.5 font-sans text-sm font-semibold text-white shadow-[0_10px_24px_rgba(47,107,255,0.35)] transition-all hover:bg-[var(--mv-blue-600)] hover:shadow-[0_12px_28px_rgba(47,107,255,0.45)] sm:w-auto"
+              >
+                Request a Demo
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
+              </a>
+              <a
+                href="#how"
+                className="inline-flex w-full items-center justify-center rounded-xl border border-[var(--mv-line)] bg-white px-6 py-3.5 font-sans text-sm font-semibold text-[var(--mv-ink)] shadow-sm transition-colors hover:border-[#cfd6e6] hover:bg-[#f7f9fc] sm:w-auto"
+              >
+                How It Works
+              </a>
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Live-demo form — the hero's primary action, directly below the panel */}
-      <div id="demo" className="mx-auto mt-10 max-w-lg scroll-mt-24 px-1 md:mt-12">
-        <div className="mb-4 text-center">
-          <h2 className="mv-display text-xl font-bold text-[var(--mv-ink)] md:text-2xl">
-            Hear it answer your calls
-          </h2>
-          <p className="mt-1.5 font-sans text-sm text-[var(--mv-muted)]">
-            Enter your business and number — your live demo is ready in 20 seconds.
-          </p>
-        </div>
-        <IntakeForm />
       </div>
     </section>
   );
