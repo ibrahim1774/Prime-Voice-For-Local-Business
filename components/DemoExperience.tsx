@@ -164,6 +164,17 @@ export default function DemoExperience({
           voiceId: voiceGender === "male" ? MALE_VOICE_ID : FEMALE_VOICE_ID,
           model: "sonic-2",
           language: "en",
+          // Naturalness tuning (must live here too — this override is what the
+          // web call actually uses). positivity adds warmth; chunkPlan feeds
+          // fuller phrases so prosody flows instead of choppy, robotic delivery.
+          experimentalControls: {
+            speed: "normal",
+            emotion: "positivity:high",
+          },
+          chunkPlan: {
+            enabled: true,
+            minCharacters: 40,
+          },
         },
         transcriber: {
           provider: "deepgram",
