@@ -122,13 +122,13 @@ Return ONLY the system prompt text. No markdown formatting, no explanations, no 
     }
 
     // Cartesia voice IDs — must exist on the connected Cartesia account (the
-    // org's Cartesia API key is wired in Vapi → Integrations). Brooke's real ID
-    // is e07c00bc… (the earlier 6f84f4b8 was wrong and returned "Couldn't Find
-    // Cartesia Voice"). Both resolve on sonic-2.
+    // org's Cartesia API key is wired in Vapi → Integrations). Both resolve on
+    // sonic-2. Female = Skylar (a realistic US-female voice Cartesia recommends
+    // for agents); male = Customer Support Man.
     const voiceId =
       voiceGender === "male"
         ? "a167e0f3-df7e-4d52-a9c3-f949145efdab" // Customer Support Man
-        : "e07c00bc-4134-4eae-9ea4-1a55fb45746b"; // Brooke
+        : "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4"; // Skylar
 
     // Create Vapi assistant
     const vapiResponse = await fetch("https://api.vapi.ai/assistant", {
