@@ -21,9 +21,8 @@ interface DemoExperienceProps {
 }
 
 // Cartesia sonic-2 voices used for the call-time override. Both must exist on
-// the Cartesia account wired into Vapi. Brooke's real ID is e07c00bc… (the
-// earlier 6f84f4b8 was wrong and never resolved). Male uses Customer Support Man.
-const FEMALE_VOICE_ID = "e07c00bc-4134-4eae-9ea4-1a55fb45746b"; // Brooke
+// the Cartesia account wired into Vapi. Female = Skylar; male = Customer Support Man.
+const FEMALE_VOICE_ID = "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4"; // Skylar
 const MALE_VOICE_ID = "a167e0f3-df7e-4d52-a9c3-f949145efdab"; // Customer Support Man
 
 export default function DemoExperience({
@@ -155,7 +154,7 @@ export default function DemoExperience({
 
     try {
       // Override voice + transcriber at call-time. The voice honors the
-      // visitor's gender choice (female → "Brooke", male → "Customer Support
+      // visitor's gender choice (female → "Skylar", male → "Customer Support
       // Man"); both are sonic-2 voices on the connected Cartesia account.
       // Existing dashboard-side prompt + model + tools stay untouched.
       await vapiRef.current.start(assistantId, {
