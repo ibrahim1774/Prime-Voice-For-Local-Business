@@ -155,13 +155,14 @@ Return ONLY the system prompt text. No markdown formatting, no explanations, no 
           // to a female default.
           model: "sonic-2",
           // Naturalness tuning so the voice reads warm/human, not robotic:
-          //  - positivity adds warmth + life (emotion controls are additive;
-          //    kept to one to avoid Cartesia artifacts).
+          //  - positivity adds warmth + life. Vapi's runtime wants `emotion` as
+          //    an ARRAY (one entry per emotion type) — a plain string fails with
+          //    "Only one emotion intensity level per emotion type is allowed".
           //  - chunkPlan feeds fuller phrases to the TTS so prosody flows
           //    instead of choppy word-by-word delivery (the main "robotic" tell).
           experimentalControls: {
             speed: "normal",
-            emotion: "positivity:high",
+            emotion: ["positivity:high"],
           },
           chunkPlan: {
             enabled: true,

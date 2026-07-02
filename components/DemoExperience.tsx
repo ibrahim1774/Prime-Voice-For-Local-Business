@@ -167,9 +167,11 @@ export default function DemoExperience({
           // Naturalness tuning (must live here too — this override is what the
           // web call actually uses). positivity adds warmth; chunkPlan feeds
           // fuller phrases so prosody flows instead of choppy, robotic delivery.
+          // NOTE: Vapi's runtime wants `emotion` as an ARRAY; the web SDK's TS
+          // type wrongly declares a single string, so we cast via `unknown`.
           experimentalControls: {
             speed: "normal",
-            emotion: "positivity:high",
+            emotion: ["positivity:high"],
           },
           chunkPlan: {
             enabled: true,
@@ -181,7 +183,7 @@ export default function DemoExperience({
           model: "nova-2",
           language: "en-US",
         },
-      } as Parameters<typeof vapiRef.current.start>[1]);
+      } as unknown as Parameters<typeof vapiRef.current.start>[1]);
     } catch (err) {
       console.error("Failed to start call:", err);
       const message =
