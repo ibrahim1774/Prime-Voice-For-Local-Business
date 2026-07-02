@@ -125,10 +125,14 @@ Return ONLY the system prompt text. No markdown formatting, no explanations, no 
     // config below). These UUIDs are NOT in sonic-3's new voice set, so under
     // sonic-3 the male voice failed to resolve and Vapi fell back to a default
     // (female-sounding) voice — which is why "male" came out female.
+    // Dottie is a standard Cartesia library voice available on the default
+    // Cartesia key Vapi uses. "Brooke" (6f84f4b8) is NOT on that account —
+    // Vapi returns "Couldn't Find Cartesia Voice", which broke assistant
+    // creation. Use Dottie until an account-available voice is wired.
     const voiceId =
       voiceGender === "male"
         ? "a167e0f3-df7e-4d52-a9c3-f949145efdab" // Customer Support Man
-        : "6f84f4b8-58a2-430c-8c79-688dad597532"; // Brooke
+        : "e3827ec5-697a-4b7c-9704-1a23041bbc51"; // Dottie - sweet gal
 
     // Create Vapi assistant
     const vapiResponse = await fetch("https://api.vapi.ai/assistant", {
