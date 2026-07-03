@@ -127,7 +127,7 @@ Return ONLY the system prompt text. No markdown formatting, no explanations, no 
     // for agents); male = Customer Support Man.
     const voiceId =
       voiceGender === "male"
-        ? "a167e0f3-df7e-4d52-a9c3-f949145efdab" // Customer Support Man
+        ? "9fa83ce3-c3a8-4523-accc-173904582ced" // Male voice
         : "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4"; // Skylar
 
     // Create Vapi assistant

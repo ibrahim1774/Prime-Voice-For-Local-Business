@@ -23,7 +23,7 @@ interface DemoExperienceProps {
 // Cartesia sonic-2 voices used for the call-time override. Both must exist on
 // the Cartesia account wired into Vapi. Female = Skylar; male = Customer Support Man.
 const FEMALE_VOICE_ID = "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4"; // Skylar
-const MALE_VOICE_ID = "a167e0f3-df7e-4d52-a9c3-f949145efdab"; // Customer Support Man
+const MALE_VOICE_ID = "9fa83ce3-c3a8-4523-accc-173904582ced"; // Male voice
 
 export default function DemoExperience({
   assistantId,
