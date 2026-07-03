@@ -13,6 +13,7 @@ interface Plan {
   price: number;
   minutes: number;
   tagline: string;
+  inherit?: string;
   bullets: string[];
   popular?: boolean;
 }
@@ -23,12 +24,12 @@ const PLANS: Plan[] = [
     name: "After Hours",
     price: 29,
     minutes: 30,
-    tagline: "Stop losing the calls that come in after you close.",
+    tagline: "Closed for the day? Calls still get answered.",
     bullets: [
-      "Dedicated local number (no forwarding)",
-      "AI answers nights & weekends",
-      "Trained on your services",
-      "Leads emailed by morning",
+      "A new local number for nights and weekends",
+      "Callers get a real answer, not voicemail",
+      "It knows your services and prices",
+      "Every lead in your inbox by morning",
     ],
   },
   {
@@ -36,12 +37,12 @@ const PLANS: Plan[] = [
     name: "Business Line",
     price: 49,
     minutes: 50,
-    tagline: "Forward your existing number. You pick when the AI answers.",
+    tagline: "Keep your same number. We answer when you can't.",
+    inherit: "Everything in After Hours, plus:",
     bullets: [
-      "Everything in After Hours",
-      "Your current number forwards to us",
-      "Coverage on your schedule",
-      "Custom greeting in your business name",
+      "Your current number stays the same",
+      "You pick the hours it answers — lunch, nights, weekends",
+      "Callers hear your business name, not a generic greeting",
     ],
   },
   {
@@ -50,12 +51,14 @@ const PLANS: Plan[] = [
     price: 97,
     minutes: 100,
     popular: true,
-    tagline: "Your phone rings first. If you can't grab it, the AI does — 24/7.",
+    tagline:
+      "On a job? Hands full? Your voice agent picks up before the caller gives up.",
+    inherit: "Everything in Business Line, plus:",
     bullets: [
-      "Everything in Business Line",
-      "You always get the call first",
-      "AI catches every missed call, day or night",
-      "Books appointments while you're on the job",
+      "Your phone always rings first",
+      "Missed calls get answered — 24/7",
+      "Appointments get booked while you work",
+      "A summary of every call, sent right to you",
     ],
   },
   {
@@ -63,12 +66,13 @@ const PLANS: Plan[] = [
     name: "Full Front Desk",
     price: 197,
     minutes: 200,
-    tagline: "A complete receptionist, wired into your tools.",
+    tagline: "Every call handled, 24/7. You run the business. We run the phone.",
+    inherit: "Everything in Never Miss, plus:",
     bullets: [
-      "Everything in Never Miss",
-      "Full 24/7 answering or overflow — your choice",
-      "Leads sync to your CRM",
-      "Instant SMS + email alerts",
+      "Full 24/7 answering, or backup only — your choice",
+      "New leads go straight into your CRM",
+      "Instant text + email the moment a lead calls",
+      "Priority help whenever you need a change",
     ],
   },
 ];
@@ -146,14 +150,17 @@ export default function CustomPricingSection({ businessName }: CustomPricingSect
     <section ref={sectionRef} className="mx-auto w-full max-w-3xl px-4 pb-32 pt-6 lg:pb-10">
       {/* Compact header */}
       <div className="text-center">
-        <h2 className="font-serif text-2xl font-bold tracking-tight text-foreground">
-          Put it on your phones.
+        <h2 className="font-serif text-[26px] font-bold leading-[1.15] tracking-tight text-foreground md:text-[30px]">
+          A 24/7 Human-Like Voice Agent That Can Help You Get More Customers.
         </h2>
         <p className="mt-1.5 font-sans text-[13px] text-muted">
-          Live within 24 hours. Month-to-month, cancel anytime.
+          Plans start at $29/mo.
         </p>
-        <p className="mt-1 font-sans text-[12px] text-subtle">
-          Pick a plan → we call you to tailor it → live in 24 hrs.
+        <p className="mx-auto mt-2 max-w-xl font-sans text-[13px] leading-relaxed text-muted">
+          When you can&apos;t pick up, your voice agent answers — day or night. It
+          sounds like a real person, books the caller in, and texts or emails you
+          their name, number, and what they need. Set up for your business in 24
+          hours.
         </p>
       </div>
 
@@ -197,7 +204,7 @@ export default function CustomPricingSection({ businessName }: CustomPricingSect
                   active ? "text-white/60" : "text-subtle"
                 }`}
               >
-                {plan.minutes} min
+                {plan.minutes} min/mo
               </span>
             </button>
           );
@@ -205,12 +212,17 @@ export default function CustomPricingSection({ businessName }: CustomPricingSect
       </div>
 
       {/* Detail panel — fixed height, content fades on swap */}
-      <div className="mt-4 h-[236px] rounded-3xl border border-[#e3e3e0] bg-white p-4">
+      <div className="mt-4 h-[264px] rounded-3xl border border-[#e3e3e0] bg-white p-4">
         <div key={selected.id} className="animate-fade-in-up">
           <p className="font-sans text-[14px] font-medium leading-snug text-foreground">
             {selected.tagline}
           </p>
-          <ul className="mt-3 space-y-2">
+          {selected.inherit && (
+            <p className="mt-2.5 font-sans text-[13px] font-semibold text-foreground/70">
+              {selected.inherit}
+            </p>
+          )}
+          <ul className="mt-2.5 space-y-2">
             {selected.bullets.map((b) => (
               <li
                 key={b}
@@ -222,7 +234,7 @@ export default function CustomPricingSection({ businessName }: CustomPricingSect
             ))}
           </ul>
           <p className="mt-4 font-sans text-[11.5px] text-subtle">
-            $1/min after included minutes · Month-to-month · Cancel anytime
+            $1/min after your included minutes · Cancel anytime
           </p>
         </div>
       </div>
