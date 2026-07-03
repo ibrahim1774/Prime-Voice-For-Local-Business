@@ -16,7 +16,9 @@ export default function StartTrialButton() {
     pathname === p || pathname.startsWith(p + "/");
 
   const priceInfo: PriceInfo | null = prefixMatch("/custom")
-    ? { amount: 199, trial: true, hasYearly: false }
+    ? // /custom hides the price on the landing page — the full tiered pricing
+      // lives on the post-demo screen instead, so no $199 CTA renders here.
+      null
     : prefixMatch("/199")
     ? { amount: 199, trial: true, hasYearly: false }
     : prefixMatch("/19")
