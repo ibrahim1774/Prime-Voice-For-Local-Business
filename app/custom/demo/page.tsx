@@ -1,0 +1,25 @@
+import { redirect } from "next/navigation";
+import DemoExperience from "@/components/DemoExperience";
+
+interface DemoPageProps {
+  searchParams: Promise<{ assistantId?: string; businessName?: string; voiceGender?: string }>;
+}
+
+export default async function DemoCustomPage({ searchParams }: DemoPageProps) {
+  const params = await searchParams;
+  const { assistantId, businessName, voiceGender } = params;
+
+  if (!assistantId || !businessName) {
+    redirect("/custom");
+  }
+
+  return (
+    <main className="fixed inset-0 z-0 flex flex-col overflow-hidden">
+      <DemoExperience
+        assistantId={assistantId}
+        businessName={decodeURIComponent(businessName)}
+        voiceGender={voiceGender === "male" ? "male" : "female"}
+      />
+    </main>
+  );
+}

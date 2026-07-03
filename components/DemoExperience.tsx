@@ -36,7 +36,7 @@ export default function DemoExperience({
     pathname === prefix || pathname.startsWith(prefix + "/");
   // $99 (home) and $199 subpages: after the demo generates, the CTA books a
   // setup call (we build it for them) instead of self-serve Stripe checkout.
-  const isSetupCallRoute = pathname === "/" || prefixMatch("/199");
+  const isSetupCallRoute = pathname === "/" || prefixMatch("/199") || prefixMatch("/custom");
   // Either kind of route shows a booking CTA instead of the Stripe button.
   const showBookingCta = isBookingRoute || isSetupCallRoute;
   const bookingHref = isSetupCallRoute ? SETUP_CALL_URL : BOOKING_URL;
@@ -44,7 +44,9 @@ export default function DemoExperience({
     ? "Book a Call to Set This Up"
     : "Book a Call to Implement This for Your Business";
 
-  const priceInfo: { amount: number; label: string } | null = prefixMatch("/199")
+  const priceInfo: { amount: number; label: string } | null = prefixMatch("/custom")
+    ? { amount: 199, label: "$199/month \u2014 3-day free trial" }
+    : prefixMatch("/199")
     ? { amount: 199, label: "$199/month \u2014 3-day free trial" }
     : prefixMatch("/19")
     ? { amount: 19, label: "$19/month \u2014 1-day free trial" }
@@ -439,7 +441,7 @@ export default function DemoExperience({
               : `Start Free Trial — Then $${priceInfo?.amount ?? 99}/Month`}
           </button>
         )}
-        {!showBookingCta && !(prefixMatch("/19") || prefixMatch("/29") || prefixMatch("/49") || prefixMatch("/199")) && (
+        {!showBookingCta && !(prefixMatch("/19") || prefixMatch("/29") || prefixMatch("/49") || prefixMatch("/199") || prefixMatch("/custom")) && (
           <button
             onClick={() => setIsBookingOpen(true)}
             className="block w-full rounded-xl bg-gold py-3.5 text-center font-sans text-sm font-semibold text-background transition-all duration-300 hover:bg-gold-light"
