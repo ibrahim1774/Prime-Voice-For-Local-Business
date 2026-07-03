@@ -195,6 +195,8 @@ export default function IntakeForm() {
           ? "/49/demo"
           : pathname === "/199"
           ? "/199/demo"
+          : pathname === "/custom"
+          ? "/custom/demo"
           : pathname === "/99"
           ? "/99/demo"
           : "/demo";
