@@ -213,14 +213,14 @@ export default function CustomDemoExperience({
               revealed ? "text-lg md:text-xl" : "text-xl md:text-3xl"
             }`}
           >
-            Your AI Receptionist is Ready,{" "}
+            Your Voice Agent is Ready,{" "}
             <span className="text-muted">{businessName}</span>
           </h1>
 
           {!revealed && (
             <>
               <p className="mx-auto mt-2 max-w-lg font-sans text-sm leading-relaxed text-muted">
-                Start a live call with your custom AI receptionist. Speak naturally —
+                Start a live call with your custom voice agent. Speak naturally —
                 ask about your services, try to book an appointment, or see how it
                 handles tough questions.
               </p>
@@ -243,7 +243,7 @@ export default function CustomDemoExperience({
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
-                Call Your Receptionist
+                Call Your Voice Agent
               </span>
             </button>
           )}
@@ -362,7 +362,7 @@ export default function CustomDemoExperience({
                     style={{ animationDelay: `${index * 0.05}s` }}
                   >
                     <p className="mb-1 font-sans text-[10px] font-bold uppercase tracking-wider text-muted/70">
-                      {entry.role === "assistant" ? "AI Receptionist" : "You"}
+                      {entry.role === "assistant" ? "Voice Agent" : "You"}
                     </p>
                     <p
                       className={`font-sans text-[15px] leading-relaxed ${
@@ -418,7 +418,7 @@ export default function CustomDemoExperience({
                       }
                     >
                       <p className="mb-1 font-sans text-[10px] font-bold uppercase tracking-wider text-muted/70">
-                        {entry.role === "assistant" ? "AI Receptionist" : "You"}
+                        {entry.role === "assistant" ? "Voice Agent" : "You"}
                       </p>
                       <p
                         className={`font-sans text-[14px] leading-relaxed ${
