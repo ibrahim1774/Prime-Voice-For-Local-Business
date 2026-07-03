@@ -180,6 +180,11 @@ Return ONLY the system prompt text. No markdown formatting, no explanations, no 
         backgroundSpeechDenoisingPlan: {
           smartDenoisingPlan: { enabled: true },
         },
+        // Play Vapi's built-in office ambiance (people talking in the
+        // background) so the demo sounds like a real staffed front desk.
+        // Set explicitly because web calls default to "off" — this makes it
+        // audible on the browser demo, not just phone calls.
+        backgroundSound: "office",
         firstMessage: `Thanks for calling ${businessName}, how can I help you today?`,
         firstMessageMode: "assistant-speaks-first",
       }),

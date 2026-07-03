@@ -182,6 +182,10 @@ export default function DemoExperience({
           model: "nova-2",
           language: "en-US",
         },
+        // Web calls default to no background sound, so set it here too — this
+        // override is what the browser demo actually plays. "office" is Vapi's
+        // built-in people-talking ambiance, matching the stored assistant.
+        backgroundSound: "office",
       } as unknown as Parameters<typeof vapiRef.current.start>[1]);
     } catch (err) {
       console.error("Failed to start call:", err);
