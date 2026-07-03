@@ -76,7 +76,7 @@ const PLANS: Plan[] = [
 function Check({ className = "" }: { className?: string }) {
   return (
     <svg
-      className={`h-4 w-4 shrink-0 ${className}`}
+      className={`h-3.5 w-3.5 shrink-0 ${className}`}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -205,7 +205,7 @@ export default function CustomPricingSection({ businessName }: CustomPricingSect
       </div>
 
       {/* Detail panel — fixed height, content fades on swap */}
-      <div className="mt-4 min-h-[224px] rounded-3xl border border-[#e3e3e0] bg-white p-5">
+      <div className="mt-4 h-[236px] rounded-3xl border border-[#e3e3e0] bg-white p-4">
         <div key={selected.id} className="animate-fade-in-up">
           <p className="font-sans text-[14px] font-medium leading-snug text-foreground">
             {selected.tagline}
@@ -214,10 +214,10 @@ export default function CustomPricingSection({ businessName }: CustomPricingSect
             {selected.bullets.map((b) => (
               <li
                 key={b}
-                className="flex items-center gap-2 font-sans text-[13.5px] leading-tight text-foreground/85"
+                className="flex items-center gap-1.5 font-sans text-[13px] leading-snug text-foreground/85"
               >
                 <Check className="text-emerald-600" />
-                <span className="truncate">{b}</span>
+                <span>{b}</span>
               </li>
             ))}
           </ul>

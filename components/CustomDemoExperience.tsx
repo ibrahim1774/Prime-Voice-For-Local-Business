@@ -291,6 +291,11 @@ export default function CustomDemoExperience({
               onClick={() => {
                 setCallStatus("idle");
                 setTranscript([]);
+                // Restore the full-height call view for the next call.
+                setRevealed(false);
+                setTranscriptOpen(false);
+                didAutoScrollRef.current = false;
+                window.scrollTo({ top: 0 });
               }}
               className="rounded-full border border-[#0a0a0a]/25 bg-transparent px-8 py-3.5 font-sans text-sm font-semibold text-foreground transition-all duration-300 hover:bg-foreground/[0.04]"
             >
