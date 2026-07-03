@@ -18,6 +18,12 @@ interface DemoExperienceProps {
   assistantId: string;
   businessName: string;
   voiceGender?: "female" | "male";
+  /**
+   * Optional replacement for the post-call ("ended") screen. When provided,
+   * it fully replaces the default ended UI once the demo call finishes. Inert
+   * (undefined) on every route except /custom, so no other page changes.
+   */
+  endedScreen?: React.ReactNode;
 }
 
 // Cartesia sonic-2 voices used for the call-time override. Both must exist on
@@ -29,6 +35,7 @@ export default function DemoExperience({
   assistantId,
   businessName,
   voiceGender = "female",
+  endedScreen,
 }: DemoExperienceProps) {
   const pathname = usePathname();
   const isBookingRoute = pathname.startsWith("/3");
@@ -208,6 +215,12 @@ export default function DemoExperience({
     vapiRef.current.setMuted(newMuted);
     setIsMuted(newMuted);
   }, [isMuted]);
+
+  // /custom swaps in its own mobile-first pricing page once the demo call ends.
+  // Placed after all hooks so hook order stays stable across renders.
+  if (callStatus === "ended" && endedScreen) {
+    return <>{endedScreen}</>;
+  }
 
   return (
     <div className="flex flex-col h-full w-full max-w-2xl mx-auto px-4 pt-6 pb-4">
