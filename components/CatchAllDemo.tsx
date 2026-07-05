@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Vapi from "@vapi-ai/web";
+import { buildCatchallAssistant } from "@/lib/catchall-config.mjs";
 
 interface TranscriptEntry {
   role: "assistant" | "user";
@@ -10,11 +11,6 @@ interface TranscriptEntry {
 }
 
 type CallStatus = "idle" | "connecting" | "active" | "ended";
-
-// Standing "Catch all" assistant created by scripts/create-catchall.mjs.
-// It already has the male voice, office ambiance, adaptive prompt, and lead
-// capture configured — so the web call just starts it by id.
-const CATCHALL_ASSISTANT_ID = process.env.NEXT_PUBLIC_CATCHALL_ASSISTANT_ID;
 
 export default function CatchAllDemo() {
   const [callStatus, setCallStatus] = useState<CallStatus>("idle");
@@ -96,20 +92,20 @@ export default function CatchAllDemo() {
 
   const startCall = useCallback(async () => {
     if (!vapiRef.current) return;
-    if (!CATCHALL_ASSISTANT_ID) {
-      setError("This demo isn't live yet — the assistant hasn't been configured.");
-      return;
-    }
     setCallStatus("connecting");
     setTranscript([]);
     setError(null);
 
     try {
-      // The assistant is already fully configured; we only override
-      // backgroundSound because web calls default it to "off".
-      await vapiRef.current.start(CATCHALL_ASSISTANT_ID, {
-        backgroundSound: "office",
-      } as unknown as Parameters<typeof vapiRef.current.start>[1]);
+      // Start a transient assistant inline from the shared config — no
+      // pre-created assistant id, no env var. This is the SAME config the
+      // phone assistant is built from (lib/catchall-config.mjs), minus the
+      // server webhook (web leads stay in the Vapi dashboard rather than
+      // exposing the Make.com URL in the browser bundle).
+      const assistant = buildCatchallAssistant();
+      await vapiRef.current.start(
+        assistant as unknown as Parameters<typeof vapiRef.current.start>[0]
+      );
     } catch (err) {
       console.error("Failed to start call:", err);
       const message =
