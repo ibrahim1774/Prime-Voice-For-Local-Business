@@ -1,11 +1,20 @@
+"use client";
+
 // Catch-all landing — a click-to-call page. Tapping the button (or the number)
 // dials the standing "Catch all" Montivaro voice agent assigned to this number
-// in Vapi, which runs the full adaptive demo over a real phone call.
+// in Vapi, which runs the full adaptive demo over a real phone call. Below it,
+// a "Book a call with the team" button opens the setup-call booker so they can
+// get the voice agent custom-built for their business.
+
+import { useState } from "react";
+import BookingModal from "./BookingModal";
 
 const CALL_NUMBER_DISPLAY = "(928) 968-9136";
 const CALL_NUMBER_TEL = "tel:+19289689136";
 
 export default function CatchAllDemo() {
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+
   return (
     <div className="min-h-[100dvh] w-full dotted-grid-bg">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col items-center justify-center px-4 py-12 text-center">
@@ -64,7 +73,25 @@ export default function CatchAllDemo() {
         <p className="mt-2 font-sans text-xs text-muted">
           Tap the number to call from your phone
         </p>
+
+        {/* Booking CTA — get it custom-built for their business */}
+        <div className="mt-10 w-full max-w-md border-t border-[#e3e3e0] pt-8">
+          <p className="font-serif text-lg font-bold text-foreground md:text-xl">
+            Want this working in your business?
+          </p>
+          <p className="mx-auto mt-2 max-w-sm font-sans text-sm leading-relaxed text-muted">
+            We&apos;ll set it up and custom-build your voice agent for your business.
+          </p>
+          <button
+            onClick={() => setIsBookingOpen(true)}
+            className="mt-5 inline-flex items-center gap-2 rounded-full border border-foreground/25 bg-transparent px-8 py-3.5 font-sans text-base font-semibold text-foreground transition-all duration-300 hover:bg-foreground/[0.04] hover:scale-[1.02] active:scale-[0.98]"
+          >
+            Book a call with the team
+          </button>
+        </div>
       </div>
+
+      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
     </div>
   );
 }
