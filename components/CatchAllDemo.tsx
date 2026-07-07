@@ -2,8 +2,8 @@
 // dials the standing "Catch all" Montivaro voice agent assigned to this number
 // in Vapi, which runs the full adaptive demo over a real phone call.
 
-const CALL_NUMBER_DISPLAY = "(929) 968-9136";
-const CALL_NUMBER_TEL = "tel:+19299689136";
+const CALL_NUMBER_DISPLAY = "(928) 968-9136";
+const CALL_NUMBER_TEL = "tel:+19289689136";
 
 export default function CatchAllDemo() {
   return (
