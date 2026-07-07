@@ -77,7 +77,7 @@ export default function CatchAllDemo() {
         {/* Booking CTA — get it custom-built for their business */}
         <div className="mt-10 w-full max-w-md border-t border-[#e3e3e0] pt-8">
           <p className="font-serif text-lg font-bold text-foreground md:text-xl">
-            Want this working in your business?
+            Get your custom-tailored voice agent implemented in your business
           </p>
           <p className="mx-auto mt-2 max-w-sm font-sans text-sm leading-relaxed text-muted">
             We&apos;ll set it up and custom-build your voice agent for your business.
