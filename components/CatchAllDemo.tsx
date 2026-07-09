@@ -37,11 +37,15 @@ export default function CatchAllDemo() {
   return (
     <div className="mv2 mv2-catchall">
       <div className="mv2-catchall-shell">
-        {/* Badge */}
-        <p className="mv2-eyebrow mv2-catchall-badge mv2-ca-in" style={{ animationDelay: "0.05s" }}>
-          <span className="mv2-live-dot" aria-hidden="true" />
-          Live Demo
-        </p>
+        {/* Highlighted test-it-now pill — taps straight into the live agent */}
+        <a
+          href={CALL_NUMBER_TEL}
+          className="mv2-catchall-test mv2-ca-in"
+          style={{ animationDelay: "0.05s" }}
+        >
+          <span className="mv2-catchall-test-dot" aria-hidden="true" />
+          Test our live voice agent now
+        </a>
 
         {/* Headline */}
         <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.15s" }}>
