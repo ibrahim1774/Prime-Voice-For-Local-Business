@@ -1,5 +1,5 @@
-import PremiumHome from "@/components/PremiumHome";
+import MontivaroHome from "@/components/MontivaroHome";
 
 export default function Home() {
-  return <PremiumHome />;
+  return <MontivaroHome />;
 }
