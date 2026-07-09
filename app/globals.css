@@ -766,3 +766,32 @@ body:has(.mv2) { background: var(--m-ink); }
   .mv2 .mv2-ca-in { animation: none; opacity: 1; transform: none; }
   .mv2 .mv2-catchall-wave span { animation: none; height: 55%; }
 }
+
+/* Highlighted "test it now" pill at the top of /catch-all — white on carbon,
+   glowing halo, tap-to-call. */
+.mv2 .mv2-catchall-test {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--m-ink);
+  padding: 10px 22px;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.35), 0 0 34px rgba(255, 255, 255, 0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.mv2 .mv2-catchall-test:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.55), 0 0 44px rgba(255, 255, 255, 0.32);
+}
+.mv2 .mv2-catchall-test-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--m-ink);
+  animation: mv2-pulse 1.6s ease-in-out infinite;
+}
