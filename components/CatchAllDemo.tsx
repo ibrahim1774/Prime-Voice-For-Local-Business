@@ -37,38 +37,37 @@ export default function CatchAllDemo() {
   return (
     <div className="mv2 mv2-catchall">
       <div className="mv2-catchall-shell">
-        {/* Highlighted test-it-now pill — taps straight into the live agent */}
-        <a
-          href={CALL_NUMBER_TEL}
-          className="mv2-catchall-test mv2-ca-in"
-          style={{ animationDelay: "0.05s" }}
-        >
-          <span className="mv2-catchall-test-dot" aria-hidden="true" />
-          Test our live voice agent now
-        </a>
-
         {/* Headline */}
-        <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.15s" }}>
+        <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.1s" }}>
           <span className="mv2-catchall-h-muted">Don&apos;t Miss Another Customer Call &mdash;</span>{" "}
           <span>A 24/7 Human-Like Answering Agent for Local Businesses</span>
         </h1>
 
         {/* Subheadline */}
-        <p className="mv2-catchall-sub mv2-ca-in" style={{ animationDelay: "0.28s" }}>
+        <p className="mv2-catchall-sub mv2-ca-in" style={{ animationDelay: "0.24s" }}>
           Tap to call and talk like a real customer would &mdash; tell the voice
           agent what your business does and it&apos;ll show you exactly how it&apos;d
           answer your calls, book your jobs, and capture your leads.
         </p>
 
-        <div className="mv2-ca-in" style={{ animationDelay: "0.4s" }}>
+        {/* Highlighted test-it-now pill — right above the live audio demo */}
+        <a
+          href={CALL_NUMBER_TEL}
+          className="mv2-catchall-test mv2-ca-in"
+          style={{ animationDelay: "0.36s", marginTop: "30px" }}
+        >
+          <span className="mv2-catchall-test-dot" aria-hidden="true" />
+          Test our live voice agent now
+        </a>
+
+        <div className="mv2-ca-in" style={{ animationDelay: "0.46s" }}>
           <MiniWave />
         </div>
 
         {/* Call button */}
         <a
           href={CALL_NUMBER_TEL}
-          className="mv2-btn mv2-btn-light mv2-catchall-call mv2-ca-in"
-          style={{ animationDelay: "0.5s" }}
+          className="mv2-btn mv2-btn-light mv2-catchall-call"
         >
           <svg
             width="20"
