@@ -693,7 +693,7 @@ body:has(.mv2) { background: var(--m-ink); }
   color: var(--m-smoke-d);
 }
 .mv2 .mv2-catchall-wave {
-  margin-top: 34px;
+  margin-top: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -713,6 +713,21 @@ body:has(.mv2) { background: var(--m-ink); }
   padding: 18px 44px;
   font-size: 17px;
   gap: 12px;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: mv2-ca-rise 0.7s cubic-bezier(0.19, 1, 0.22, 1) 0.56s forwards,
+    mv2-ca-pop 2.2s ease-in-out 1.7s infinite;
+}
+.mv2 .mv2-catchall-call:hover { animation-play-state: running, paused; }
+@keyframes mv2-ca-pop {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.35), 0 0 0 rgba(255, 255, 255, 0);
+  }
+  50% {
+    transform: scale(1.055);
+    box-shadow: 0 0 0 7px rgba(255, 255, 255, 0.07), 0 0 40px rgba(255, 255, 255, 0.3);
+  }
 }
 .mv2 .mv2-catchall-number {
   margin-top: 22px;
@@ -765,6 +780,7 @@ body:has(.mv2) { background: var(--m-ink); }
 @media (prefers-reduced-motion: reduce) {
   .mv2 .mv2-ca-in { animation: none; opacity: 1; transform: none; }
   .mv2 .mv2-catchall-wave span { animation: none; height: 55%; }
+  .mv2 .mv2-catchall-call { animation: none; opacity: 1; transform: none; }
 }
 
 /* Highlighted "test it now" pill at the top of /catch-all — white on carbon,
