@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Playfair_Display, DM_Sans, Plus_Jakarta_Sans } from "next/font/google";
+import { Playfair_Display, DM_Sans, Plus_Jakarta_Sans, Archivo, IBM_Plex_Mono } from "next/font/google";
 import Script from "next/script";
 import StickyCartBar from "@/components/StickyCartBar";
 import "./globals.css";
@@ -25,14 +25,30 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+// Homepage ("The Call Sheet") faces: Archivo variable carries the width axis
+// (expanded display headlines), Plex Mono carries timecodes + transcripts.
+const archivo = Archivo({
+  subsets: ["latin"],
+  variable: "--font-archivo",
+  axes: ["wdth"],
+  display: "swap",
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-plex-mono",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "PrimeVoice | Never Miss a Big Job Again",
+  title: "Montivaro | Every Call Answered. Every Job Captured.",
   description:
-    "Your 24/7 AI receptionist answers every call, books appointments, and handles customer inquiries — so you never lose business to a missed call. Better than your answering service. Better than voicemail.",
+    "Montivaro is a 24/7 human-sounding AI voice agent for local businesses — it answers every call, books appointments, and sends you the lead by text and email, so you never lose a job to voicemail.",
   openGraph: {
-    title: "PrimeVoice | Never Miss a Big Job Again",
+    title: "Montivaro | Every Call Answered. Every Job Captured.",
     description:
-      "Your 24/7 AI receptionist answers every call, books appointments, and handles customer inquiries — so you never lose business to a missed call.",
+      "A 24/7 human-sounding AI voice agent for local businesses — answers every call, books appointments, and sends you every lead.",
     type: "website",
   },
 };
@@ -43,7 +59,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${playfair.variable} ${dmSans.variable} ${jakarta.variable}`}>
+    <html lang="en" className={`${playfair.variable} ${dmSans.variable} ${jakarta.variable} ${archivo.variable} ${plexMono.variable}`}>
       <body>
         {/* Facebook Pixel */}
         <Script id="facebook-pixel" strategy="afterInteractive">
