@@ -318,6 +318,14 @@ export default function DialerApp() {
     } catch (err) { guard(err); }
   };
 
+  // ── stats ──
+  const [stats, setStats] = useState<any>(null);
+  const [statsRange, setStatsRange] = useState<"today" | "7d" | "all">("today");
+  const loadStats = useCallback(async (range: string) => {
+    try { setStats(await api(`stats?range=${range}`)); } catch { /* non-fatal */ }
+  }, []);
+  useEffect(() => { if (authed && tab === "dial") loadStats(statsRange); }, [authed, tab, statsRange, loadStats]);
+
   // ── leads ──
   const [leads, setLeads] = useState<any[]>([]);
   const [leadFilter, setLeadFilter] = useState("");
@@ -325,7 +333,7 @@ export default function DialerApp() {
   const [pasteText, setPasteText] = useState("");
   const [uploadMsg, setUploadMsg] = useState("");
   const [expandedLead, setExpandedLead] = useState<number | null>(null);
-  const [noteDraft, setNoteDraft] = useState("");
+  const [editDraft, setEditDraft] = useState<{ name: string; business: string; notes: string }>({ name: "", business: "", notes: "" });
 
   const loadLeads = useCallback(async () => {
     try {
@@ -358,6 +366,11 @@ export default function DialerApp() {
   };
   const patchLead = async (id: number, patch: any) => {
     try { await api(`leads/${id}`, { method: "PATCH", body: JSON.stringify(patch) }); loadLeads(); }
+    catch (err) { guard(err); }
+  };
+  const deleteLead = async (id: number, label: string) => {
+    if (!confirm(`Delete ${label}? This removes the lead and its call history for good.`)) return;
+    try { await api(`leads/${id}`, { method: "DELETE" }); notify("Lead deleted"); loadLeads(); loadQueue(); }
     catch (err) { guard(err); }
   };
 
@@ -460,7 +473,7 @@ export default function DialerApp() {
       <div className="dlr" style={{ display: "grid", placeItems: "center", padding: 20 }}>
         <form onSubmit={(e) => { e.preventDefault(); login(); }} className="dlr-panel dlr-panel-p" style={{ width: "100%", maxWidth: 380 }}>
           <p className="dlr-eyebrow">Montivaro</p>
-          <h1 className="dlr-display" style={{ fontSize: 26, marginTop: 8, marginBottom: 18 }}>Command</h1>
+          <h1 className="dlr-display" style={{ fontSize: 24, marginTop: 8, marginBottom: 18 }}>Command Dialing Center</h1>
           <label className="dlr-label" htmlFor="dlr-pw">Password</label>
           <input id="dlr-pw" type="password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} className="dlr-input" style={{ marginTop: 6 }} />
           {loginError && <p style={{ marginTop: 10, fontSize: 12.5, color: "var(--danger)" }} role="alert">{loginError}</p>}
@@ -481,7 +494,7 @@ export default function DialerApp() {
         <header className="dlr-top">
           <div>
             <p className="dlr-eyebrow">Montivaro</p>
-            <h1 className="dlr-display" style={{ fontSize: 20, marginTop: 2 }}>Command</h1>
+            <h1 className="dlr-display" style={{ fontSize: 20, marginTop: 2 }}>Command Dialing Center</h1>
           </div>
           <nav className="dlr-tabs">
             {(["dial", "leads", "texts", "calls", "numbers"] as const).map((t) => (
@@ -495,6 +508,38 @@ export default function DialerApp() {
 
         {/* ══ DIAL ══ */}
         {tab === "dial" && (
+          <>
+          <section className="dlr-panel dlr-panel-p" style={{ marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <h2 className="dlr-h dlr-display">Analytics</h2>
+              <div style={{ display: "flex", gap: 4 }}>
+                {([["today", "Today"], ["7d", "7 days"], ["all", "All time"]] as const).map(([k, label]) => (
+                  <button key={k} onClick={() => setStatsRange(k)} className={`dlr-chip${statsRange === k ? " on" : ""}`}>{label}</button>
+                ))}
+              </div>
+            </div>
+            <div className="dlr-metrics" style={{ marginTop: 14 }}>
+              {(() => {
+                const s = stats || {};
+                const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
+                const cells = [
+                  { k: "Dials made", n: s.dials || 0, sub: "calls placed", color: "var(--paper)" },
+                  { k: "Connected", n: s.connected || 0, sub: `${pct(s.connected || 0, s.dials || 0)}% of dials`, color: "var(--live)" },
+                  { k: "Interested", n: s.interested || 0, sub: `${pct(s.interested || 0, s.totalLeads || 0)}% of leads`, color: "var(--live)" },
+                  { k: "Not interested", n: s.notInterested || 0, sub: `${pct(s.notInterested || 0, s.totalLeads || 0)}% of leads`, color: "var(--danger)" },
+                  { k: "Callbacks", n: s.callback || 0, sub: "to follow up", color: "var(--warn)" },
+                  { k: "Texts sent", n: s.textsSent || 0, sub: "outbound SMS", color: "var(--paper)" },
+                ];
+                return cells.map((c) => (
+                  <div key={c.k} className="dlr-stat">
+                    <p className="n dlr-mono" style={{ color: c.color }}>{c.n}</p>
+                    <p className="k" style={{ fontSize: 12, fontWeight: 600, color: "var(--paper)", marginTop: 4 }}>{c.k}</p>
+                    <p className="dlr-sub" style={{ marginTop: 1, fontSize: 11 }}>{c.sub}</p>
+                  </div>
+                ));
+              })()}
+            </div>
+          </section>
           <div className="dlr-grid main">
             <section className="dlr-panel dlr-panel-p">
               {!session.active ? (
@@ -693,6 +738,7 @@ export default function DialerApp() {
               </ul>
             </section>
           </div>
+          </>
         )}
 
         {/* ══ LEADS ══ */}
@@ -711,7 +757,10 @@ export default function DialerApp() {
 
               <details style={{ marginTop: 16 }}>
                 <summary className="dlr-label" style={{ cursor: "pointer" }}>Or paste rows manually</summary>
-                <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={4} placeholder={"Joe, Joe's Plumbing, (347) 613-1906\nMaria, Maria's Salon, 404-555-0123"} className="dlr-textarea dlr-mono" style={{ marginTop: 10, fontSize: 12.5 }} />
+                <p className="dlr-sub" style={{ marginTop: 8, fontSize: 11.5 }}>
+                  One lead per line. A name and business are optional — <b style={{ color: "var(--paper)" }}>just phone numbers is fine</b>. Add a name/business after the number if you have them.
+                </p>
+                <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={4} placeholder={"(347) 613-1906\n404-555-0123, Maria, Maria's Salon\n212 555 0144"} className="dlr-textarea dlr-mono" style={{ marginTop: 8, fontSize: 12.5 }} />
                 <button onClick={() => uploadLeads(pasteText)} disabled={!pasteText.trim()} className="dlr-btn primary" style={{ marginTop: 8 }}>Add pasted rows</button>
               </details>
             </section>
@@ -750,17 +799,35 @@ export default function DialerApp() {
                         <select value={l.status} onChange={(e) => patchLead(l.id, { status: e.target.value })} className="dlr-select" style={{ width: "auto", padding: "7px 9px", fontSize: 12 }}>
                           {Object.entries(STATUS_META).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
                         </select>
-                        <button onClick={() => { setTab("texts"); openThread(l.phone, l); }} className="dlr-btn" style={{ padding: "7px 11px" }}>💬</button>
-                        <button onClick={() => { setExpandedLead(expandedLead === l.id ? null : l.id); setNoteDraft(l.notes || ""); }} className="dlr-btn" style={{ padding: "7px 11px" }}>📝</button>
+                        <button title="Text" onClick={() => { setTab("texts"); openThread(l.phone, l); }} className="dlr-btn" style={{ padding: "7px 11px" }}>💬</button>
+                        <button title="Edit" onClick={() => { setExpandedLead(expandedLead === l.id ? null : l.id); setEditDraft({ name: l.name || "", business: l.business || "", notes: l.notes || "" }); }} className="dlr-btn" style={{ padding: "7px 11px" }}>✎</button>
+                        <button title="Delete" onClick={() => deleteLead(l.id, l.name || l.business || fmtPhone(l.phone))} className="dlr-btn danger" style={{ padding: "7px 11px" }}>🗑</button>
                       </span>
                     </div>
-                    {expandedLead === l.id && (
-                      <div style={{ display: "flex", gap: 8, marginTop: 9 }}>
-                        <input value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="Notes…" className="dlr-input" />
-                        <button onClick={() => { patchLead(l.id, { notes: noteDraft }); setExpandedLead(null); }} className="dlr-btn">Save</button>
+                    {expandedLead === l.id ? (
+                      <div style={{ marginTop: 10, display: "grid", gap: 8, borderTop: "1px solid var(--line)", paddingTop: 10 }}>
+                        <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
+                          <span>
+                            <label className="dlr-label" style={{ display: "block", marginBottom: 4 }}>Name</label>
+                            <input value={editDraft.name} onChange={(e) => setEditDraft((d) => ({ ...d, name: e.target.value }))} className="dlr-input" placeholder="Name" />
+                          </span>
+                          <span>
+                            <label className="dlr-label" style={{ display: "block", marginBottom: 4 }}>Business</label>
+                            <input value={editDraft.business} onChange={(e) => setEditDraft((d) => ({ ...d, business: e.target.value }))} className="dlr-input" placeholder="Business" />
+                          </span>
+                        </div>
+                        <span>
+                          <label className="dlr-label" style={{ display: "block", marginBottom: 4 }}>Notes</label>
+                          <input value={editDraft.notes} onChange={(e) => setEditDraft((d) => ({ ...d, notes: e.target.value }))} className="dlr-input" placeholder="Notes…" />
+                        </span>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={() => { patchLead(l.id, editDraft); setExpandedLead(null); }} className="dlr-btn primary">Save changes</button>
+                          <button onClick={() => setExpandedLead(null)} className="dlr-btn">Cancel</button>
+                        </div>
                       </div>
+                    ) : (
+                      l.notes && <p className="dlr-sub" style={{ fontStyle: "italic", marginTop: 5 }}>“{l.notes}”</p>
                     )}
-                    {l.notes && expandedLead !== l.id && <p className="dlr-sub" style={{ fontStyle: "italic", marginTop: 5 }}>“{l.notes}”</p>}
                   </li>
                 ))}
                 {!leads.length && <li className="dlr-sub">No leads yet.</li>}
@@ -814,8 +881,8 @@ export default function DialerApp() {
                 {!editingTemplates ? (
                   <ul style={{ marginTop: 10, display: "grid", gap: 6 }}>
                     {templates.map((t, i) => (
-                      <li key={i} className="dlr-row" style={{ fontSize: 12 }}>
-                        <span style={{ minWidth: 0 }}>
+                      <li key={i} className="dlr-row" style={{ fontSize: 12, overflow: "hidden" }}>
+                        <span style={{ minWidth: 0, flex: 1 }}>
                           <span className="dlr-label" style={{ display: "block", marginBottom: 2 }}>Template {i + 1}</span>
                           <span style={{ display: "block", color: "var(--smoke)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t}</span>
                         </span>
@@ -855,32 +922,39 @@ export default function DialerApp() {
               </div>
             </section>
 
-            <section className="dlr-panel dlr-panel-p" style={{ display: "flex", flexDirection: "column", minHeight: 480 }}>
+            <section className="dlr-panel dlr-panel-p" style={{ display: "flex", flexDirection: "column", minHeight: 560, minWidth: 0 }}>
               {openPhone ? (
                 <>
-                  <p style={{ paddingBottom: 10, borderBottom: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 8 }}>
+                  <div style={{ paddingBottom: 12, borderBottom: "1px solid var(--line)", minWidth: 0 }}>
                     {(openLead?.name || openLead?.business) && (
-                      <span className="dlr-name">{openLead?.name || openLead?.business}{openLead?.name && openLead?.business ? <span className="dlr-company" style={{ color: "var(--smoke)" }}> · {openLead.business}</span> : null}</span>
+                      <p className="dlr-name" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {openLead?.name || openLead?.business}
+                        {openLead?.name && openLead?.business && <span className="dlr-company" style={{ color: "var(--smoke)" }}> · {openLead.business}</span>}
+                      </p>
                     )}
-                    <span className="dlr-phone">{fmtPhone(openPhone)}</span>
-                  </p>
-                  <div className="dlr-scroll" style={{ flex: 1, display: "grid", gap: 7, alignContent: "start", padding: "14px 0" }}>
+                    <p className="dlr-phone" style={{ marginTop: 2 }}>{fmtPhone(openPhone)}</p>
+                  </div>
+                  <div className="dlr-scroll" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 9, padding: "16px 2px", minHeight: 260 }}>
                     {messages.map((m) => (
                       <div key={m.id} className={`dlr-bubble ${m.direction === "out" ? "out" : "in"}`}>
-                        {m.body}
-                        <span style={{ display: "block", marginTop: 3, fontSize: 9.5, opacity: 0.55 }}>{timeAgo(m.created_at)}</span>
+                        <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.body}</span>
+                        <span style={{ display: "block", marginTop: 4, fontSize: 9.5, opacity: 0.55 }}>{m.direction === "out" ? "Sent" : "Received"} · {timeAgo(m.created_at)}</span>
                       </div>
                     ))}
-                    {!messages.length && <p className="dlr-sub">No messages yet.</p>}
+                    {!messages.length && <p className="dlr-sub" style={{ margin: "auto" }}>No messages yet — say hi 👋</p>}
                   </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingBottom: 9 }}>
-                    {templates.map((t, i) => (
-                      <button key={i} onClick={() => setComposer(mergeTemplate(t, openLead || threads.find((th) => th.phone === openPhone)))} className="dlr-chip">Template {i + 1}</button>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <textarea value={composer} onChange={(e) => setComposer(e.target.value)} rows={2} placeholder="Type a text…" className="dlr-textarea" style={{ resize: "none" }} />
-                    <button onClick={sendSms} disabled={!composer.trim()} className="dlr-btn primary">Send</button>
+                  <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+                    {templates.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 9 }}>
+                        {templates.map((t, i) => (
+                          <button key={i} onClick={() => setComposer(mergeTemplate(t, openLead || threads.find((th) => th.phone === openPhone)))} className="dlr-chip">Template {i + 1}</button>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                      <textarea value={composer} onChange={(e) => setComposer(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendSms(); } }} rows={2} placeholder="Type a text…  (⌘/Ctrl+Enter to send)" className="dlr-textarea" style={{ resize: "none", flex: 1, minWidth: 0 }} />
+                      <button onClick={sendSms} disabled={!composer.trim()} className="dlr-btn primary" style={{ flexShrink: 0, alignSelf: "stretch" }}>Send</button>
+                    </div>
                   </div>
                 </>
               ) : (
