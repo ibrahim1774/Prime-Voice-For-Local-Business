@@ -113,6 +113,18 @@ body:has(.dlr) { background: var(--ink); }
   font-size: 13px;
 }
 
+/* import drop zone */
+.dlr-drop {
+  border: 1.5px dashed var(--line-2);
+  border-radius: 14px;
+  padding: 30px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.16s, background 0.16s;
+}
+.dlr-drop:hover { border-color: rgba(246,246,244,0.34); background: rgba(246,246,244,0.02); }
+.dlr-drop:focus-visible { outline: 2px solid rgba(246,246,244,0.5); outline-offset: 2px; }
+
 /* buttons */
 .dlr-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;

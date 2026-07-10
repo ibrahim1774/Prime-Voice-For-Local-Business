@@ -8,6 +8,7 @@
 // re-queued. Marking a call auto-fires the next wave.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import LeadImport from "./LeadImport";
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   new: { label: "New", color: "#8a8a92" },
@@ -328,15 +329,20 @@ export default function DialerApp() {
   }, [leadFilter, leadSearch, guard]);
   useEffect(() => { if (authed && tab === "leads") loadLeads(); }, [authed, tab, loadLeads]);
 
-  const uploadLeads = async (text: string) => {
-    const rows = parseLeadsText(text);
-    if (!rows.length) { setUploadMsg("No phone numbers found — need columns like name, business, phone."); return; }
+  const importRows = async (rows: { name: string; business: string; phone: string }[]) => {
+    if (!rows.length) { setUploadMsg("No valid phone numbers to import."); return null; }
     try {
       const res = await api("leads", { method: "POST", body: JSON.stringify({ rows }) });
       setUploadMsg(`✓ ${res.added} added · ${res.updated} already existed (history kept) · ${res.skipped} skipped`);
-      setPasteText("");
       loadLeads(); loadQueue();
-    } catch (err) { guard(err); }
+      return res as { added: number; updated: number; skipped: number };
+    } catch (err) { guard(err); return null; }
+  };
+  const uploadLeads = async (text: string) => {
+    const rows = parseLeadsText(text);
+    if (!rows.length) { setUploadMsg("No phone numbers found — need columns like name, business, phone."); return; }
+    await importRows(rows);
+    setPasteText("");
   };
   const patchLead = async (id: number, patch: any) => {
     try { await api(`leads/${id}`, { method: "PATCH", body: JSON.stringify(patch) }); loadLeads(); }
@@ -350,7 +356,20 @@ export default function DialerApp() {
   const [messages, setMessages] = useState<any[]>([]);
   const [composer, setComposer] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [editingTemplates, setEditingTemplates] = useState(false);
+  const [templateDraft, setTemplateDraft] = useState<string[]>([]);
+  const [templateSaved, setTemplateSaved] = useState(false);
   const unread = threads.reduce((n, t) => n + (t.unread || 0), 0);
+
+  const saveTemplates = async (next: string[]) => {
+    const cleaned = next.map((t) => t.trim()).filter(Boolean).slice(0, 10);
+    try {
+      await api("settings", { method: "POST", body: JSON.stringify({ templates: cleaned }) });
+      setTemplates(cleaned);
+      setTemplateSaved(true);
+      setTimeout(() => setTemplateSaved(false), 2000);
+    } catch (err) { guard(err); }
+  };
 
   const loadThreads = useCallback(async () => {
     try { setThreads((await api("sms")).threads || []); } catch (err) { guard(err); }
@@ -652,17 +671,21 @@ export default function DialerApp() {
         {tab === "leads" && (
           <div style={{ display: "grid", gap: 18 }}>
             <section className="dlr-panel dlr-panel-p">
-              <h2 className="dlr-h dlr-display">Add leads</h2>
+              <h2 className="dlr-h dlr-display">Import leads</h2>
               <p className="dlr-sub">
-                Upload a CSV or paste rows — name, business, phone in any order, header optional. Re-uploading never
+                Upload a CSV or Excel file and map your own columns — any export layout works. Re-importing never
                 wipes existing leads; they keep their marks, notes, and history.
               </p>
-              <input type="file" accept=".csv,.txt" onChange={async (e) => { const f = e.target.files?.[0]; if (f) uploadLeads(await f.text()); e.target.value = ""; }} style={{ marginTop: 14, fontSize: 12.5, color: "var(--smoke)" }} />
-              <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={4} placeholder={"Joe, Joe's Plumbing, (347) 613-1906\nMaria, Maria's Salon, 404-555-0123"} className="dlr-textarea dlr-mono" style={{ marginTop: 12, fontSize: 12.5 }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
-                <button onClick={() => uploadLeads(pasteText)} disabled={!pasteText.trim()} className="dlr-btn primary">Add leads</button>
-                {uploadMsg && <span className="dlr-sub" style={{ marginTop: 0 }}>{uploadMsg}</span>}
+              <div style={{ marginTop: 14 }}>
+                <LeadImport onImport={importRows} onDone={() => { loadLeads(); loadQueue(); }} />
               </div>
+              {uploadMsg && <p className="dlr-sub" style={{ marginTop: 12 }}>{uploadMsg}</p>}
+
+              <details style={{ marginTop: 16 }}>
+                <summary className="dlr-label" style={{ cursor: "pointer" }}>Or paste rows manually</summary>
+                <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={4} placeholder={"Joe, Joe's Plumbing, (347) 613-1906\nMaria, Maria's Salon, 404-555-0123"} className="dlr-textarea dlr-mono" style={{ marginTop: 10, fontSize: 12.5 }} />
+                <button onClick={() => uploadLeads(pasteText)} disabled={!pasteText.trim()} className="dlr-btn primary" style={{ marginTop: 8 }}>Add pasted rows</button>
+              </details>
             </section>
 
             <section className="dlr-panel dlr-panel-p">
@@ -745,6 +768,62 @@ export default function DialerApp() {
                 ))}
                 {!threads.length && <li className="dlr-sub">No conversations yet.</li>}
               </ul>
+
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <p className="dlr-label" style={{ margin: 0 }}>Text templates</p>
+                  {!editingTemplates ? (
+                    <button onClick={() => { setTemplateDraft(templates.length ? [...templates] : [""]); setEditingTemplates(true); }} className="dlr-btn" style={{ padding: "5px 10px", fontSize: 11 }}>Edit</button>
+                  ) : (
+                    <span style={{ display: "flex", gap: 6 }}>
+                      {templateSaved && <span className="dlr-sub" style={{ marginTop: 0, color: "var(--live)" }}>Saved ✓</span>}
+                      <button onClick={() => setEditingTemplates(false)} className="dlr-btn" style={{ padding: "5px 10px", fontSize: 11 }}>Done</button>
+                    </span>
+                  )}
+                </div>
+
+                {!editingTemplates ? (
+                  <ul style={{ marginTop: 10, display: "grid", gap: 6 }}>
+                    {templates.map((t, i) => (
+                      <li key={i} className="dlr-row" style={{ fontSize: 12 }}>
+                        <span style={{ minWidth: 0 }}>
+                          <span className="dlr-label" style={{ display: "block", marginBottom: 2 }}>Template {i + 1}</span>
+                          <span style={{ display: "block", color: "var(--smoke)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t}</span>
+                        </span>
+                      </li>
+                    ))}
+                    {!templates.length && <li className="dlr-sub">No templates yet — tap Edit to add one.</li>}
+                  </ul>
+                ) : (
+                  <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+                    <p className="dlr-sub" style={{ marginTop: 0, fontSize: 11.5 }}>
+                      Use <span className="dlr-mono">{"{{name}}"}</span> and <span className="dlr-mono">{"{{business}}"}</span> — they fill in per lead when you send.
+                    </p>
+                    {templateDraft.map((t, i) => (
+                      <div key={i} style={{ display: "grid", gap: 6 }}>
+                        <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <span className="dlr-label" style={{ margin: 0 }}>Template {i + 1}</span>
+                          <button onClick={() => setTemplateDraft((d) => d.filter((_, j) => j !== i))} className="dlr-btn danger" style={{ padding: "3px 9px", fontSize: 10.5 }}>Remove</button>
+                        </span>
+                        <textarea
+                          value={t}
+                          onChange={(e) => setTemplateDraft((d) => d.map((x, j) => (j === i ? e.target.value : x)))}
+                          rows={3}
+                          className="dlr-textarea"
+                          style={{ fontSize: 12.5 }}
+                          placeholder="Hi {{name}}, this is Ibrahim from Montivaro…"
+                        />
+                      </div>
+                    ))}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {templateDraft.length < 10 && (
+                        <button onClick={() => setTemplateDraft((d) => [...d, ""])} className="dlr-btn" style={{ padding: "7px 12px" }}>+ Add template</button>
+                      )}
+                      <button onClick={() => saveTemplates(templateDraft)} className="dlr-btn primary" style={{ padding: "7px 14px" }}>Save templates</button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </section>
 
             <section className="dlr-panel dlr-panel-p" style={{ display: "flex", flexDirection: "column", minHeight: 480 }}>
