@@ -44,3 +44,19 @@ export async function PATCH(
   if (!rows.length) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true, lead: rows[0] });
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!isAuthed(request)) return unauthorized();
+  await ensureSchema();
+  const { id } = await params;
+  const leadId = Number(id);
+  if (!Number.isInteger(leadId)) {
+    return NextResponse.json({ error: "Bad id" }, { status: 400 });
+  }
+  // dialer_calls FK is ON DELETE CASCADE, so a lead's call rows go with it.
+  await sql()`DELETE FROM dialer_leads WHERE id = ${leadId}`;
+  return NextResponse.json({ ok: true });
+}

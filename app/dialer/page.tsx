@@ -2,7 +2,7 @@ import DialerApp from "@/components/dialer/DialerApp";
 import "./dialer.css";
 
 export const metadata = {
-  title: "Montivaro | Command",
+  title: "Montivaro | Command Dialing Center",
   robots: { index: false, follow: false },
 };
 

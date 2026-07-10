@@ -79,9 +79,12 @@ body:has(.dlr) { background: var(--ink); }
 @media (max-width: 640px) { .dlr-panel-p { padding: 18px; } }
 
 .dlr-grid { display: grid; gap: 18px; }
+/* Grid/flex children default to min-width:auto, so a long unbreakable string
+   in one column blows the track out and crushes its neighbor. Let them shrink. */
+.dlr-grid > * { min-width: 0; }
 @media (min-width: 860px) {
   .dlr-grid.main { grid-template-columns: 1.5fr 1fr; }
-  .dlr-grid.split { grid-template-columns: 1fr 1.6fr; }
+  .dlr-grid.split { grid-template-columns: 340px minmax(0, 1fr); }
 }
 
 /* type */
@@ -129,6 +132,10 @@ body:has(.dlr) { background: var(--ink); }
   font-variant-numeric: tabular-nums;
   font-size: 16px; font-weight: 600; color: var(--paper);
 }
+
+/* analytics metric grid */
+.dlr-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (min-width: 720px) { .dlr-metrics { grid-template-columns: repeat(6, 1fr); } }
 
 /* import drop zone */
 .dlr-drop {
@@ -192,9 +199,9 @@ body:has(.dlr) { background: var(--ink); }
 .dlr-stat .k { margin-top: 2px; }
 
 /* sms bubbles */
-.dlr-bubble { max-width: 78%; border-radius: 14px; padding: 9px 12px; font-size: 13px; line-height: 1.45; }
+.dlr-bubble { max-width: 82%; width: fit-content; border-radius: 16px; padding: 10px 14px; font-size: 13.5px; line-height: 1.5; }
 .dlr-bubble.out { margin-left: auto; background: var(--paper); color: var(--ink); border-bottom-right-radius: 5px; }
-.dlr-bubble.in { background: rgba(246,246,244,0.08); border-bottom-left-radius: 5px; }
+.dlr-bubble.in { margin-right: auto; background: rgba(246,246,244,0.08); border-bottom-left-radius: 5px; }
 
 /* toast */
 .dlr-toast { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 60; border-radius: 12px; padding: 12px 18px; font-size: 13px; font-weight: 600; background: var(--paper); color: var(--ink); box-shadow: 0 20px 50px -20px rgba(0,0,0,0.7); animation: dlr-drop 0.3s cubic-bezier(0.19,1,0.22,1); }
