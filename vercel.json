@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/dialer/purge-recordings", "schedule": "0 6 * * *" }
+  ]
+}
