@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
   // Lost the race after answering: identify ourselves briefly and re-queue.
   after(async () => {
     if (!callSid) return;
+    // Flag it so the Calls tab never lists the apology as a "conversation".
+    await sql()`UPDATE dialer_calls SET wave_lost = TRUE WHERE call_sid = ${callSid}`;
     await sql()`
       UPDATE dialer_leads SET last_dialed_at = NULL
       WHERE id = (SELECT lead_id FROM dialer_calls WHERE call_sid = ${callSid})

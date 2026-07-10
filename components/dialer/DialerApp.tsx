@@ -9,22 +9,26 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import LeadImport from "./LeadImport";
+import { Icon } from "./icons";
 
+const TAB_LABELS = { dial: "Dial", leads: "Leads", texts: "Texts", calls: "Calls" } as const;
+
+// Status colors read as lamp glass — desaturated and warm, not neon.
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  new: { label: "New", color: "#8a8a92" },
-  interested: { label: "Interested", color: "#34d399" },
-  demo_interested: { label: "Demo interested", color: "#2dd4bf" },
-  text_interested: { label: "SMS interested", color: "#60a5fa" },
-  email_interested: { label: "Email interested", color: "#f0abfc" },
-  demo: { label: "Demo set", color: "#22d3ee" },
-  closed: { label: "Closed / Won", color: "#4ade80" },
-  callback: { label: "Callback", color: "#fbbf24" },
-  voicemail: { label: "Voicemail", color: "#a78bfa" },
-  no_answer: { label: "No answer", color: "#94a3b8" },
-  sms_sent: { label: "SMS sent", color: "#c4b5fd" },
-  not_interested: { label: "Not interested", color: "#f87171" },
-  wrong_number: { label: "Wrong number", color: "#fb923c" },
-  dnc: { label: "DNC", color: "#ef4444" },
+  new: { label: "New", color: "#9b9283" },
+  interested: { label: "Interested", color: "#97b76a" },
+  demo_interested: { label: "Demo interested", color: "#7fb59a" },
+  text_interested: { label: "SMS interested", color: "#87a5c4" },
+  email_interested: { label: "Email interested", color: "#c49bb4" },
+  demo: { label: "Demo set", color: "#7fb5b0" },
+  closed: { label: "Closed / Won", color: "#a8c47f" },
+  callback: { label: "Callback", color: "#c9973f" },
+  voicemail: { label: "Voicemail", color: "#b08fc0" },
+  no_answer: { label: "No answer", color: "#8b8577" },
+  sms_sent: { label: "SMS sent", color: "#9fa8c4" },
+  not_interested: { label: "Not interested", color: "#d0705a" },
+  wrong_number: { label: "Wrong number", color: "#c98a5a" },
+  dnc: { label: "DNC", color: "#c25b49" },
 };
 const DISPOSITIONS = [
   "demo_interested",
@@ -419,7 +423,7 @@ export default function DialerApp() {
           conn.on("disconnect", () => {
             api("session", { method: "POST", body: JSON.stringify({ action: "stop" }) }).catch(() => {});
           });
-          notify("🎧 Connected through your browser — dialing starts now");
+          notify("Connected through your browser — dialing starts now");
         } catch (err: any) {
           // Mic denied / SDK failure: don't leave a half-open session behind.
           destroyDevice();
@@ -432,7 +436,7 @@ export default function DialerApp() {
         }
       } else {
         await api("session", { method: "POST", body: JSON.stringify({ action: "start", mode: "phone" }) });
-        notify("📞 Answer your phone — dialing starts automatically");
+        notify("Answer your phone — dialing starts automatically");
       }
     } catch (err) { guard(err); } finally { setBusy(false); }
   };
@@ -483,7 +487,7 @@ export default function DialerApp() {
     if (!pending) return;
     try {
       await api("sms", { method: "POST", body: JSON.stringify({ phone: pending.phone, body: mergeTemplate(template, pending) }) });
-      notify("Text sent ✓");
+      notify("Text sent");
     } catch (err) { guard(err); }
   };
 
@@ -570,7 +574,7 @@ export default function DialerApp() {
     if (!rows.length) { setUploadMsg("No valid phone numbers to import."); return null; }
     try {
       const res = await api("leads", { method: "POST", body: JSON.stringify({ rows, listName }) });
-      setUploadMsg(`✓ ${res.added} added · ${res.updated} already existed (history kept) · ${res.skipped} skipped`);
+      setUploadMsg(`${res.added} added · ${res.updated} already existed (history kept) · ${res.skipped} skipped`);
       loadLeads(); loadQueue();
       return res as { added: number; updated: number; skipped: number };
     } catch (err) { guard(err); return null; }
@@ -702,7 +706,7 @@ export default function DialerApp() {
           <nav className="dlr-tabs">
             {(["dial", "leads", "texts", "calls"] as const).map((t) => (
               <button key={t} onClick={() => setTab(t)} className={`dlr-tab${tab === t ? " active" : ""}`}>
-                {t}
+                {TAB_LABELS[t]}
                 {t === "texts" && unread > 0 && <span className="badge">{unread}</span>}
               </button>
             ))}
@@ -736,8 +740,8 @@ export default function DialerApp() {
                   { k: "Connection rate", n: `${pct(s.connected || 0, s.dials || 0)}%`, sub: `${s.connected || 0} talked to`, color: "var(--live)" },
                   { k: "Avg call", n: s.avgTalkSeconds ? mmss(s.avgTalkSeconds) : "0:00", sub: `${Math.round((s.talkSeconds || 0) / 60)} min total`, color: "var(--paper)" },
                   { k: "Interested", n: s.interested || 0, sub: `${pct(s.interested || 0, s.totalLeads || 0)}% of leads`, color: "var(--live)" },
-                  { k: "Demos set", n: s.demo || 0, sub: `${pct(s.demo || 0, s.interested || 0)}% of interested`, color: "#22d3ee" },
-                  { k: "Closed / Won", n: s.closed || 0, sub: `${pct(s.closed || 0, s.demo || 0)}% of demos`, color: "#4ade80" },
+                  { k: "Demos set", n: s.demo || 0, sub: `${pct(s.demo || 0, s.interested || 0)}% of interested`, color: "#7fb5b0" },
+                  { k: "Closed / Won", n: s.closed || 0, sub: `${pct(s.closed || 0, s.demo || 0)}% of demos`, color: "#a8c47f" },
                   { k: "Not interested", n: s.notInterested || 0, sub: `${pct(s.notInterested || 0, s.totalLeads || 0)}% of leads`, color: "var(--danger)" },
                   { k: "Texts sent", n: s.textsSent || 0, sub: "outbound SMS", color: "var(--paper)" },
                 ];
@@ -775,8 +779,8 @@ export default function DialerApp() {
                     })}
                   </div>
                   <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
-                    <span className="dlr-sub" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: "rgba(246,246,244,0.2)" }} /> Dials</span>
-                    <span className="dlr-sub" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--live)" }} /> Connected</span>
+                    <span className="dlr-sub" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: "rgba(237,231,218,0.2)" }} /> Dials</span>
+                    <span className="dlr-sub" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--brass)" }} /> Connected</span>
                   </div>
                 </div>
               );
@@ -796,8 +800,8 @@ export default function DialerApp() {
                   <div style={{ marginTop: 18 }}>
                     <label className="dlr-label">How you talk</label>
                     <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                      <button onClick={() => saveCallMode("browser")} className={`dlr-chip${callMode === "browser" ? " on" : ""}`}>🎧 Web calling (this tab)</button>
-                      <button onClick={() => saveCallMode("phone")} className={`dlr-chip${callMode === "phone" ? " on" : ""}`}>📞 Call my phone</button>
+                      <button onClick={() => saveCallMode("browser")} className={`dlr-chip${callMode === "browser" ? " on" : ""}`}><Icon name="headset" /> Web calling (this tab)</button>
+                      <button onClick={() => saveCallMode("phone")} className={`dlr-chip${callMode === "phone" ? " on" : ""}`}><Icon name="phone" /> Call my phone</button>
                     </div>
                   </div>
 
@@ -889,7 +893,7 @@ export default function DialerApp() {
                   </div>
 
                   <button onClick={startSession} disabled={busy || (callMode === "phone" && !agentPhone)} className="dlr-btn go big" style={{ marginTop: 20 }}>
-                    {callMode === "browser" ? "▶ Start session — talk in this tab" : "▶ Start session — call my phone"}
+                    <Icon name="play" size={12} />{callMode === "browser" ? " Start session — talk in this tab" : " Start session — call my phone"}
                   </button>
 
                   <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--line)" }}>
@@ -902,10 +906,15 @@ export default function DialerApp() {
                 <>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <h2 className="dlr-h dlr-display" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span className="dlr-dot" />
+                      <span className={`dlr-lamp${connected ? " live" : ringing || dialing ? " ringing" : session.agentAnswered ? " live" : " ringing"}`} />
                       {session.agentAnswered ? "Session live" : callMode === "browser" ? "Connecting your browser…" : "Ringing your phone…"}
                     </h2>
-                    <button onClick={stopSession} disabled={busy} className="dlr-btn danger">End</button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <span className="dlr-eyebrow" style={{ color: connected ? "var(--live)" : ringing || dialing ? "var(--brass-lit)" : "var(--smoke-d)" }}>
+                        Line 01 · {connected ? "Live" : ringing || dialing ? "Ringing" : "Standby"}
+                      </span>
+                      <button onClick={stopSession} disabled={busy} className="dlr-btn danger">End</button>
+                    </div>
                   </div>
 
                   {session.lastAuto && (
@@ -927,7 +936,7 @@ export default function DialerApp() {
                   )}
 
                   {session.agentAnswered && (pending || ringing || dialing) ? (
-                    <div className="dlr-live" style={{ marginTop: 16 }}>
+                    <div className={`dlr-live${connected ? " connected" : ""}`} style={{ marginTop: 16 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                         <p className="dlr-eyebrow" style={{ color: connected ? "var(--live)" : "var(--smoke)" }}>
                           {connected ? "Connected" : pending ? "Call ended — mark it" : `Dialing ${session.waveLeads?.length || lines}…`}
@@ -941,13 +950,13 @@ export default function DialerApp() {
                           <p className="dlr-company-lg" style={{ marginTop: 2 }}>{pending.business || "—"}</p>
                           <p className="dlr-phone-lg" style={{ marginTop: 5 }}>{fmtPhone(pending.phone)}</p>
                           {w?.amd && (
-                            <p style={{ marginTop: 10, fontSize: 12.5, color: w.amd === "human" ? "var(--live)" : "var(--violet)" }}>
-                              {w.amd === "human" ? "👤 Human answered" : `🤖 Machine detected (${w.amd})`}
+                            <p style={{ marginTop: 10, fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, color: w.amd === "human" ? "var(--live)" : "var(--violet)" }}>
+                              {w.amd === "human" ? <><Icon name="user" /> Human answered</> : <><Icon name="bot" /> Machine detected ({w.amd})</>}
                             </p>
                           )}
                           {connected && (
                             <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-                              <button onClick={() => callAction("vmdrop")} className="dlr-btn violet">📼 Drop voicemail</button>
+                              <button onClick={() => callAction("vmdrop")} className="dlr-btn violet"><Icon name="tape" /> Drop voicemail</button>
                               <button onClick={() => callAction("hangup")} className="dlr-btn danger">Hang up</button>
                             </div>
                           )}
@@ -973,7 +982,7 @@ export default function DialerApp() {
                               className="dlr-btn"
                               title="Save note now (also saves automatically when you mark)"
                             >
-                              💾
+                              <Icon name="save" />
                             </button>
                           </div>
                           <p className="dlr-sub" style={{ marginTop: 4, fontSize: 11 }}>Saves to the lead when you mark the call (date-stamped).</p>
@@ -1008,11 +1017,11 @@ export default function DialerApp() {
                                 “{mergeTemplate(templates[selectedTemplate] || "", pending)}”
                               </p>
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 8 }}>
-                                <button onClick={() => mark("text_interested", templates[selectedTemplate])} className="dlr-btn" style={{ borderColor: "rgba(96,165,250,0.5)", color: "#60a5fa" }}>
-                                  ✓ SMS interested + send
+                                <button onClick={() => mark("text_interested", templates[selectedTemplate])} className="dlr-btn" style={{ borderColor: "rgba(135,165,196,0.5)", color: "#87a5c4" }}>
+                                  <Icon name="check" /> SMS interested + send
                                 </button>
                                 <button onClick={() => quickText(templates[selectedTemplate])} className="dlr-btn">
-                                  💬 Send only
+                                  <Icon name="chat" /> Send only
                                 </button>
                               </div>
                               <p className="dlr-sub" style={{ marginTop: 8, fontSize: 11.5 }}>
@@ -1027,11 +1036,11 @@ export default function DialerApp() {
                             <p className="dlr-sub" style={{ marginTop: 0 }}>Placing {lines > 1 ? `${lines} calls` : "the call"}…</p>
                           )}
                           {(session.waveLeads || []).map((l: any) => (
-                            <div key={l.callSid} style={{ borderLeft: "2px solid rgba(52,211,153,0.5)", paddingLeft: 12 }}>
+                            <div key={l.callSid} style={{ borderLeft: "2px solid rgba(201,151,63,0.55)", paddingLeft: 12 }}>
                               <p className="dlr-name" style={{ fontSize: 17 }}>{l.name || "Unknown"}</p>
                               {l.business && <p className="dlr-company" style={{ color: "var(--smoke)" }}>{l.business}</p>}
                               <p className="dlr-phone" style={{ marginTop: 2 }}>{fmtPhone(l.phone)}</p>
-                              <p className="dlr-sub" style={{ marginTop: 2, fontSize: 11 }}>{l.status === "in-progress" ? "🟢 answered" : l.status === "ringing" ? "ringing…" : l.status || "dialing…"}</p>
+                              <p className="dlr-sub" style={{ marginTop: 2, fontSize: 11 }}>{l.status === "in-progress" ? "answered" : l.status === "ringing" ? "ringing…" : l.status || "dialing…"}</p>
                             </div>
                           ))}
                         </div>
@@ -1040,7 +1049,7 @@ export default function DialerApp() {
                   ) : session.agentAnswered ? (
                     <div style={{ marginTop: 16 }}>
                       <button onClick={() => fireWave()} disabled={dialing || !queue.length} className="dlr-btn primary big">
-                        {queue.length ? `📞 Dial next ${lines > 1 ? `${lines} leads` : ""}` : "Queue empty — add leads"}
+                        {queue.length ? <><Icon name="phone" /> Dial next {lines > 1 ? `${lines} leads` : ""}</> : "Queue empty — add leads"}
                       </button>
                     </div>
                   ) : null}
@@ -1089,7 +1098,7 @@ export default function DialerApp() {
               )}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 12 }}>
                 <div className="dlr-stat"><p className="n dlr-mono">{counts.new || 0}</p><p className="k dlr-eyebrow">New</p></div>
-                <div className="dlr-stat"><p className="n dlr-mono" style={{ color: "#a78bfa" }}>{counts.voicemail || 0}</p><p className="k dlr-eyebrow">Voicemail</p></div>
+                <div className="dlr-stat"><p className="n dlr-mono" style={{ color: "var(--violet)" }}>{counts.voicemail || 0}</p><p className="k dlr-eyebrow">Voicemail</p></div>
                 <div className="dlr-stat"><p className="n dlr-mono" style={{ color: "var(--live)" }}>{counts.interested || 0}</p><p className="k dlr-eyebrow">Interested</p></div>
               </div>
               <ul style={{ marginTop: 14, display: "grid", gap: 7 }}>
@@ -1208,9 +1217,9 @@ export default function DialerApp() {
                         <select value={l.status} onChange={(e) => patchLead(l.id, { status: e.target.value })} className="dlr-select" style={{ width: "auto", padding: "7px 9px", fontSize: 12 }}>
                           {Object.entries(STATUS_META).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
                         </select>
-                        <button title="Text" onClick={() => { setTab("texts"); openThread(l.phone, l); }} className="dlr-btn" style={{ padding: "7px 11px" }}>💬</button>
-                        <button title="Edit" onClick={() => { setExpandedLead(expandedLead === l.id ? null : l.id); setEditDraft({ name: l.name || "", business: l.business || "", notes: l.notes || "", industry: l.industry || "" }); }} className="dlr-btn" style={{ padding: "7px 11px" }}>✎</button>
-                        <button title="Delete" onClick={() => deleteLead(l.id, l.name || l.business || fmtPhone(l.phone))} className="dlr-btn danger" style={{ padding: "7px 11px" }}>🗑</button>
+                        <button title="Text" onClick={() => { setTab("texts"); openThread(l.phone, l); }} className="dlr-btn" style={{ padding: "7px 11px" }}><Icon name="chat" /></button>
+                        <button title="Edit" onClick={() => { setExpandedLead(expandedLead === l.id ? null : l.id); setEditDraft({ name: l.name || "", business: l.business || "", notes: l.notes || "", industry: l.industry || "" }); }} className="dlr-btn" style={{ padding: "7px 11px" }}><Icon name="edit" /></button>
+                        <button title="Delete" onClick={() => deleteLead(l.id, l.name || l.business || fmtPhone(l.phone))} className="dlr-btn danger" style={{ padding: "7px 11px" }}><Icon name="trash" /></button>
                       </span>
                     </div>
                     {expandedLead === l.id ? (
@@ -1262,13 +1271,13 @@ export default function DialerApp() {
               <ul className="dlr-scroll" style={{ marginTop: 12, display: "grid", gap: 6, maxHeight: 460 }}>
                 {threads.map((t) => (
                   <li key={t.phone} className="dlr-thread-row" style={{ position: "relative" }}>
-                    <button onClick={() => openThread(t.phone, t)} className="dlr-row" style={{ width: "100%", textAlign: "left", cursor: "pointer", background: openPhone === t.phone ? "rgba(246,246,244,0.05)" : "transparent", borderColor: openPhone === t.phone ? "var(--line-2)" : "var(--line)" }}>
+                    <button onClick={() => openThread(t.phone, t)} className="dlr-row" style={{ width: "100%", textAlign: "left", cursor: "pointer", background: openPhone === t.phone ? "rgba(237,231,218,0.05)" : "transparent", borderColor: openPhone === t.phone ? "var(--line-2)" : "var(--line)" }}>
                       <span style={{ minWidth: 0, flex: 1 }}>
                         <span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                           <span className="dlr-name" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {t.name || t.business || fmtPhone(t.phone)}
                           </span>
-                          {t.unread > 0 && <span className="dlr-pill" style={{ background: "var(--live)", color: "#04160f", borderColor: "var(--live)" }}>{t.unread}</span>}
+                          {t.unread > 0 && <span className="dlr-pill" style={{ background: "var(--brass)", color: "#1b1204", borderColor: "var(--brass)" }}>{t.unread}</span>}
                         </span>
                         <span style={{ display: "block", fontSize: 11.5, color: "var(--smoke-d)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 22 }}>
                           {t.direction === "in" ? "↩ " : ""}{t.body}
@@ -1280,7 +1289,7 @@ export default function DialerApp() {
                       className="dlr-thread-del"
                       title="Delete conversation"
                       aria-label="Delete conversation"
-                    >🗑</button>
+                    ><Icon name="trash" /></button>
                   </li>
                 ))}
                 {!threads.length && <li className="dlr-sub">No conversations yet.</li>}
@@ -1293,7 +1302,7 @@ export default function DialerApp() {
                     <button onClick={() => { setTemplateDraft(templates.length ? [...templates] : [""]); setEditingTemplates(true); }} className="dlr-btn" style={{ padding: "5px 10px", fontSize: 11 }}>Edit</button>
                   ) : (
                     <span style={{ display: "flex", gap: 6 }}>
-                      {templateSaved && <span className="dlr-sub" style={{ marginTop: 0, color: "var(--live)" }}>Saved ✓</span>}
+                      {templateSaved && <span className="dlr-sub" style={{ marginTop: 0, color: "var(--live)" }}>Saved</span>}
                       <button onClick={() => setEditingTemplates(false)} className="dlr-btn" style={{ padding: "5px 10px", fontSize: 11 }}>Done</button>
                     </span>
                   )}
@@ -1362,10 +1371,10 @@ export default function DialerApp() {
                           <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.body}</span>
                           <span style={{ display: "block", marginTop: 4, fontSize: 9.5, opacity: 0.55 }}>{m.direction === "out" ? "Sent" : "Received"} · {timeAgo(m.created_at)}</span>
                         </div>
-                        <button onClick={() => deleteMessage(m.id)} className="dlr-msg-del" title="Delete message" aria-label="Delete message">✕</button>
+                        <button onClick={() => deleteMessage(m.id)} className="dlr-msg-del" title="Delete message" aria-label="Delete message"><Icon name="x" size={11} /></button>
                       </div>
                     ))}
-                    {!messages.length && <p className="dlr-sub" style={{ margin: "auto" }}>No messages yet — say hi 👋</p>}
+                    {!messages.length && <p className="dlr-sub" style={{ margin: "auto" }}>No messages yet — start the conversation below.</p>}
                   </div>
                   <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
                     {templates.length > 0 && (
@@ -1391,8 +1400,8 @@ export default function DialerApp() {
         {/* ══ CALLS ══ */}
         {tab === "calls" && (
           <section className="dlr-panel dlr-panel-p">
-            <h2 className="dlr-h dlr-display">Last 24 hours</h2>
-            <p className="dlr-sub">Listen back to any call. Recordings delete themselves after 24 hours — the log line stays, the audio is gone for good.</p>
+            <h2 className="dlr-h dlr-display">Conversations — last 24 hours</h2>
+            <p className="dlr-sub">Only real calls with a prospect land here — voicemails, ring-outs, and abandoned waves are filtered out. Recordings delete themselves after 24 hours; the log line stays, the audio is gone for good.</p>
             <ul style={{ marginTop: 16, display: "grid", gap: 10 }}>
               {callLog.map((c) => (
                 <li key={c.id} className="dlr-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
@@ -1414,7 +1423,7 @@ export default function DialerApp() {
                   )}
                 </li>
               ))}
-              {!callLog.length && <li className="dlr-sub">No calls in the last 24 hours.</li>}
+              {!callLog.length && <li className="dlr-sub">No conversations in the last 24 hours. Voicemails and no-answers are tracked on their leads, not here.</li>}
             </ul>
           </section>
         )}
