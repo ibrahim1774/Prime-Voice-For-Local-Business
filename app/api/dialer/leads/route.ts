@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   ensureSchema,
+  getSetting,
   isAuthed,
   normalizePhone,
   sql,
   unauthorized,
+  DIALABLE_SEGMENTS,
   LEAD_STATUSES,
 } from "@/lib/dialer/core";
+import { areaCodeOf, stateOfAreaCode } from "@/lib/dialer/areaCodes";
 
 export const maxDuration = 60;
 
@@ -18,36 +21,58 @@ export async function GET(request: NextRequest) {
   const status = p.get("status") || "";
   const search = (p.get("search") || "").trim();
   const queue = p.get("queue") === "1";
+  const stateFilter = (p.get("state") || "").trim().toUpperCase();
   const limit = Math.min(Number(p.get("limit")) || 500, 2000);
   const q = sql();
 
   let rows: any[];
   if (queue) {
-    // Next up: due callbacks first (time-sensitive), then fresh leads. DNC
-    // excluded; anyone dialed in the last 20h sits out until tomorrow.
-    rows = (await q`
-      SELECT * FROM dialer_leads
-      WHERE (status = 'new' OR (status = 'callback' AND (callback_at IS NULL OR callback_at <= now())))
-        AND (last_dialed_at IS NULL OR last_dialed_at < now() - interval '20 hours')
-      ORDER BY (status = 'callback') DESC, id ASC
-      LIMIT ${limit}`) as any[];
+    // The dialing queue honors the saved segment + state (set on the Dial tab).
+    const segment = (await getSetting("dial_segment")) || "new";
+    const seg = (DIALABLE_SEGMENTS as readonly string[]).includes(segment) ? segment : "new";
+    const st = (await getSetting("dial_state")).toUpperCase();
+    if (seg === "new") {
+      // Default: due callbacks first, then fresh leads; 20h re-dial cooldown.
+      rows = (await q`
+        SELECT * FROM dialer_leads
+        WHERE (status = 'new' OR (status = 'callback' AND (callback_at IS NULL OR callback_at <= now())))
+          AND (${st} = '' OR state = ${st})
+          AND (last_dialed_at IS NULL OR last_dialed_at < now() - interval '20 hours')
+        ORDER BY (status = 'callback') DESC, id ASC
+        LIMIT ${limit}`) as any[];
+    } else {
+      // Deliberate retry of a segment (e.g. voicemails): no cooldown, oldest
+      // attempt first so you work through the whole batch.
+      rows = (await q`
+        SELECT * FROM dialer_leads
+        WHERE status = ${seg} AND (${st} = '' OR state = ${st})
+        ORDER BY last_dialed_at ASC NULLS FIRST, id ASC
+        LIMIT ${limit}`) as any[];
+    }
   } else if (search) {
     const like = `%${search}%`;
     rows = (await q`
       SELECT * FROM dialer_leads
-      WHERE name ILIKE ${like} OR business ILIKE ${like} OR phone LIKE ${like}
+      WHERE (name ILIKE ${like} OR business ILIKE ${like} OR phone LIKE ${like})
+        AND (${stateFilter} = '' OR state = ${stateFilter})
       ORDER BY updated_at DESC LIMIT ${limit}`) as any[];
   } else if (status && (LEAD_STATUSES as readonly string[]).includes(status)) {
     rows = (await q`
-      SELECT * FROM dialer_leads WHERE status = ${status}
+      SELECT * FROM dialer_leads
+      WHERE status = ${status} AND (${stateFilter} = '' OR state = ${stateFilter})
       ORDER BY updated_at DESC LIMIT ${limit}`) as any[];
   } else {
-    rows = (await q`SELECT * FROM dialer_leads ORDER BY updated_at DESC LIMIT ${limit}`) as any[];
+    rows = (await q`
+      SELECT * FROM dialer_leads
+      WHERE (${stateFilter} = '' OR state = ${stateFilter})
+      ORDER BY updated_at DESC LIMIT ${limit}`) as any[];
   }
 
   const counts = (await q`
     SELECT status, count(*)::int AS n FROM dialer_leads GROUP BY status`) as any[];
-  return NextResponse.json({ leads: rows, counts });
+  const states = (await q`
+    SELECT state, count(*)::int AS n FROM dialer_leads WHERE state <> '' GROUP BY state ORDER BY state`) as any[];
+  return NextResponse.json({ leads: rows, counts, states });
 }
 
 // POST — bulk upsert { rows: [{name, business, phone}] }. Dedupes by phone;
@@ -78,12 +103,14 @@ export async function POST(request: NextRequest) {
     seen.add(phone);
     const name = String(row?.name ?? "").trim().slice(0, 120);
     const business = String(row?.business ?? "").trim().slice(0, 160);
+    const state = stateOfAreaCode(areaCodeOf(phone));
     const result = (await q`
-      INSERT INTO dialer_leads (phone, name, business)
-      VALUES (${phone}, ${name}, ${business})
+      INSERT INTO dialer_leads (phone, name, business, state)
+      VALUES (${phone}, ${name}, ${business}, ${state})
       ON CONFLICT (phone) DO UPDATE SET
         name = CASE WHEN dialer_leads.name = '' THEN EXCLUDED.name ELSE dialer_leads.name END,
         business = CASE WHEN dialer_leads.business = '' THEN EXCLUDED.business ELSE dialer_leads.business END,
+        state = CASE WHEN dialer_leads.state = '' THEN EXCLUDED.state ELSE dialer_leads.state END,
         updated_at = now()
       RETURNING (xmax = 0) AS inserted`) as any[];
     if (result[0]?.inserted) added++;

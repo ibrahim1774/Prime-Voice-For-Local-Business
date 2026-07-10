@@ -3,6 +3,7 @@ import {
   BASE_URL,
   cancelCalls,
   createWaveClaim,
+  DIALABLE_SEGMENTS,
   ensureSchema,
   getSession,
   getSetting,
@@ -53,12 +54,26 @@ export async function POST(request: NextRequest) {
       SELECT * FROM dialer_leads WHERE id = ${Number(body.leadId)} AND status <> 'dnc'`) as any[];
   } else {
     const lines = Math.min(3, Math.max(1, Number(await getSetting("lines")) || 1));
-    leads = (await q`
-      SELECT * FROM dialer_leads
-      WHERE (status = 'new' OR (status = 'callback' AND (callback_at IS NULL OR callback_at <= now())))
-        AND (last_dialed_at IS NULL OR last_dialed_at < now() - interval '20 hours')
-      ORDER BY (status = 'callback') DESC, id ASC
-      LIMIT ${lines}`) as any[];
+    // Honor the same segment + state the queue preview uses, so "Dial next"
+    // pulls from exactly the batch shown in Up next.
+    const segment = (await getSetting("dial_segment")) || "new";
+    const seg = (DIALABLE_SEGMENTS as readonly string[]).includes(segment) ? segment : "new";
+    const st = (await getSetting("dial_state")).toUpperCase();
+    if (seg === "new") {
+      leads = (await q`
+        SELECT * FROM dialer_leads
+        WHERE (status = 'new' OR (status = 'callback' AND (callback_at IS NULL OR callback_at <= now())))
+          AND (${st} = '' OR state = ${st})
+          AND (last_dialed_at IS NULL OR last_dialed_at < now() - interval '20 hours')
+        ORDER BY (status = 'callback') DESC, id ASC
+        LIMIT ${lines}`) as any[];
+    } else {
+      leads = (await q`
+        SELECT * FROM dialer_leads
+        WHERE status = ${seg} AND (${st} = '' OR state = ${st})
+        ORDER BY last_dialed_at ASC NULLS FIRST, id ASC
+        LIMIT ${lines}`) as any[];
+    }
   }
   if (!leads.length) {
     return NextResponse.json({ error: "Queue is empty" }, { status: 404 });
