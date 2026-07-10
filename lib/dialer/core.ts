@@ -73,6 +73,15 @@ export async function ensureSchema() {
     value text NOT NULL DEFAULT ''
   )`;
   await q`CREATE INDEX IF NOT EXISTS dialer_messages_phone_idx ON dialer_messages (phone, created_at)`;
+  await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS last_dialed_at timestamptz`;
+  await q`CREATE TABLE IF NOT EXISTS dialer_numbers (
+    id serial PRIMARY KEY,
+    phone text UNIQUE NOT NULL,
+    sid text NOT NULL,
+    area_code text NOT NULL,
+    state text NOT NULL DEFAULT '',
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`;
   schemaReady = true;
 }
 
@@ -86,13 +95,22 @@ export async function setSetting(key: string, value: string) {
     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 }
 
+export interface WaveCall {
+  leadId: number;
+  callSid: string;
+}
+
 export interface DialSession {
   active: boolean;
   conference: string;
   agentCallSid: string;
-  currentLeadId: number | null;
-  currentCallSid: string | null;
   startedAt: string;
+  // Current wave (1-3 simultaneous calls). Written only by the dial/session
+  // routes; webhooks write dialer_calls + the wave-winner claim key instead,
+  // so the session JSON never races.
+  waveId: string | null;
+  wave: WaveCall[];
+  waveStartedAt: string | null;
 }
 
 export async function getSession(): Promise<DialSession | null> {
@@ -108,6 +126,44 @@ export async function getSession(): Promise<DialSession | null> {
 export async function saveSession(s: DialSession | null) {
   await setSetting("session", s ? JSON.stringify(s) : "");
 }
+
+// ── parallel-wave winner claim ──────────────────────────────────────────────
+// First answered call atomically claims the wave; everyone else loses and
+// gets the polite abandon message. Claim lives in its own settings row so
+// concurrent Twilio webhooks can race safely on a single UPDATE.
+
+export function waveClaimKey(waveId: string): string {
+  return `wave_winner:${waveId}`;
+}
+
+export async function createWaveClaim(waveId: string) {
+  await sql()`DELETE FROM dialer_settings WHERE key LIKE 'wave_winner:%'`;
+  await sql()`INSERT INTO dialer_settings (key, value) VALUES (${waveClaimKey(waveId)}, '')
+    ON CONFLICT (key) DO UPDATE SET value = ''`;
+}
+
+// Returns true if this callSid won the wave (or had already won it).
+export async function claimWave(waveId: string, callSid: string): Promise<boolean> {
+  const rows = (await sql()`
+    UPDATE dialer_settings SET value = ${callSid}
+    WHERE key = ${waveClaimKey(waveId)} AND value = ''
+    RETURNING value`) as any[];
+  if (rows.length) return true;
+  const current = await getSetting(waveClaimKey(waveId));
+  return current === callSid;
+}
+
+export async function waveWinner(waveId: string): Promise<string> {
+  return getSetting(waveClaimKey(waveId));
+}
+
+export const TERMINAL_CALL_STATUSES = [
+  "completed",
+  "busy",
+  "failed",
+  "no-answer",
+  "canceled",
+];
 
 // ── auth ────────────────────────────────────────────────────────────────────
 
@@ -231,6 +287,25 @@ export async function twilio(
     throw new Error(`Twilio ${resp.status}: ${json?.message || path}`);
   }
   return json;
+}
+
+// Local presence: pick the caller ID for a lead — exact area-code match from
+// the owned-number pool, then any same-state number, then the default line.
+export async function pickCallerId(leadPhone: string): Promise<string> {
+  const { areaCodeOf, stateOfAreaCode } = await import("./areaCodes");
+  const { from } = twilioEnv();
+  const code = areaCodeOf(leadPhone);
+  if (!code) return from;
+  const pool = (await sql()`SELECT phone, area_code, state FROM dialer_numbers`) as any[];
+  if (!pool.length) return from;
+  const exact = pool.find((n) => n.area_code === code);
+  if (exact) return exact.phone;
+  const state = stateOfAreaCode(code);
+  if (state) {
+    const sameState = pool.find((n) => n.state === state);
+    if (sameState) return sameState.phone;
+  }
+  return from;
 }
 
 // Deletes Twilio recordings older than 24h. Runs lazily on every recordings

@@ -12,19 +12,21 @@ import {
 export async function GET(request: NextRequest) {
   if (!isAuthed(request)) return unauthorized();
   await ensureSchema();
-  const [agentPhone, vmScript, templates] = await Promise.all([
+  const [agentPhone, vmScript, templates, lines] = await Promise.all([
     getSetting("agent_phone"),
     getSetting("vm_script"),
     getSetting("sms_templates"),
+    getSetting("lines"),
   ]);
   return NextResponse.json({
     agentPhone,
     vmScript: vmScript || DEFAULT_VM_SCRIPT,
+    lines: Math.min(3, Math.max(1, Number(lines) || 1)),
     templates: templates
       ? JSON.parse(templates)
       : [
-          "Hi {{name}}, this is Ibrahim from Montivaro — great talking with you about {{business}}. Here's the link to book your setup call: montivaro.com/bookcall",
-          "Hi {{name}}, Ibrahim from Montivaro here. We make sure {{business}} never misses a customer call with a 24/7 AI receptionist. Want a quick demo? Call (928) 968-9136 to hear it live.",
+          "Hi {{name}}, this is Ibrahim from Montivaro — great talking with you about {{business}}. Hear the AI receptionist live: call (928) 968-9136. Book a setup call: montivaro.com/bookcall",
+          "Hi {{name}}, Ibrahim from Montivaro here. We make sure {{business}} never misses a customer call with a 24/7 AI receptionist. Book a time: montivaro.com/bookcall",
         ],
   });
 }
@@ -42,6 +44,9 @@ export async function POST(request: NextRequest) {
   }
   if (typeof body.vmScript === "string") {
     await setSetting("vm_script", body.vmScript.slice(0, 1200));
+  }
+  if (body.lines !== undefined) {
+    await setSetting("lines", String(Math.min(3, Math.max(1, Number(body.lines) || 1))));
   }
   if (Array.isArray(body.templates)) {
     await setSetting(

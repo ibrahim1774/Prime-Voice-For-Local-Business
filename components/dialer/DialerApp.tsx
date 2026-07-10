@@ -1,20 +1,18 @@
 "use client";
 
-// /dialer — password-protected power dialer ("your own Kixie").
-// Phone-bridge architecture: a session calls YOUR cell once, then leads are
-// dialed from the Twilio local number and bridged into your line one by one.
+// /dialer — "Command": password-protected power dialer.
+//
+// Phone-bridge architecture: a session calls the agent's cell once, then each
+// wave dials 1-3 queued leads simultaneously from the local-presence pool.
+// The first lead to answer is bridged in; losers get a polite message and are
+// re-queued. Marking a call auto-fires the next wave.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const INK = "#0b0b0c";
-const PAPER = "#f7f6f3";
-const SMOKE = "#8f8f96";
-const LINE = "rgba(247,246,243,0.14)";
-
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  new: { label: "New", color: "#8f8f96" },
-  interested: { label: "Interested", color: "#4ade80" },
-  callback: { label: "Callback", color: "#facc15" },
+  new: { label: "New", color: "#8a8a92" },
+  interested: { label: "Interested", color: "#34d399" },
+  callback: { label: "Callback", color: "#fbbf24" },
   voicemail: { label: "Voicemail", color: "#a78bfa" },
   no_answer: { label: "No answer", color: "#94a3b8" },
   not_interested: { label: "Not interested", color: "#f87171" },
@@ -44,17 +42,24 @@ async function api(path: string, options?: RequestInit): Promise<any> {
 
 function fmtPhone(p: string): string {
   const m = (p || "").match(/^\+1(\d{3})(\d{3})(\d{4})$/);
-  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : p;
+  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : p || "";
 }
-
 function timeAgo(ts: string): string {
   const s = Math.max(0, (Date.now() - new Date(ts).getTime()) / 1000);
   if (s < 60) return `${Math.floor(s)}s ago`;
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   return `${Math.floor(s / 3600)}h ago`;
 }
+function mmss(sec: number): string {
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+}
+function mergeTemplate(t: string, lead: any): string {
+  return t
+    .replace(/\{\{\s*name\s*\}\}/gi, lead?.name || "there")
+    .replace(/\{\{\s*business\s*\}\}/gi, lead?.business || "your business");
+}
 
-// Minimal CSV parser with quoted-field support + smart column detection.
+// CSV / paste parser with quoted fields + smart column detection.
 function parseLeadsText(text: string): { name: string; business: string; phone: string }[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (!lines.length) return [];
@@ -77,18 +82,14 @@ function parseLeadsText(text: string): { name: string; business: string; phone: 
   };
   const rows = lines.map(parseLine);
   const looksPhone = (v: string) => (v || "").replace(/\D/g, "").length >= 10;
-
-  // Header detection
   let phoneCol = -1, nameCol = -1, bizCol = -1, start = 0;
   const header = rows[0].map((h) => h.toLowerCase());
-  const headerHasPhoneWord = header.some((h) => /phone|number|cell|mobile|tel/.test(h));
-  if (headerHasPhoneWord && !rows[0].some(looksPhone)) {
+  if (header.some((h) => /phone|number|cell|mobile|tel/.test(h)) && !rows[0].some(looksPhone)) {
     start = 1;
     phoneCol = header.findIndex((h) => /phone|number|cell|mobile|tel/.test(h));
     nameCol = header.findIndex((h) => /name|contact|owner/.test(h) && !/business|company/.test(h));
     bizCol = header.findIndex((h) => /business|company|org|shop/.test(h));
   } else {
-    // No header: pick the column with the most phone-like values.
     const cols = Math.max(...rows.map((r) => r.length));
     let best = -1, bestScore = -1;
     for (let c = 0; c < cols; c++) {
@@ -111,20 +112,22 @@ function parseLeadsText(text: string): { name: string; business: string; phone: 
     .filter((r) => looksPhone(r.phone));
 }
 
-const inputCls =
-  "w-full rounded-lg border px-3 py-2.5 text-[14px] outline-none bg-transparent focus:border-white/40";
-const btnCls =
-  "rounded-lg px-4 py-2.5 text-[12px] font-bold uppercase tracking-[0.14em] transition disabled:opacity-40";
-
 function StatusPill({ status }: { status: string }) {
-  const meta = STATUS_META[status] || STATUS_META.new;
+  const m = STATUS_META[status] || STATUS_META.new;
   return (
-    <span
-      className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-      style={{ color: meta.color, border: `1px solid ${meta.color}44`, background: `${meta.color}14` }}
-    >
-      {meta.label}
+    <span className="dlr-pill" style={{ color: m.color, borderColor: `${m.color}55`, background: `${m.color}12` }}>
+      {m.label}
     </span>
+  );
+}
+
+function Wave() {
+  return (
+    <div className="dlr-wave" aria-hidden="true">
+      {Array.from({ length: 14 }, (_, i) => (
+        <span key={i} style={{ animationDelay: `${(i % 5) * 0.11}s`, animationDuration: `${0.85 + ((i * 3) % 4) * 0.12}s` }} />
+      ))}
+    </div>
   );
 }
 
@@ -132,41 +135,32 @@ export default function DialerApp() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [tab, setTab] = useState<"dial" | "leads" | "texts" | "calls">("dial");
+  const [tab, setTab] = useState<"dial" | "leads" | "texts" | "calls" | "numbers">("dial");
   const [toast, setToast] = useState("");
 
   const notify = useCallback((msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(""), 3500);
+    setTimeout(() => setToast(""), 3600);
   }, []);
-
-  const guard = useCallback(
-    (err: any) => {
-      if (err?.message === "__auth__") setAuthed(false);
-      else notify(err?.message || "Something went wrong");
-    },
-    [notify]
-  );
+  const guard = useCallback((err: any) => {
+    if (err?.message === "__auth__") setAuthed(false);
+    else notify(err?.message || "Something went wrong");
+  }, [notify]);
 
   // ── settings ──
   const [agentPhone, setAgentPhone] = useState("");
   const [vmScript, setVmScript] = useState("");
   const [templates, setTemplates] = useState<string[]>([]);
+  const [lines, setLines] = useState(1);
   const loadSettings = useCallback(async () => {
     const s = await api("settings");
     setAgentPhone(s.agentPhone || "");
     setVmScript(s.vmScript || "");
     setTemplates(s.templates || []);
-    return s;
+    setLines(s.lines || 1);
   }, []);
-
   useEffect(() => {
-    loadSettings()
-      .then(() => setAuthed(true))
-      .catch((err) => {
-        if (err?.message === "__auth__") setAuthed(false);
-        else setAuthed(false);
-      });
+    loadSettings().then(() => setAuthed(true)).catch(() => setAuthed(false));
   }, [loadSettings]);
 
   const login = async () => {
@@ -181,37 +175,45 @@ export default function DialerApp() {
     }
   };
 
-  // ── session / dial tab ──
+  // ── session ──
   const [session, setSession] = useState<any>({ active: false });
   const [queue, setQueue] = useState<any[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [autoDial, setAutoDial] = useState(true);
-  const [awaiting, setAwaiting] = useState<any>(null); // lead needing a disposition
+  const [handsFree, setHandsFree] = useState(false);
+  const [pending, setPending] = useState<any>(null); // lead awaiting a mark
   const [busy, setBusy] = useState(false);
-  const autoDialRef = useRef(autoDial);
-  autoDialRef.current = autoDial;
-  const awaitingRef = useRef(awaiting);
-  awaitingRef.current = awaiting;
-  const sessionRef = useRef(session);
-  sessionRef.current = session;
+  const [dialing, setDialing] = useState(false);
+
+  const refs = useRef({ autoDial, handsFree, pending, session, dialing });
+  refs.current = { autoDial, handsFree, pending, session, dialing };
 
   const loadQueue = useCallback(async () => {
     try {
-      const data = await api("leads?queue=1&limit=15");
+      const data = await api("leads?queue=1&limit=12");
       setQueue(data.leads || []);
       const c: Record<string, number> = {};
-      (data.counts || []).forEach((row: any) => (c[row.status] = row.n));
+      (data.counts || []).forEach((r: any) => (c[r.status] = r.n));
       setCounts(c);
-    } catch (err) {
-      guard(err);
-    }
+    } catch (err) { guard(err); }
   }, [guard]);
+  useEffect(() => { if (authed) loadQueue(); }, [authed, loadQueue]);
 
-  useEffect(() => {
-    if (authed) loadQueue();
-  }, [authed, loadQueue]);
+  const fireWave = useCallback(async (leadId?: number) => {
+    if (refs.current.dialing) return;
+    setDialing(true);
+    try {
+      await api("dial", { method: "POST", body: JSON.stringify(leadId ? { leadId } : {}) });
+    } catch (err: any) {
+      if (err?.message?.includes("Queue is empty")) notify("Queue is empty — add more leads");
+      else guard(err);
+    } finally {
+      setDialing(false);
+      loadQueue();
+    }
+  }, [guard, notify, loadQueue]);
 
-  // Poll session state while authed.
+  // Poll session; auto-advance when a wave ends.
   useEffect(() => {
     if (!authed) return;
     let stop = false;
@@ -220,89 +222,89 @@ export default function DialerApp() {
         const s = await api("session");
         if (stop) return;
         setSession(s);
-        if (s.currentLead) setAwaiting(s.currentLead);
+        if (!s.active) { setPending(null); return; }
+
+        if (s.winnerLead) {
+          setPending((prev: any) => (prev?.id === s.winnerLead.id ? prev : s.winnerLead));
+        }
+        // Wave finished: winner's call ended (or nobody answered).
+        if (!s.waveActive && !refs.current.dialing) {
+          const needsMark = Boolean(s.winnerLead);
+          if (!needsMark && s.agentAnswered && refs.current.autoDial) {
+            setPending(null);
+            fireWave();
+          } else if (needsMark && refs.current.handsFree && refs.current.autoDial) {
+            fireWave();
+          }
+        }
       } catch (err: any) {
         if (err?.message === "__auth__") setAuthed(false);
       }
     };
     tick();
-    const iv = setInterval(tick, 1500);
+    const iv = setInterval(tick, 1600);
     return () => { stop = true; clearInterval(iv); };
-  }, [authed]);
+  }, [authed, fireWave]);
 
-  const dialLead = useCallback(
-    async (leadId: number) => {
-      setBusy(true);
-      try {
-        await api("dial", { method: "POST", body: JSON.stringify({ leadId }) });
-      } catch (err) {
-        guard(err);
-      } finally {
-        setBusy(false);
-      }
-    },
-    [guard]
-  );
-
-  const dialNext = useCallback(async () => {
-    const data = await api("leads?queue=1&limit=1").catch(() => null);
-    const next = data?.leads?.[0];
-    if (!next) {
-      notify("Queue is empty 🎉");
-      return;
+  // Auto-dial the first wave as soon as the agent picks up their phone.
+  const kickedRef = useRef(false);
+  useEffect(() => {
+    if (!session.active) { kickedRef.current = false; return; }
+    if (session.agentAnswered && !session.waveActive && !session.winnerLead && !kickedRef.current && autoDial) {
+      kickedRef.current = true;
+      fireWave();
     }
-    await dialLead(next.id);
-    loadQueue();
-  }, [dialLead, loadQueue, notify]);
-
-  const disposition = async (status: string) => {
-    if (!awaiting) return;
-    try {
-      await api(`leads/${awaiting.id}`, { method: "PATCH", body: JSON.stringify({ status }) });
-      setAwaiting(null);
-      loadQueue();
-      const callOver = !sessionRef.current?.currentCall;
-      if (callOver && autoDialRef.current && sessionRef.current?.active) {
-        setTimeout(() => dialNext(), 600);
-      }
-    } catch (err) {
-      guard(err);
-    }
-  };
+  }, [session.active, session.agentAnswered, session.waveActive, session.winnerLead, autoDial, fireWave]);
 
   const startSession = async () => {
     setBusy(true);
     try {
       await api("session", { method: "POST", body: JSON.stringify({ action: "start" }) });
-      notify("📞 Answer your phone — the dialer is calling you now");
-    } catch (err) {
-      guard(err);
-    } finally {
-      setBusy(false);
-    }
+      notify("📞 Answer your phone — dialing starts automatically");
+    } catch (err) { guard(err); } finally { setBusy(false); }
   };
   const stopSession = async () => {
     setBusy(true);
     try {
       await api("session", { method: "POST", body: JSON.stringify({ action: "stop" }) });
-      setAwaiting(null);
+      setPending(null);
       setSession({ active: false });
-    } catch (err) {
-      guard(err);
-    } finally {
-      setBusy(false);
-    }
+    } catch (err) { guard(err); } finally { setBusy(false); }
   };
   const callAction = async (action: "vmdrop" | "hangup") => {
     try {
       await api("call-action", { method: "POST", body: JSON.stringify({ action }) });
-      if (action === "vmdrop") notify("Voicemail dropping — mark the lead and keep rolling");
-    } catch (err) {
-      guard(err);
-    }
+      if (action === "vmdrop") notify("Voicemail dropping…");
+    } catch (err) { guard(err); }
   };
 
-  // ── leads tab ──
+  const mark = async (status: string, alsoText?: string) => {
+    if (!pending) return;
+    const lead = pending;
+    try {
+      await api(`leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      if (alsoText) {
+        await api("sms", { method: "POST", body: JSON.stringify({ phone: lead.phone, body: mergeTemplate(alsoText, lead) }) })
+          .then(() => notify(`Marked ${STATUS_META[status].label} · text sent`))
+          .catch((err) => notify(`Marked, but text failed: ${err.message}`));
+      }
+      setPending(null);
+      loadQueue();
+      if (autoDial && refs.current.session?.active && !refs.current.session?.waveActive) {
+        setTimeout(() => fireWave(), 500);
+      }
+    } catch (err) { guard(err); }
+  };
+
+  const quickText = async (template: string) => {
+    if (!pending) return;
+    try {
+      await api("sms", { method: "POST", body: JSON.stringify({ phone: pending.phone, body: mergeTemplate(template, pending) }) });
+      notify("Text sent ✓");
+    } catch (err) { guard(err); }
+  };
+
+  // ── leads ──
   const [leads, setLeads] = useState<any[]>([]);
   const [leadFilter, setLeadFilter] = useState("");
   const [leadSearch, setLeadSearch] = useState("");
@@ -313,93 +315,60 @@ export default function DialerApp() {
 
   const loadLeads = useCallback(async () => {
     try {
-      const params = new URLSearchParams();
-      if (leadFilter) params.set("status", leadFilter);
-      if (leadSearch.trim()) params.set("search", leadSearch.trim());
-      const data = await api(`leads?${params}`);
+      const p = new URLSearchParams();
+      if (leadFilter) p.set("status", leadFilter);
+      if (leadSearch.trim()) p.set("search", leadSearch.trim());
+      const data = await api(`leads?${p}`);
       setLeads(data.leads || []);
       const c: Record<string, number> = {};
-      (data.counts || []).forEach((row: any) => (c[row.status] = row.n));
+      (data.counts || []).forEach((r: any) => (c[r.status] = r.n));
       setCounts(c);
-    } catch (err) {
-      guard(err);
-    }
+    } catch (err) { guard(err); }
   }, [leadFilter, leadSearch, guard]);
-
-  useEffect(() => {
-    if (authed && tab === "leads") loadLeads();
-  }, [authed, tab, loadLeads]);
+  useEffect(() => { if (authed && tab === "leads") loadLeads(); }, [authed, tab, loadLeads]);
 
   const uploadLeads = async (text: string) => {
     const rows = parseLeadsText(text);
-    if (!rows.length) {
-      setUploadMsg("No phone numbers found — need columns like name, business, phone.");
-      return;
-    }
+    if (!rows.length) { setUploadMsg("No phone numbers found — need columns like name, business, phone."); return; }
     try {
       const res = await api("leads", { method: "POST", body: JSON.stringify({ rows }) });
-      setUploadMsg(`✓ ${res.added} added, ${res.updated} already existed (kept their history), ${res.skipped} skipped`);
+      setUploadMsg(`✓ ${res.added} added · ${res.updated} already existed (history kept) · ${res.skipped} skipped`);
       setPasteText("");
-      loadLeads();
-      loadQueue();
-    } catch (err) {
-      guard(err);
-    }
+      loadLeads(); loadQueue();
+    } catch (err) { guard(err); }
   };
-
   const patchLead = async (id: number, patch: any) => {
-    try {
-      await api(`leads/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
-      loadLeads();
-    } catch (err) {
-      guard(err);
-    }
+    try { await api(`leads/${id}`, { method: "PATCH", body: JSON.stringify(patch) }); loadLeads(); }
+    catch (err) { guard(err); }
   };
 
-  // ── texts tab ──
+  // ── texts ──
   const [threads, setThreads] = useState<any[]>([]);
-  const [openPhone, setOpenPhone] = useState<string>("");
+  const [openPhone, setOpenPhone] = useState("");
   const [openLead, setOpenLead] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [composer, setComposer] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const unread = threads.reduce((n, t) => n + (t.unread || 0), 0);
 
   const loadThreads = useCallback(async () => {
-    try {
-      const data = await api("sms");
-      setThreads(data.threads || []);
-    } catch (err) {
-      guard(err);
-    }
+    try { setThreads((await api("sms")).threads || []); } catch (err) { guard(err); }
   }, [guard]);
+  useEffect(() => { if (authed) { loadThreads(); const iv = setInterval(loadThreads, 15000); return () => clearInterval(iv); } }, [authed, loadThreads]);
 
-  const openThread = useCallback(
-    async (phone: string, lead?: any) => {
-      setOpenPhone(phone);
-      setOpenLead(lead || null);
-      try {
-        const data = await api(`sms/thread?phone=${encodeURIComponent(phone)}`);
-        setMessages(data.messages || []);
-      } catch (err) {
-        guard(err);
-      }
-    },
-    [guard]
-  );
-
+  const openThread = useCallback(async (phone: string, lead?: any) => {
+    setOpenPhone(phone);
+    setOpenLead(lead || null);
+    try { setMessages((await api(`sms/thread?phone=${encodeURIComponent(phone)}`)).messages || []); }
+    catch (err) { guard(err); }
+  }, [guard]);
   useEffect(() => {
-    if (!(authed && tab === "texts")) return;
-    loadThreads();
+    if (!(authed && tab === "texts" && openPhone)) return;
     const iv = setInterval(() => {
-      loadThreads();
-      if (openPhone) {
-        api(`sms/thread?phone=${encodeURIComponent(openPhone)}`)
-          .then((d) => setMessages(d.messages || []))
-          .catch(() => {});
-      }
+      api(`sms/thread?phone=${encodeURIComponent(openPhone)}`).then((d) => setMessages(d.messages || [])).catch(() => {});
     }, 5000);
     return () => clearInterval(iv);
-  }, [authed, tab, openPhone, loadThreads]);
+  }, [authed, tab, openPhone]);
 
   const sendSms = async () => {
     const to = openPhone || newPhone;
@@ -407,526 +376,459 @@ export default function DialerApp() {
     try {
       await api("sms", { method: "POST", body: JSON.stringify({ phone: to, body: composer.trim() }) });
       setComposer("");
-      if (!openPhone) setOpenPhone(to.startsWith("+") ? to : `+1${to.replace(/\D/g, "").slice(-10)}`);
       loadThreads();
       openThread(to, openLead);
-    } catch (err) {
-      guard(err);
-    }
+    } catch (err) { guard(err); }
   };
 
-  const fillTemplate = (t: string) => {
-    const lead = openLead || threads.find((th) => th.phone === openPhone);
-    setComposer(
-      t
-        .replace(/\{\{\s*name\s*\}\}/gi, lead?.name || "there")
-        .replace(/\{\{\s*business\s*\}\}/gi, lead?.business || "your business")
-    );
-  };
-
-  // ── calls tab ──
+  // ── calls ──
   const [callLog, setCallLog] = useState<any[]>([]);
   useEffect(() => {
     if (!(authed && tab === "calls")) return;
-    api("recordings")
-      .then((d) => setCallLog(d.calls || []))
-      .catch(guard);
+    api("recordings").then((d) => setCallLog(d.calls || [])).catch(guard);
   }, [authed, tab, guard]);
+
+  // ── numbers ──
+  const [numbers, setNumbers] = useState<any[]>([]);
+  const [areaCode, setAreaCode] = useState("");
+  const [preview, setPreview] = useState<any>(null);
+  const [numBusy, setNumBusy] = useState(false);
+  const loadNumbers = useCallback(async () => {
+    try { setNumbers((await api("numbers")).numbers || []); } catch (err) { guard(err); }
+  }, [guard]);
+  useEffect(() => { if (authed && tab === "numbers") loadNumbers(); }, [authed, tab, loadNumbers]);
+
+  const lookupNumber = async () => {
+    setNumBusy(true); setPreview(null);
+    try { setPreview(await api("numbers", { method: "POST", body: JSON.stringify({ areaCode }) })); }
+    catch (err) { guard(err); } finally { setNumBusy(false); }
+  };
+  const buyNumber = async () => {
+    setNumBusy(true);
+    try {
+      const res = await api("numbers", { method: "POST", body: JSON.stringify({ areaCode, confirm: true }) });
+      notify(`✓ ${fmtPhone(res.phone)} is yours — now calling ${res.areaCode} leads from it`);
+      setPreview(null); setAreaCode(""); loadNumbers();
+    } catch (err) { guard(err); } finally { setNumBusy(false); }
+  };
+  const releaseNumber = async (id: number, phone: string) => {
+    if (!confirm(`Release ${fmtPhone(phone)}? Its $1.15/mo charge stops and the number is gone for good.`)) return;
+    try { await api("numbers", { method: "DELETE", body: JSON.stringify({ id }) }); notify("Number released"); loadNumbers(); }
+    catch (err) { guard(err); }
+  };
 
   // ── render ──
   if (authed === null) {
-    return (
-      <div className="flex min-h-screen items-center justify-center" style={{ background: INK, color: SMOKE }}>
-        Loading…
-      </div>
-    );
+    return <div className="dlr" style={{ display: "grid", placeItems: "center" }}><p className="dlr-eyebrow">Loading</p></div>;
   }
 
   if (!authed) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-5" style={{ background: INK, color: PAPER }}>
-        <form
-          onSubmit={(e) => { e.preventDefault(); login(); }}
-          className="w-full max-w-sm rounded-2xl border p-7"
-          style={{ borderColor: LINE, background: "rgba(247,246,243,0.03)" }}
-        >
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.3em]" style={{ color: SMOKE }}>
-            Montivaro
-          </p>
-          <h1 className="mb-5 text-xl font-bold">Dialer</h1>
-          <input
-            type="password"
-            autoFocus
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            className={inputCls}
-            style={{ borderColor: LINE, color: PAPER }}
-          />
-          {loginError && <p className="mt-3 text-[12px] text-red-400">{loginError}</p>}
-          <button type="submit" className={`${btnCls} mt-4 w-full`} style={{ background: PAPER, color: INK }}>
-            Open dialer
-          </button>
+      <div className="dlr" style={{ display: "grid", placeItems: "center", padding: 20 }}>
+        <form onSubmit={(e) => { e.preventDefault(); login(); }} className="dlr-panel dlr-panel-p" style={{ width: "100%", maxWidth: 380 }}>
+          <p className="dlr-eyebrow">Montivaro</p>
+          <h1 className="dlr-display" style={{ fontSize: 26, marginTop: 8, marginBottom: 18 }}>Command</h1>
+          <label className="dlr-label" htmlFor="dlr-pw">Password</label>
+          <input id="dlr-pw" type="password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} className="dlr-input" style={{ marginTop: 6 }} />
+          {loginError && <p style={{ marginTop: 10, fontSize: 12.5, color: "var(--danger)" }} role="alert">{loginError}</p>}
+          <button type="submit" className="dlr-btn primary big" style={{ marginTop: 16 }}>Enter</button>
         </form>
       </div>
     );
   }
 
-  const liveCall = session.currentCall;
-  const liveStatus = liveCall?.status || "";
-  const amd = liveCall?.amd || "";
-  const callEndedAwaiting = awaiting && !liveCall;
+  const w = session.winnerCall;
+  const connected = w?.status === "in-progress";
+  const ringing = session.waveActive && !w;
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: INK, color: PAPER }}>
-      {/* header */}
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-5 pt-6">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em]" style={{ color: SMOKE }}>
-            Montivaro
-          </p>
-          <h1 className="text-lg font-bold">Power Dialer</h1>
-        </div>
-        <div className="flex gap-1 rounded-xl border p-1" style={{ borderColor: LINE }}>
-          {(["dial", "leads", "texts", "calls"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className="rounded-lg px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em]"
-              style={tab === t ? { background: PAPER, color: INK } : { color: SMOKE }}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </header>
+    <div className="dlr">
+      {toast && <div className="dlr-toast">{toast}</div>}
+      <div className="dlr-shell">
+        <header className="dlr-top">
+          <div>
+            <p className="dlr-eyebrow">Montivaro</p>
+            <h1 className="dlr-display" style={{ fontSize: 20, marginTop: 2 }}>Command</h1>
+          </div>
+          <nav className="dlr-tabs">
+            {(["dial", "leads", "texts", "calls", "numbers"] as const).map((t) => (
+              <button key={t} onClick={() => setTab(t)} className={`dlr-tab${tab === t ? " active" : ""}`}>
+                {t}
+                {t === "texts" && unread > 0 && <span className="badge">{unread}</span>}
+              </button>
+            ))}
+          </nav>
+        </header>
 
-      {toast && (
-        <div className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-lg px-4 py-2.5 text-[13px] font-semibold shadow-xl" style={{ background: PAPER, color: INK }}>
-          {toast}
-        </div>
-      )}
-
-      <main className="mx-auto max-w-5xl px-5 pt-6">
-        {/* ── DIAL TAB ── */}
+        {/* ══ DIAL ══ */}
         {tab === "dial" && (
-          <div className="grid gap-5 md:grid-cols-[1.4fr_1fr]">
-            <section className="rounded-2xl border p-6" style={{ borderColor: LINE, background: "rgba(247,246,243,0.03)" }}>
+          <div className="dlr-grid main">
+            <section className="dlr-panel dlr-panel-p">
               {!session.active ? (
                 <>
-                  <h2 className="text-base font-bold">Start a dialing session</h2>
-                  <p className="mt-1 text-[13px]" style={{ color: SMOKE }}>
-                    The dialer calls <b style={{ color: PAPER }}>your phone</b> first — answer it and stay on the
-                    line. Then every lead you dial gets connected straight into your call.
+                  <h2 className="dlr-h dlr-display">Start dialing</h2>
+                  <p className="dlr-sub">
+                    The dialer rings <b style={{ color: "var(--paper)" }}>your phone</b> first. Answer it, stay on the line,
+                    and leads start connecting automatically.
                   </p>
-                  <div className="mt-4 flex gap-2">
-                    <input
-                      value={agentPhone}
-                      onChange={(e) => setAgentPhone(e.target.value)}
-                      placeholder="Your cell, e.g. (404) 555-0123"
-                      className={inputCls}
-                      style={{ borderColor: LINE, color: PAPER }}
-                    />
-                    <button
-                      onClick={async () => {
-                        try {
-                          await api("settings", { method: "POST", body: JSON.stringify({ agentPhone }) });
-                          notify("Saved");
-                        } catch (err) { guard(err); }
-                      }}
-                      className={btnCls}
-                      style={{ border: `1px solid ${LINE}`, color: PAPER }}
-                    >
-                      Save
-                    </button>
+
+                  <div style={{ marginTop: 18 }}>
+                    <label className="dlr-label" htmlFor="dlr-cell">Your phone</label>
+                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                      <input id="dlr-cell" value={agentPhone} onChange={(e) => setAgentPhone(e.target.value)} placeholder="(404) 555-0123" className="dlr-input" />
+                      <button onClick={async () => { try { await api("settings", { method: "POST", body: JSON.stringify({ agentPhone }) }); notify("Saved"); } catch (err) { guard(err); } }} className="dlr-btn">Save</button>
+                    </div>
                   </div>
-                  <button
-                    onClick={startSession}
-                    disabled={busy || !agentPhone}
-                    className={`${btnCls} mt-4 w-full py-4 text-[13px]`}
-                    style={{ background: "#4ade80", color: INK }}
-                  >
+
+                  <div style={{ marginTop: 18 }}>
+                    <label className="dlr-label">Lines per wave</label>
+                    <p className="dlr-sub" style={{ marginTop: 2 }}>
+                      {lines === 1
+                        ? "One at a time — safest, best for small lists."
+                        : `Dials ${lines} at once; you talk to whoever answers first. The others get a short apology and go back in the queue.`}
+                    </p>
+                    <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                      {[1, 2, 3].map((n) => (
+                        <button key={n} onClick={async () => { setLines(n); try { await api("settings", { method: "POST", body: JSON.stringify({ lines: n }) }); } catch (err) { guard(err); } }} className={`dlr-chip${lines === n ? " on" : ""}`}>
+                          {n} {n === 1 ? "line" : "lines"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button onClick={startSession} disabled={busy || !agentPhone} className="dlr-btn go big" style={{ marginTop: 20 }}>
                     ▶ Start session — call my phone
                   </button>
-                  <div className="mt-6 border-t pt-4" style={{ borderColor: LINE }}>
-                    <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: SMOKE }}>
-                      Voicemail drop script
-                    </p>
-                    <textarea
-                      value={vmScript}
-                      onChange={(e) => setVmScript(e.target.value)}
-                      rows={4}
-                      className={`${inputCls} resize-y`}
-                      style={{ borderColor: LINE, color: PAPER }}
-                    />
-                    <button
-                      onClick={async () => {
-                        try {
-                          await api("settings", { method: "POST", body: JSON.stringify({ vmScript }) });
-                          notify("Voicemail script saved");
-                        } catch (err) { guard(err); }
-                      }}
-                      className={`${btnCls} mt-2`}
-                      style={{ border: `1px solid ${LINE}`, color: PAPER }}
-                    >
-                      Save script
-                    </button>
+
+                  <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--line)" }}>
+                    <label className="dlr-label" htmlFor="dlr-vm">Voicemail drop script</label>
+                    <textarea id="dlr-vm" value={vmScript} onChange={(e) => setVmScript(e.target.value)} rows={3} className="dlr-textarea" style={{ marginTop: 6 }} />
+                    <button onClick={async () => { try { await api("settings", { method: "POST", body: JSON.stringify({ vmScript }) }); notify("Script saved"); } catch (err) { guard(err); } }} className="dlr-btn" style={{ marginTop: 8 }}>Save script</button>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="flex items-center justify-between">
-                    <h2 className="flex items-center gap-2 text-base font-bold">
-                      <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400" />
-                      Session live
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <h2 className="dlr-h dlr-display" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span className="dlr-dot" />
+                      {session.agentAnswered ? "Session live" : "Ringing your phone…"}
                     </h2>
-                    <button onClick={stopSession} disabled={busy} className={btnCls} style={{ border: "1px solid #f8717166", color: "#f87171" }}>
-                      End session
-                    </button>
+                    <button onClick={stopSession} disabled={busy} className="dlr-btn danger">End</button>
                   </div>
 
-                  {awaiting ? (
-                    <div className="mt-4 rounded-xl border p-5" style={{ borderColor: LINE, background: "rgba(247,246,243,0.04)" }}>
-                      <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: SMOKE }}>
-                        {liveCall ? (liveStatus === "in-progress" ? "🟢 Connected" : `Dialing… ${liveStatus}`) : "Call ended — mark it"}
-                      </p>
-                      <p className="mt-2 text-xl font-bold">{awaiting.name || "Unknown"}</p>
-                      <p className="text-[14px]" style={{ color: SMOKE }}>
-                        {awaiting.business || "—"} · {fmtPhone(awaiting.phone)}
-                      </p>
-                      {amd && (
-                        <p className="mt-2 text-[12.5px]" style={{ color: amd === "human" ? "#4ade80" : "#a78bfa" }}>
-                          {amd === "human" ? "👤 Human answered" : `🤖 Machine detected (${amd})`}
+                  {!session.agentAnswered && (
+                    <p className="dlr-sub" style={{ marginTop: 14 }}>Pick up — dialing begins the moment you answer.</p>
+                  )}
+
+                  {session.agentAnswered && (pending || ringing || dialing) ? (
+                    <div className="dlr-live" style={{ marginTop: 16 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                        <p className="dlr-eyebrow" style={{ color: connected ? "var(--live)" : "var(--smoke)" }}>
+                          {connected ? "Connected" : pending ? "Call ended — mark it" : `Dialing ${session.waveLeads?.length || lines}…`}
                         </p>
-                      )}
-                      {liveCall && (
-                        <div className="mt-4 flex gap-2">
-                          <button onClick={() => callAction("vmdrop")} className={btnCls} style={{ background: "#a78bfa", color: INK }}>
-                            📼 Drop voicemail + next
-                          </button>
-                          <button onClick={() => callAction("hangup")} className={btnCls} style={{ border: "1px solid #f8717166", color: "#f87171" }}>
-                            Hang up
-                          </button>
+                        {(ringing || dialing) && <Wave />}
+                      </div>
+
+                      {pending ? (
+                        <>
+                          <p className="dlr-display" style={{ fontSize: 23, marginTop: 10 }}>{pending.name || "Unknown"}</p>
+                          <p className="dlr-sub">{pending.business || "—"}</p>
+                          <p className="dlr-mono" style={{ fontSize: 13, color: "var(--smoke)", marginTop: 3 }}>{fmtPhone(pending.phone)}</p>
+                          {w?.amd && (
+                            <p style={{ marginTop: 10, fontSize: 12.5, color: w.amd === "human" ? "var(--live)" : "var(--violet)" }}>
+                              {w.amd === "human" ? "👤 Human answered" : `🤖 Machine detected (${w.amd})`}
+                            </p>
+                          )}
+                          {connected && (
+                            <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+                              <button onClick={() => callAction("vmdrop")} className="dlr-btn violet">📼 Drop voicemail</button>
+                              <button onClick={() => callAction("hangup")} className="dlr-btn danger">Hang up</button>
+                            </div>
+                          )}
+
+                          <p className="dlr-label" style={{ marginTop: 20, marginBottom: 8 }}>Mark this lead</p>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                            {DISPOSITIONS.map((d) => (
+                              <button key={d} onClick={() => mark(d)} className="dlr-btn" style={{ borderColor: `${STATUS_META[d].color}55`, color: STATUS_META[d].color, padding: "9px 13px" }}>
+                                {STATUS_META[d].label}
+                              </button>
+                            ))}
+                          </div>
+
+                          {templates.length > 0 && (
+                            <>
+                              <p className="dlr-label" style={{ marginTop: 20, marginBottom: 8 }}>Send a text to {pending.name || "this lead"}</p>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                                {templates.map((t, i) => (
+                                  <button key={i} onClick={() => mark("interested", t)} className="dlr-btn" style={{ borderColor: "rgba(52,211,153,0.45)", color: "var(--live)", padding: "9px 13px" }}>
+                                    ✓ Interested + text {i + 1}
+                                  </button>
+                                ))}
+                                {templates.map((t, i) => (
+                                  <button key={`only-${i}`} onClick={() => quickText(t)} className="dlr-btn" style={{ padding: "9px 13px" }}>
+                                    💬 Text {i + 1} only
+                                  </button>
+                                ))}
+                              </div>
+                              <p className="dlr-sub" style={{ marginTop: 8, fontSize: 11.5 }}>
+                                Templates fill in their name and business. Edit them in the Texts tab.
+                              </p>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <div style={{ marginTop: 12 }}>
+                          {(session.waveLeads || []).map((l: any) => (
+                            <p key={l.callSid} className="dlr-mono" style={{ fontSize: 12, color: "var(--smoke)", marginTop: 4 }}>
+                              {fmtPhone(l.phone)} · {l.status}
+                            </p>
+                          ))}
                         </div>
                       )}
-                      <p className="mt-5 mb-1 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: SMOKE }}>
-                        Mark this lead
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {DISPOSITIONS.map((d) => (
-                          <button
-                            key={d}
-                            onClick={() => disposition(d)}
-                            className="rounded-lg px-3 py-2 text-[11.5px] font-bold"
-                            style={{ border: `1px solid ${STATUS_META[d].color}55`, color: STATUS_META[d].color }}
-                          >
-                            {STATUS_META[d].label}
-                          </button>
-                        ))}
-                      </div>
-                      {callEndedAwaiting && (
-                        <button onClick={() => { setAwaiting(null); if (autoDial) dialNext(); }} className="mt-3 text-[12px] underline" style={{ color: SMOKE }}>
-                          Skip marking → next call
-                        </button>
-                      )}
                     </div>
-                  ) : (
-                    <div className="mt-4">
-                      <button
-                        onClick={dialNext}
-                        disabled={busy || !queue.length}
-                        className={`${btnCls} w-full py-4 text-[13px]`}
-                        style={{ background: PAPER, color: INK }}
-                      >
-                        {queue.length ? `📞 Dial next — ${queue[0].name || queue[0].business || fmtPhone(queue[0].phone)}` : "Queue empty — upload more leads"}
+                  ) : session.agentAnswered ? (
+                    <div style={{ marginTop: 16 }}>
+                      <button onClick={() => fireWave()} disabled={dialing || !queue.length} className="dlr-btn primary big">
+                        {queue.length ? `📞 Dial next ${lines > 1 ? `${lines} leads` : ""}` : "Queue empty — add leads"}
                       </button>
-                      <label className="mt-3 flex items-center gap-2 text-[13px]" style={{ color: SMOKE }}>
-                        <input type="checkbox" checked={autoDial} onChange={(e) => setAutoDial(e.target.checked)} />
-                        Auto-dial the next lead after each call is marked
-                      </label>
                     </div>
-                  )}
+                  ) : null}
+
+                  <div style={{ marginTop: 18, display: "grid", gap: 9 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 12.5, color: "var(--smoke)" }}>
+                      <input type="checkbox" checked={autoDial} onChange={(e) => setAutoDial(e.target.checked)} />
+                      Auto-dial the next lead
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 12.5, color: "var(--smoke)" }}>
+                      <input type="checkbox" checked={handsFree} onChange={(e) => setHandsFree(e.target.checked)} />
+                      Hands-free — don&apos;t wait for me to mark (mark later in Calls)
+                    </label>
+                  </div>
                 </>
               )}
             </section>
 
-            {/* queue preview */}
-            <section className="rounded-2xl border p-6" style={{ borderColor: LINE, background: "rgba(247,246,243,0.03)" }}>
-              <h2 className="text-base font-bold">Up next</h2>
-              <p className="mt-0.5 text-[12px]" style={{ color: SMOKE }}>
-                {counts.new || 0} new · {counts.callback || 0} callbacks · {counts.interested || 0} interested
-              </p>
-              <ul className="mt-3 space-y-2">
-                {queue.slice(0, 10).map((l) => (
-                  <li key={l.id} className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: LINE }}>
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13.5px] font-semibold">{l.name || l.business || fmtPhone(l.phone)}</span>
-                      <span className="block truncate text-[11.5px]" style={{ color: SMOKE }}>
-                        {l.business ? `${l.business} · ` : ""}{fmtPhone(l.phone)}
+            <section className="dlr-panel dlr-panel-p">
+              <h2 className="dlr-h dlr-display">Up next</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 12 }}>
+                <div className="dlr-stat"><p className="n dlr-mono">{counts.new || 0}</p><p className="k dlr-eyebrow">New</p></div>
+                <div className="dlr-stat"><p className="n dlr-mono">{counts.callback || 0}</p><p className="k dlr-eyebrow">Callback</p></div>
+                <div className="dlr-stat"><p className="n dlr-mono" style={{ color: "var(--live)" }}>{counts.interested || 0}</p><p className="k dlr-eyebrow">Interested</p></div>
+              </div>
+              <ul style={{ marginTop: 14, display: "grid", gap: 7 }}>
+                {queue.slice(0, 9).map((l) => (
+                  <li key={l.id} className="dlr-row">
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {l.name || l.business || fmtPhone(l.phone)}
                       </span>
+                      <span className="dlr-mono" style={{ fontSize: 11, color: "var(--smoke-d)" }}>{fmtPhone(l.phone)}</span>
                     </span>
                     <StatusPill status={l.status} />
                   </li>
                 ))}
-                {!queue.length && <li className="text-[13px]" style={{ color: SMOKE }}>Nothing queued — upload leads in the Leads tab.</li>}
+                {!queue.length && <li className="dlr-sub">Nothing queued — add leads in the Leads tab.</li>}
               </ul>
             </section>
           </div>
         )}
 
-        {/* ── LEADS TAB ── */}
+        {/* ══ LEADS ══ */}
         {tab === "leads" && (
-          <div className="space-y-5">
-            <section className="rounded-2xl border p-6" style={{ borderColor: LINE, background: "rgba(247,246,243,0.03)" }}>
-              <h2 className="text-base font-bold">Add leads</h2>
-              <p className="mt-0.5 text-[12.5px]" style={{ color: SMOKE }}>
-                Upload a CSV or paste rows (name, business, phone — any order, header optional). Re-uploading
-                never wipes existing leads; they keep their marks and history.
+          <div style={{ display: "grid", gap: 18 }}>
+            <section className="dlr-panel dlr-panel-p">
+              <h2 className="dlr-h dlr-display">Add leads</h2>
+              <p className="dlr-sub">
+                Upload a CSV or paste rows — name, business, phone in any order, header optional. Re-uploading never
+                wipes existing leads; they keep their marks, notes, and history.
               </p>
-              <div className="mt-3 flex flex-wrap items-start gap-3">
-                <input
-                  type="file"
-                  accept=".csv,.txt"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    if (f) uploadLeads(await f.text());
-                    e.target.value = "";
-                  }}
-                  className="text-[13px]"
-                  style={{ color: SMOKE }}
-                />
-              </div>
-              <textarea
-                value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
-                rows={4}
-                placeholder={"Or paste here, e.g.\nJoe, Joe's Plumbing, (347) 613-1906\nMaria, Maria's Salon, 404-555-0123"}
-                className={`${inputCls} mt-3 resize-y font-mono text-[12.5px]`}
-                style={{ borderColor: LINE, color: PAPER }}
-              />
-              <div className="mt-2 flex items-center gap-3">
-                <button onClick={() => uploadLeads(pasteText)} disabled={!pasteText.trim()} className={btnCls} style={{ background: PAPER, color: INK }}>
-                  Add pasted leads
-                </button>
-                {uploadMsg && <span className="text-[12.5px]" style={{ color: SMOKE }}>{uploadMsg}</span>}
+              <input type="file" accept=".csv,.txt" onChange={async (e) => { const f = e.target.files?.[0]; if (f) uploadLeads(await f.text()); e.target.value = ""; }} style={{ marginTop: 14, fontSize: 12.5, color: "var(--smoke)" }} />
+              <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={4} placeholder={"Joe, Joe's Plumbing, (347) 613-1906\nMaria, Maria's Salon, 404-555-0123"} className="dlr-textarea dlr-mono" style={{ marginTop: 12, fontSize: 12.5 }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
+                <button onClick={() => uploadLeads(pasteText)} disabled={!pasteText.trim()} className="dlr-btn primary">Add leads</button>
+                {uploadMsg && <span className="dlr-sub" style={{ marginTop: 0 }}>{uploadMsg}</span>}
               </div>
             </section>
 
-            <section className="rounded-2xl border p-6" style={{ borderColor: LINE, background: "rgba(247,246,243,0.03)" }}>
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  value={leadSearch}
-                  onChange={(e) => setLeadSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && loadLeads()}
-                  placeholder="Search name, business, number…"
-                  className={`${inputCls} max-w-xs`}
-                  style={{ borderColor: LINE, color: PAPER }}
-                />
-                <button onClick={() => setLeadFilter("")} className="rounded-full px-3 py-1 text-[11px] font-bold" style={!leadFilter ? { background: PAPER, color: INK } : { color: SMOKE, border: `1px solid ${LINE}` }}>
-                  All
-                </button>
-                {Object.entries(STATUS_META).map(([k, meta]) => (
-                  <button key={k} onClick={() => setLeadFilter(k)} className="rounded-full px-3 py-1 text-[11px] font-bold" style={leadFilter === k ? { background: meta.color, color: INK } : { color: meta.color, border: `1px solid ${meta.color}44` }}>
-                    {meta.label} {counts[k] ? `· ${counts[k]}` : ""}
+            <section className="dlr-panel dlr-panel-p">
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                <input value={leadSearch} onChange={(e) => setLeadSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && loadLeads()} placeholder="Search name, business, number…" className="dlr-input" style={{ maxWidth: 260 }} />
+                <button onClick={() => setLeadFilter("")} className={`dlr-chip${!leadFilter ? " on" : ""}`}>All</button>
+                {Object.entries(STATUS_META).map(([k, m]) => (
+                  <button key={k} onClick={() => setLeadFilter(k)} className={`dlr-chip${leadFilter === k ? " on" : ""}`} style={leadFilter === k ? { background: m.color, borderColor: m.color, color: "#08080a" } : { color: m.color, borderColor: `${m.color}44` }}>
+                    {m.label}{counts[k] ? ` · ${counts[k]}` : ""}
                   </button>
                 ))}
               </div>
-              <ul className="mt-4 space-y-2">
+              <ul style={{ marginTop: 16, display: "grid", gap: 7 }}>
                 {leads.map((l) => (
-                  <li key={l.id} className="rounded-lg border px-3 py-2.5" style={{ borderColor: LINE }}>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="min-w-0">
-                        <span className="block truncate text-[14px] font-semibold">
-                          {l.name || "—"} <span style={{ color: SMOKE }}>· {l.business || "—"}</span>
+                  <li key={l.id} className="dlr-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ display: "block", fontSize: 13.5, fontWeight: 600 }}>
+                          {l.name || "—"} <span style={{ color: "var(--smoke-d)", fontWeight: 400 }}>· {l.business || "—"}</span>
                         </span>
-                        <span className="text-[12px]" style={{ color: SMOKE }}>{fmtPhone(l.phone)}</span>
+                        <span className="dlr-mono" style={{ fontSize: 11.5, color: "var(--smoke-d)" }}>{fmtPhone(l.phone)}</span>
                       </span>
-                      <span className="flex shrink-0 items-center gap-2">
-                        <select
-                          value={l.status}
-                          onChange={(e) => patchLead(l.id, { status: e.target.value })}
-                          className="rounded-lg border bg-transparent px-2 py-1.5 text-[12px]"
-                          style={{ borderColor: LINE, color: PAPER }}
-                        >
-                          {Object.entries(STATUS_META).map(([k, m]) => (
-                            <option key={k} value={k} style={{ color: INK }}>{m.label}</option>
-                          ))}
+                      <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        <select value={l.status} onChange={(e) => patchLead(l.id, { status: e.target.value })} className="dlr-select" style={{ width: "auto", padding: "7px 9px", fontSize: 12 }}>
+                          {Object.entries(STATUS_META).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
                         </select>
-                        <button
-                          onClick={() => { setTab("texts"); openThread(l.phone, l); }}
-                          className="rounded-lg border px-2.5 py-1.5 text-[12px]"
-                          style={{ borderColor: LINE, color: PAPER }}
-                        >
-                          💬
-                        </button>
-                        <button
-                          onClick={() => {
-                            setExpandedLead(expandedLead === l.id ? null : l.id);
-                            setNoteDraft(l.notes || "");
-                          }}
-                          className="rounded-lg border px-2.5 py-1.5 text-[12px]"
-                          style={{ borderColor: LINE, color: SMOKE }}
-                        >
-                          📝
-                        </button>
+                        <button onClick={() => { setTab("texts"); openThread(l.phone, l); }} className="dlr-btn" style={{ padding: "7px 11px" }}>💬</button>
+                        <button onClick={() => { setExpandedLead(expandedLead === l.id ? null : l.id); setNoteDraft(l.notes || ""); }} className="dlr-btn" style={{ padding: "7px 11px" }}>📝</button>
                       </span>
                     </div>
                     {expandedLead === l.id && (
-                      <div className="mt-2 flex gap-2">
-                        <input
-                          value={noteDraft}
-                          onChange={(e) => setNoteDraft(e.target.value)}
-                          placeholder="Notes…"
-                          className={inputCls}
-                          style={{ borderColor: LINE, color: PAPER }}
-                        />
-                        <button
-                          onClick={() => { patchLead(l.id, { notes: noteDraft }); setExpandedLead(null); }}
-                          className={btnCls}
-                          style={{ border: `1px solid ${LINE}`, color: PAPER }}
-                        >
-                          Save
-                        </button>
+                      <div style={{ display: "flex", gap: 8, marginTop: 9 }}>
+                        <input value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="Notes…" className="dlr-input" />
+                        <button onClick={() => { patchLead(l.id, { notes: noteDraft }); setExpandedLead(null); }} className="dlr-btn">Save</button>
                       </div>
                     )}
-                    {l.notes && expandedLead !== l.id && (
-                      <p className="mt-1 text-[12px] italic" style={{ color: SMOKE }}>“{l.notes}”</p>
-                    )}
+                    {l.notes && expandedLead !== l.id && <p className="dlr-sub" style={{ fontStyle: "italic", marginTop: 5 }}>“{l.notes}”</p>}
                   </li>
                 ))}
-                {!leads.length && <li className="text-[13px]" style={{ color: SMOKE }}>No leads yet.</li>}
+                {!leads.length && <li className="dlr-sub">No leads yet.</li>}
               </ul>
             </section>
           </div>
         )}
 
-        {/* ── TEXTS TAB ── */}
+        {/* ══ TEXTS ══ */}
         {tab === "texts" && (
-          <div className="grid gap-5 md:grid-cols-[1fr_1.6fr]">
-            <section className="rounded-2xl border p-4" style={{ borderColor: LINE, background: "rgba(247,246,243,0.03)" }}>
-              <div className="flex gap-2">
-                <input
-                  value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
-                  placeholder="New text: phone number…"
-                  className={inputCls}
-                  style={{ borderColor: LINE, color: PAPER }}
-                />
-                <button
-                  onClick={() => { if (newPhone.replace(/\D/g, "").length >= 10) { openThread(`+1${newPhone.replace(/\D/g, "").slice(-10)}`); setNewPhone(""); } }}
-                  className={btnCls}
-                  style={{ border: `1px solid ${LINE}`, color: PAPER }}
-                >
-                  Open
-                </button>
+          <div className="dlr-grid split">
+            <section className="dlr-panel dlr-panel-p">
+              <div style={{ display: "flex", gap: 8 }}>
+                <input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="New text: phone…" className="dlr-input" />
+                <button onClick={() => { const d = newPhone.replace(/\D/g, ""); if (d.length >= 10) { openThread(`+1${d.slice(-10)}`); setNewPhone(""); } }} className="dlr-btn">Open</button>
               </div>
-              <ul className="mt-3 space-y-1.5">
+              <ul className="dlr-scroll" style={{ marginTop: 12, display: "grid", gap: 6, maxHeight: 460 }}>
                 {threads.map((t) => (
                   <li key={t.phone}>
-                    <button
-                      onClick={() => openThread(t.phone, t)}
-                      className="w-full rounded-lg border px-3 py-2.5 text-left"
-                      style={{ borderColor: openPhone === t.phone ? PAPER : LINE, background: openPhone === t.phone ? "rgba(247,246,243,0.06)" : "transparent" }}
-                    >
-                      <span className="flex items-center justify-between">
-                        <span className="truncate text-[13.5px] font-semibold">
-                          {t.name || t.business || fmtPhone(t.phone)}
-                        </span>
-                        {t.unread > 0 && (
-                          <span className="ml-2 rounded-full bg-emerald-400 px-2 py-0.5 text-[10px] font-bold" style={{ color: INK }}>
-                            {t.unread}
+                    <button onClick={() => openThread(t.phone, t)} className="dlr-row" style={{ width: "100%", textAlign: "left", cursor: "pointer", background: openPhone === t.phone ? "rgba(246,246,244,0.05)" : "transparent", borderColor: openPhone === t.phone ? "var(--line-2)" : "var(--line)" }}>
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {t.name || t.business || fmtPhone(t.phone)}
                           </span>
-                        )}
-                      </span>
-                      <span className="block truncate text-[12px]" style={{ color: SMOKE }}>
-                        {t.direction === "in" ? "↩ " : ""}{t.body}
+                          {t.unread > 0 && <span className="dlr-pill" style={{ background: "var(--live)", color: "#04160f", borderColor: "var(--live)" }}>{t.unread}</span>}
+                        </span>
+                        <span style={{ display: "block", fontSize: 11.5, color: "var(--smoke-d)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {t.direction === "in" ? "↩ " : ""}{t.body}
+                        </span>
                       </span>
                     </button>
                   </li>
                 ))}
-                {!threads.length && <li className="p-2 text-[13px]" style={{ color: SMOKE }}>No conversations yet.</li>}
+                {!threads.length && <li className="dlr-sub">No conversations yet.</li>}
               </ul>
             </section>
 
-            <section className="flex min-h-[420px] flex-col rounded-2xl border p-4" style={{ borderColor: LINE, background: "rgba(247,246,243,0.03)" }}>
+            <section className="dlr-panel dlr-panel-p" style={{ display: "flex", flexDirection: "column", minHeight: 480 }}>
               {openPhone ? (
                 <>
-                  <p className="border-b pb-2 text-[13.5px] font-semibold" style={{ borderColor: LINE }}>
-                    {openLead?.name || openLead?.business ? `${openLead?.name || ""} ${openLead?.business ? `· ${openLead.business}` : ""} · ` : ""}
-                    {fmtPhone(openPhone)}
+                  <p style={{ paddingBottom: 10, borderBottom: "1px solid var(--line)", fontSize: 13.5, fontWeight: 600 }}>
+                    {openLead?.name || openLead?.business ? `${openLead?.name || ""}${openLead?.business ? ` · ${openLead.business}` : ""} · ` : ""}
+                    <span className="dlr-mono" style={{ color: "var(--smoke)" }}>{fmtPhone(openPhone)}</span>
                   </p>
-                  <div className="flex-1 space-y-2 overflow-y-auto py-3">
+                  <div className="dlr-scroll" style={{ flex: 1, display: "grid", gap: 7, alignContent: "start", padding: "14px 0" }}>
                     {messages.map((m) => (
-                      <div key={m.id} className={`max-w-[80%] rounded-xl px-3 py-2 text-[13.5px] ${m.direction === "out" ? "ml-auto" : ""}`}
-                        style={m.direction === "out" ? { background: PAPER, color: INK } : { background: "rgba(247,246,243,0.08)" }}>
+                      <div key={m.id} className={`dlr-bubble ${m.direction === "out" ? "out" : "in"}`}>
                         {m.body}
-                        <span className="mt-0.5 block text-[10px] opacity-60">{timeAgo(m.created_at)}</span>
+                        <span style={{ display: "block", marginTop: 3, fontSize: 9.5, opacity: 0.55 }}>{timeAgo(m.created_at)}</span>
                       </div>
                     ))}
-                    {!messages.length && <p className="text-[13px]" style={{ color: SMOKE }}>No messages yet — say hi 👋</p>}
+                    {!messages.length && <p className="dlr-sub">No messages yet.</p>}
                   </div>
-                  <div className="flex flex-wrap gap-1.5 pb-2">
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingBottom: 9 }}>
                     {templates.map((t, i) => (
-                      <button key={i} onClick={() => fillTemplate(t)} className="rounded-full border px-2.5 py-1 text-[11px]" style={{ borderColor: LINE, color: SMOKE }}>
-                        Template {i + 1}
-                      </button>
+                      <button key={i} onClick={() => setComposer(mergeTemplate(t, openLead || threads.find((th) => th.phone === openPhone)))} className="dlr-chip">Template {i + 1}</button>
                     ))}
                   </div>
-                  <div className="flex gap-2">
-                    <textarea
-                      value={composer}
-                      onChange={(e) => setComposer(e.target.value)}
-                      rows={2}
-                      placeholder="Type a text…"
-                      className={`${inputCls} resize-none`}
-                      style={{ borderColor: LINE, color: PAPER }}
-                    />
-                    <button onClick={sendSms} disabled={!composer.trim()} className={btnCls} style={{ background: PAPER, color: INK }}>
-                      Send
-                    </button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <textarea value={composer} onChange={(e) => setComposer(e.target.value)} rows={2} placeholder="Type a text…" className="dlr-textarea" style={{ resize: "none" }} />
+                    <button onClick={sendSms} disabled={!composer.trim()} className="dlr-btn primary">Send</button>
                   </div>
                 </>
               ) : (
-                <p className="m-auto text-[13px]" style={{ color: SMOKE }}>Pick a conversation or start a new text.</p>
+                <p className="dlr-sub" style={{ margin: "auto" }}>Pick a conversation, or start a new text.</p>
               )}
             </section>
           </div>
         )}
 
-        {/* ── CALLS TAB ── */}
+        {/* ══ CALLS ══ */}
         {tab === "calls" && (
-          <section className="rounded-2xl border p-6" style={{ borderColor: LINE, background: "rgba(247,246,243,0.03)" }}>
-            <h2 className="text-base font-bold">Last 24 hours</h2>
-            <p className="mt-0.5 text-[12.5px]" style={{ color: SMOKE }}>
-              Listen to how calls went. Recordings auto-delete after 24 hours — the log line stays, the audio is gone for good.
-            </p>
-            <ul className="mt-4 space-y-3">
+          <section className="dlr-panel dlr-panel-p">
+            <h2 className="dlr-h dlr-display">Last 24 hours</h2>
+            <p className="dlr-sub">Listen back to any call. Recordings delete themselves after 24 hours — the log line stays, the audio is gone for good.</p>
+            <ul style={{ marginTop: 16, display: "grid", gap: 10 }}>
               {callLog.map((c) => (
-                <li key={c.id} className="rounded-lg border px-4 py-3" style={{ borderColor: LINE }}>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                <li key={c.id} className="dlr-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                     <span>
-                      <span className="text-[14px] font-semibold">{c.name || c.business || fmtPhone(c.phone || "")}</span>
-                      <span className="ml-2 text-[12px]" style={{ color: SMOKE }}>
-                        {timeAgo(c.started_at)} · {c.duration_seconds ? `${Math.floor(c.duration_seconds / 60)}:${String(c.duration_seconds % 60).padStart(2, "0")}` : "—"} · {c.status}
-                        {c.amd ? ` · ${c.amd === "human" ? "👤 human" : "🤖 machine"}` : ""}
+                      <span style={{ fontSize: 13.5, fontWeight: 600 }}>{c.name || c.business || fmtPhone(c.phone || "")}</span>
+                      <span className="dlr-mono" style={{ marginLeft: 9, fontSize: 11.5, color: "var(--smoke-d)" }}>
+                        {timeAgo(c.started_at)} · {c.duration_seconds ? mmss(c.duration_seconds) : "—"} · {c.status}
+                        {c.amd ? ` · ${c.amd === "human" ? "human" : "machine"}` : ""}
                       </span>
                     </span>
                     {c.lead_status && <StatusPill status={c.lead_status} />}
                   </div>
                   {c.recording_sid && !c.recording_deleted ? (
-                    <audio controls preload="none" className="mt-2 w-full" src={`/api/dialer/recordings/${c.recording_sid}`} />
+                    <audio controls preload="none" style={{ width: "100%", marginTop: 9, height: 34 }} src={`/api/dialer/recordings/${c.recording_sid}`} />
                   ) : (
-                    <p className="mt-1 text-[12px]" style={{ color: SMOKE }}>
-                      {c.recording_deleted ? "Recording expired (24h)" : "No recording"}
-                    </p>
+                    <p className="dlr-sub" style={{ marginTop: 5 }}>{c.recording_deleted ? "Recording expired (24h)" : "No recording"}</p>
                   )}
                 </li>
               ))}
-              {!callLog.length && <li className="text-[13px]" style={{ color: SMOKE }}>No calls in the last 24 hours.</li>}
+              {!callLog.length && <li className="dlr-sub">No calls in the last 24 hours.</li>}
             </ul>
           </section>
         )}
-      </main>
+
+        {/* ══ NUMBERS ══ */}
+        {tab === "numbers" && (
+          <div style={{ display: "grid", gap: 18 }}>
+            <section className="dlr-panel dlr-panel-p">
+              <h2 className="dlr-h dlr-display">Local presence</h2>
+              <p className="dlr-sub">
+                Calls show a number from the lead&apos;s own area code — people answer local numbers far more often.
+                Matching order: exact area code → same state → your main line. Callbacks forward to your phone and
+                texts land in the Texts tab.
+              </p>
+              <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+                <input value={areaCode} onChange={(e) => setAreaCode(e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="Area code, e.g. 404" className="dlr-input dlr-mono" style={{ maxWidth: 190 }} />
+                <button onClick={lookupNumber} disabled={numBusy || areaCode.length !== 3} className="dlr-btn">Find a number</button>
+              </div>
+
+              {preview && (
+                <div className="dlr-live" style={{ marginTop: 14, borderColor: "var(--line-2)", background: "rgba(246,246,244,0.03)" }}>
+                  <p className="dlr-eyebrow">Available</p>
+                  <p className="dlr-display dlr-mono" style={{ fontSize: 22, marginTop: 6 }}>{fmtPhone(preview.phone)}</p>
+                  <p className="dlr-sub">{preview.state ? `${preview.state} · ` : ""}{preview.monthly}</p>
+                  <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                    <button onClick={buyNumber} disabled={numBusy} className="dlr-btn go">Buy &amp; use for {preview.areaCode} leads</button>
+                    <button onClick={() => setPreview(null)} className="dlr-btn">Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              <ul style={{ marginTop: 18, display: "grid", gap: 7 }}>
+                {numbers.map((n) => (
+                  <li key={n.id} className="dlr-row">
+                    <span>
+                      <span className="dlr-mono" style={{ fontSize: 13.5, fontWeight: 600 }}>{fmtPhone(n.phone)}</span>
+                      <span className="dlr-sub" style={{ marginTop: 1 }}>Area {n.area_code}{n.state ? ` · ${n.state}` : ""} · $1.15/mo</span>
+                    </span>
+                    <button onClick={() => releaseNumber(n.id, n.phone)} className="dlr-btn danger" style={{ padding: "7px 12px" }}>Release</button>
+                  </li>
+                ))}
+                {!numbers.length && <li className="dlr-sub">No local numbers yet — all calls go out from your main line.</li>}
+              </ul>
+            </section>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
