@@ -12,7 +12,8 @@ import {
 export async function POST(request: NextRequest) {
   const form = new URLSearchParams(await request.text());
   const url = new URL(request.url);
-  if (!validTwilioRequest(request, form, url.pathname + url.search)) {
+  // Signature only — this URL lives on the number in the Twilio console.
+  if (!validTwilioRequest(request, form, url.pathname + url.search, false)) {
     return new Response("Forbidden", { status: 403 });
   }
   await ensureSchema();

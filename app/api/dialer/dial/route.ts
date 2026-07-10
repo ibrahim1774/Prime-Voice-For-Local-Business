@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   BASE_URL,
+  cancelCalls,
   createWaveClaim,
   ensureSchema,
   getSession,
@@ -11,6 +12,7 @@ import {
   sql,
   twilio,
   unauthorized,
+  waveState,
   webhookToken,
   WaveCall,
 } from "@/lib/dialer/core";
@@ -31,14 +33,15 @@ export async function POST(request: NextRequest) {
   if ((await getSetting("agent_answered")) !== "1") {
     return NextResponse.json({ error: "Answer your phone first — it's ringing" }, { status: 409 });
   }
+  // One wave at a time. Liveness is re-derived (same helper the UI polls) —
+  // a finished wave leaves waveId set, so presence alone must never gate.
   if (session.waveId) {
-    // Only one wave at a time; the UI fires the next one when this one's over.
-    const stale =
-      session.waveStartedAt &&
-      Date.now() - new Date(session.waveStartedAt).getTime() > 120_000;
-    if (!stale) {
-      return NextResponse.json({ error: "A wave is already in progress" }, { status: 409 });
+    const prev = await waveState(session);
+    if (prev.active) {
+      return NextResponse.json({ error: "A call is still in progress" }, { status: 409 });
     }
+    // Never dial over a live agent conversation, and never leave siblings up.
+    if (prev.stragglers.length) await cancelCalls(prev.stragglers);
   }
 
   const body = await request.json().catch(() => ({}));

@@ -404,9 +404,10 @@ export default function DialerApp() {
     catch (err) { guard(err); } finally { setNumBusy(false); }
   };
   const buyNumber = async () => {
+    if (!preview?.phone) return;
     setNumBusy(true);
     try {
-      const res = await api("numbers", { method: "POST", body: JSON.stringify({ areaCode, confirm: true }) });
+      const res = await api("numbers", { method: "POST", body: JSON.stringify({ areaCode, phone: preview.phone, confirm: true }) });
       notify(`✓ ${fmtPhone(res.phone)} is yours — now calling ${res.areaCode} leads from it`);
       setPreview(null); setAreaCode(""); loadNumbers();
     } catch (err) { guard(err); } finally { setNumBusy(false); }

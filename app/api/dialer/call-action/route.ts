@@ -4,6 +4,7 @@ import {
   ensureSchema,
   getSession,
   isAuthed,
+  sql,
   twilio,
   unauthorized,
   waveWinner,
@@ -32,6 +33,10 @@ export async function POST(request: NextRequest) {
     }
     if (body.action === "hangup") {
       await twilio(`/Calls/${winnerSid}.json`, { Status: "completed" });
+      // Record it ourselves too: if Twilio's status callback goes missing the
+      // wave would otherwise read as live forever and block the next dial.
+      await sql()`
+        UPDATE dialer_calls SET status = 'completed' WHERE call_sid = ${winnerSid}`;
       return NextResponse.json({ ok: true });
     }
   } catch (err: any) {

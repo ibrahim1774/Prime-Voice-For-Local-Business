@@ -12,7 +12,9 @@ import {
 export async function POST(request: NextRequest) {
   const form = new URLSearchParams(await request.text());
   const url = new URL(request.url);
-  if (!validTwilioRequest(request, form, url.pathname + url.search)) {
+  // Signature only: this URL is stored on every number in the Twilio console,
+  // so a leaked URL must not be enough to forge inbound messages.
+  if (!validTwilioRequest(request, form, url.pathname + url.search, false)) {
     return new Response("Forbidden", { status: 403 });
   }
   if (hasDb()) {

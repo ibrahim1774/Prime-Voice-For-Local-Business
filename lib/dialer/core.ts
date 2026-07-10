@@ -74,14 +74,20 @@ export async function ensureSchema() {
   )`;
   await q`CREATE INDEX IF NOT EXISTS dialer_messages_phone_idx ON dialer_messages (phone, created_at)`;
   await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS last_dialed_at timestamptz`;
+  // area_code is UNIQUE: the reservation row is what makes "buy a number for
+  // this area code" idempotent under a double-click (two purchases, two bills).
   await q`CREATE TABLE IF NOT EXISTS dialer_numbers (
     id serial PRIMARY KEY,
     phone text UNIQUE NOT NULL,
     sid text NOT NULL,
-    area_code text NOT NULL,
+    area_code text UNIQUE NOT NULL,
     state text NOT NULL DEFAULT '',
     created_at timestamptz NOT NULL DEFAULT now()
   )`;
+  // The table may predate the UNIQUE(area_code) column constraint above; the
+  // index is what ON CONFLICT (area_code) actually needs, and it back-fills
+  // installs created before the reservation logic existed.
+  await q`CREATE UNIQUE INDEX IF NOT EXISTS dialer_numbers_area_code_key ON dialer_numbers (area_code)`;
   schemaReady = true;
 }
 
@@ -165,6 +171,64 @@ export const TERMINAL_CALL_STATUSES = [
   "canceled",
 ];
 
+// A wave with no webhook activity this long is presumed dead (Twilio dropped
+// a callback). One threshold, shared by every reader — two thresholds meant
+// dial() still refused waves that session() had already declared finished.
+export const WAVE_STALE_MS = 90_000;
+
+export interface WaveState {
+  active: boolean;
+  winnerSid: string;
+  calls: any[];
+  stragglers: string[];
+}
+
+// Single source of truth for "is this wave still running?" — derived from
+// dialer_calls + the claim row, never from session JSON (webhooks only write
+// the former, so there is no lost-update race).
+export async function waveState(session: DialSession): Promise<WaveState> {
+  const empty: WaveState = { active: false, winnerSid: "", calls: [], stragglers: [] };
+  if (!session.waveId || !session.wave?.length) return empty;
+
+  const sids = session.wave.map((w) => w.callSid);
+  const calls = (await sql()`
+    SELECT c.*, l.name, l.business, l.phone, l.id AS lead_id
+    FROM dialer_calls c JOIN dialer_leads l ON l.id = c.lead_id
+    WHERE c.call_sid = ANY(${sids})`) as any[];
+  const winnerSid = await waveWinner(session.waveId);
+  const stale =
+    Boolean(session.waveStartedAt) &&
+    Date.now() - new Date(session.waveStartedAt as string).getTime() > WAVE_STALE_MS;
+  const stragglers = calls
+    .filter((c) => !TERMINAL_CALL_STATUSES.includes(c.status))
+    .map((c) => c.call_sid);
+
+  if (winnerSid) {
+    const winner = calls.find((c) => c.call_sid === winnerSid);
+    // A live conversation legitimately runs long, so the winner is only timed
+    // out when its own row says it ended (or it vanished entirely).
+    const active = Boolean(winner) && !TERMINAL_CALL_STATUSES.includes(winner.status);
+    return { active, winnerSid, calls, stragglers };
+  }
+
+  const allTerminal =
+    calls.length === session.wave.length &&
+    calls.every((c) => TERMINAL_CALL_STATUSES.includes(c.status));
+  return { active: !allTerminal && !stale, winnerSid: "", calls, stragglers };
+}
+
+// Cancel calls that are still up after a wave is over (dropped webhook, or a
+// sibling that survived the winner's sweep).
+export async function cancelCalls(sids: string[]) {
+  for (const sid of sids) {
+    try {
+      await twilio(`/Calls/${sid}.json`, { Status: "completed" });
+    } catch {
+      // already ended
+    }
+  }
+}
+
 // ── auth ────────────────────────────────────────────────────────────────────
 
 function secret(): string {
@@ -218,21 +282,39 @@ export function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-// Token embedded in the webhook URLs we hand to Twilio, as a fallback
+// Token embedded in the call-webhook URLs we hand to Twilio, as a fallback
 // alongside X-Twilio-Signature validation.
 export function webhookToken(): string {
   return hmac("twilio-webhook", "webhook");
 }
 
-// Validates a Twilio webhook: accepts our URL token or a valid
-// X-Twilio-Signature (HMAC-SHA1 of url + sorted form params, auth token key).
+function equals(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
+}
+
+// Validates a Twilio webhook: a valid X-Twilio-Signature (HMAC-SHA1 of the
+// full URL + sorted form params, keyed on the auth token), or — for the call
+// webhooks whose URLs we generate ourselves — the token in the URL.
+//
+// `allowToken: false` on webhooks whose URL is registered on a phone number
+// (inbound SMS, forwarding): those URLs are stored in Twilio's console and
+// could leak, so they must prove themselves with a signature.
 export function validTwilioRequest(
   req: Request,
   form: URLSearchParams,
-  pathWithQuery: string
+  pathWithQuery: string,
+  allowToken = true
 ): boolean {
-  const url = new URL(req.url);
-  if (url.searchParams.get("t") === webhookToken()) return true;
+  if (allowToken) {
+    const token = new URL(req.url).searchParams.get("t");
+    try {
+      if (token && equals(token, webhookToken())) return true;
+    } catch {
+      // DIALER_PASSWORD unset — fall through to signature validation.
+    }
+  }
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const sig = req.headers.get("x-twilio-signature");
   if (!authToken || !sig) return false;
@@ -241,7 +323,7 @@ export function validTwilioRequest(
   const data = full + keys.map((k) => k + form.get(k)).join("");
   const expected = crypto.createHmac("sha1", authToken).update(data).digest("base64");
   try {
-    return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+    return equals(sig, expected);
   } catch {
     return false;
   }

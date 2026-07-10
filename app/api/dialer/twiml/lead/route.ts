@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
 import { after } from "next/server";
 import {
+  cancelCalls,
   claimWave,
   ensureSchema,
+  getSession,
   sql,
-  twilio,
   twimlResponse,
   validTwilioRequest,
   xmlEscape,
@@ -29,19 +30,16 @@ export async function POST(request: NextRequest) {
   const won = waveId && callSid ? await claimWave(waveId, callSid) : true;
 
   if (won) {
-    // Cancel the still-ringing siblings the moment we know we have a winner.
+    // Cancel this wave's other calls the moment we have a winner. Scoped to
+    // the session's own wave list — a time-window sweep would eventually
+    // hang up a live conversation from an earlier wave.
     after(async () => {
       if (!callSid) return;
-      const siblings = (await sql()`
-        SELECT c.call_sid FROM dialer_calls c
-        WHERE c.call_sid <> ${callSid}
-          AND c.started_at > now() - interval '3 minutes'
-          AND c.status NOT IN ('completed','busy','failed','no-answer','canceled')`) as any[];
-      for (const s of siblings) {
-        try {
-          await twilio(`/Calls/${s.call_sid}.json`, { Status: "completed" });
-        } catch {}
-      }
+      const session = await getSession();
+      const siblings = (session?.wave || [])
+        .map((w) => w.callSid)
+        .filter((sid) => sid && sid !== callSid);
+      await cancelCalls(siblings);
     });
     return twimlResponse(
       `<Dial><Conference beep="false" startConferenceOnEnter="true" endConferenceOnExit="false" waitUrl="">${conference}</Conference></Dial>`
