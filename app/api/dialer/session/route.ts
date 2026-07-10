@@ -4,6 +4,7 @@ import {
   BASE_URL,
   cancelCalls,
   ensureSchema,
+  friendlyTwilioError,
   getSession,
   getSetting,
   setSetting,
@@ -84,24 +85,47 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
+    const mode = body.mode === "browser" ? "browser" : "phone";
+    const conference = `dialer-${Date.now().toString(36)}`;
+    const t = webhookToken();
+    await setSetting("agent_answered", "");
+    await setSetting("browser_agent_sid", "");
+
+    if (mode === "browser") {
+      // No agent call — the browser joins the conference via the Voice SDK
+      // (twiml/client marks agent_answered when it connects).
+      await saveSession({
+        active: true,
+        conference,
+        agentCallSid: "",
+        startedAt: new Date().toISOString(),
+        waveId: null,
+        wave: [],
+        waveStartedAt: null,
+      });
+      return NextResponse.json({ ok: true, mode, conference });
+    }
+
     const agentPhone = await getSetting("agent_phone");
     if (!agentPhone) {
       return NextResponse.json(
-        { error: "Set your phone number in Settings first — the dialer calls you there" },
+        { error: "Set your phone number first — the dialer calls you there (or switch to browser calling)" },
         { status: 400 }
       );
     }
     const { from } = twilioEnv();
-    const conference = `dialer-${Date.now().toString(36)}`;
-    const t = webhookToken();
-    await setSetting("agent_answered", "");
-    const call = await twilio("/Calls.json", {
-      To: agentPhone,
-      From: from,
-      Url: `${BASE_URL}/api/dialer/twiml/agent?c=${conference}&t=${t}`,
-      StatusCallback: `${BASE_URL}/api/dialer/call-status?t=${t}&kind=agent`,
-      StatusCallbackEvent: ["answered", "completed"],
-    });
+    let call: any;
+    try {
+      call = await twilio("/Calls.json", {
+        To: agentPhone,
+        From: from,
+        Url: `${BASE_URL}/api/dialer/twiml/agent?c=${conference}&t=${t}`,
+        StatusCallback: `${BASE_URL}/api/dialer/call-status?t=${t}&kind=agent`,
+        StatusCallbackEvent: ["answered", "completed"],
+      });
+    } catch (err) {
+      return NextResponse.json({ error: friendlyTwilioError(err) }, { status: 502 });
+    }
     await saveSession({
       active: true,
       conference,
@@ -111,19 +135,22 @@ export async function POST(request: NextRequest) {
       wave: [],
       waveStartedAt: null,
     });
-    return NextResponse.json({ ok: true, answerYourPhone: true });
+    return NextResponse.json({ ok: true, mode, conference, answerYourPhone: true });
   }
 
   if (body.action === "stop") {
     const session = await getSession();
     if (session) {
+      const browserSid = await getSetting("browser_agent_sid");
       await cancelCalls([
         ...(session.wave || []).map((w) => w.callSid),
         session.agentCallSid,
+        browserSid,
       ].filter(Boolean));
     }
     await saveSession(null);
     await setSetting("agent_answered", "");
+    await setSetting("browser_agent_sid", "");
     return NextResponse.json({ ok: true });
   }
 

@@ -13,22 +13,30 @@ import LeadImport from "./LeadImport";
 const STATUS_META: Record<string, { label: string; color: string }> = {
   new: { label: "New", color: "#8a8a92" },
   interested: { label: "Interested", color: "#34d399" },
+  demo_interested: { label: "Demo interested", color: "#2dd4bf" },
+  text_interested: { label: "Text interested", color: "#60a5fa" },
+  email_interested: { label: "Email interested", color: "#f0abfc" },
   demo: { label: "Demo set", color: "#22d3ee" },
   closed: { label: "Closed / Won", color: "#4ade80" },
   callback: { label: "Callback", color: "#fbbf24" },
   voicemail: { label: "Voicemail", color: "#a78bfa" },
   no_answer: { label: "No answer", color: "#94a3b8" },
+  sms_sent: { label: "SMS sent", color: "#c4b5fd" },
   not_interested: { label: "Not interested", color: "#f87171" },
   wrong_number: { label: "Wrong number", color: "#fb923c" },
   dnc: { label: "DNC", color: "#ef4444" },
 };
 const DISPOSITIONS = [
   "interested",
+  "demo_interested",
+  "text_interested",
+  "email_interested",
   "demo",
   "closed",
   "callback",
   "voicemail",
   "no_answer",
+  "sms_sent",
   "not_interested",
   "wrong_number",
   "dnc",
@@ -38,9 +46,13 @@ const DIAL_SEGMENTS: { key: string; label: string }[] = [
   { key: "new", label: "New leads (+ due callbacks)" },
   { key: "voicemail", label: "Voicemails — retry" },
   { key: "no_answer", label: "No answers — retry" },
+  { key: "sms_sent", label: "SMS sent — follow up" },
   { key: "callback", label: "Callbacks" },
   { key: "not_interested", label: "Not interested — retry" },
   { key: "interested", label: "Interested — follow up" },
+  { key: "demo_interested", label: "Demo interested — follow up" },
+  { key: "text_interested", label: "Text interested — follow up" },
+  { key: "email_interested", label: "Email interested — follow up" },
 ];
 
 async function api(path: string, options?: RequestInit): Promise<any> {
@@ -169,8 +181,18 @@ export default function DialerApp() {
   const [callerId, setCallerId] = useState("auto");
   const [dialSegment, setDialSegment] = useState("new");
   const [dialState, setDialState] = useState("");
+  const [dialList, setDialList] = useState("");
+  const [dialIndustry, setDialIndustry] = useState("");
+  const [callMode, setCallMode] = useState<"phone" | "browser">("phone");
   const [twilioNumbers, setTwilioNumbers] = useState<any[]>([]);
   const [stateOptions, setStateOptions] = useState<{ state: string; n: number }[]>([]);
+  const [listOptions, setListOptions] = useState<{ list_name: string; n: number }[]>([]);
+  const [industryOptions, setIndustryOptions] = useState<{ industry: string; n: number }[]>([]);
+  const saveCallMode = async (m: "phone" | "browser") => {
+    setCallMode(m);
+    try { await api("settings", { method: "POST", body: JSON.stringify({ callMode: m }) }); }
+    catch (err) { guard(err); }
+  };
   const loadSettings = useCallback(async () => {
     const s = await api("settings");
     setAgentPhone(s.agentPhone || "");
@@ -180,10 +202,15 @@ export default function DialerApp() {
     setCallerId(s.callerId || "auto");
     setDialSegment(s.dialSegment || "new");
     setDialState(s.dialState || "");
+    setDialList(s.dialList || "");
+    setDialIndustry(s.dialIndustry || "");
+    setCallMode(s.callMode === "browser" ? "browser" : "phone");
   }, []);
-  const saveDialFilter = async (patch: { dialSegment?: string; dialState?: string }) => {
+  const saveDialFilter = async (patch: { dialSegment?: string; dialState?: string; dialList?: string; dialIndustry?: string }) => {
     if (patch.dialSegment !== undefined) setDialSegment(patch.dialSegment);
     if (patch.dialState !== undefined) setDialState(patch.dialState);
+    if (patch.dialList !== undefined) setDialList(patch.dialList);
+    if (patch.dialIndustry !== undefined) setDialIndustry(patch.dialIndustry);
     try { await api("settings", { method: "POST", body: JSON.stringify(patch) }); loadQueue(); }
     catch (err) { guard(err); }
   };
@@ -234,6 +261,8 @@ export default function DialerApp() {
       (data.counts || []).forEach((r: any) => (c[r.status] = r.n));
       setCounts(c);
       if (data.states) setStateOptions(data.states);
+      if (data.lists) setListOptions(data.lists);
+      if (data.industries) setIndustryOptions(data.industries);
     } catch (err) { guard(err); }
   }, [guard]);
   useEffect(() => { if (authed) loadQueue(); }, [authed, loadQueue]);
@@ -295,16 +324,54 @@ export default function DialerApp() {
     }
   }, [session.active, session.agentAnswered, session.waveActive, session.winnerLead, autoDial, fireWave]);
 
+  // Browser calling: the Voice SDK device lives for the session's lifetime.
+  const deviceRef = useRef<any>(null);
+  const destroyDevice = () => {
+    try { deviceRef.current?.destroy(); } catch {}
+    deviceRef.current = null;
+  };
+
   const startSession = async () => {
     setBusy(true);
     try {
-      await api("session", { method: "POST", body: JSON.stringify({ action: "start" }) });
-      notify("📞 Answer your phone — dialing starts automatically");
+      if (callMode === "browser") {
+        const started = await api("session", { method: "POST", body: JSON.stringify({ action: "start", mode: "browser" }) });
+        try {
+          const { token } = await api("webrtc-token");
+          const { Device } = await import("@twilio/voice-sdk");
+          const device = new Device(token, { logLevel: "error" });
+          deviceRef.current = device;
+          device.on("error", (e: any) => notify(`Browser call: ${e?.message || "audio error"}`));
+          device.on("tokenWillExpire", async () => {
+            try { device.updateToken((await api("webrtc-token")).token); } catch {}
+          });
+          const conn = await device.connect({ params: { c: started.conference } });
+          // If the audio leg dies (network drop, device error), end the
+          // session server-side so auto-dial can't wave leads into dead air.
+          conn.on("disconnect", () => {
+            api("session", { method: "POST", body: JSON.stringify({ action: "stop" }) }).catch(() => {});
+          });
+          notify("🎧 Connected through your browser — dialing starts now");
+        } catch (err: any) {
+          // Mic denied / SDK failure: don't leave a half-open session behind.
+          destroyDevice();
+          await api("session", { method: "POST", body: JSON.stringify({ action: "stop" }) }).catch(() => {});
+          throw new Error(
+            /Permission|NotAllowed/i.test(String(err?.message || err))
+              ? "Microphone access was blocked — allow the mic for this site and try again."
+              : err?.message || "Could not start browser calling"
+          );
+        }
+      } else {
+        await api("session", { method: "POST", body: JSON.stringify({ action: "start", mode: "phone" }) });
+        notify("📞 Answer your phone — dialing starts automatically");
+      }
     } catch (err) { guard(err); } finally { setBusy(false); }
   };
   const stopSession = async () => {
     setBusy(true);
     try {
+      destroyDevice();
       await api("session", { method: "POST", body: JSON.stringify({ action: "stop" }) });
       setPending(null);
       setSession({ active: false });
@@ -317,11 +384,19 @@ export default function DialerApp() {
     } catch (err) { guard(err); }
   };
 
+  const [callNote, setCallNote] = useState("");
+  // A note typed for one lead must never land on the next one (hands-free
+  // advances pending automatically).
+  const pendingId = pending?.id;
+  useEffect(() => { setCallNote(""); }, [pendingId]);
   const mark = async (status: string, alsoText?: string) => {
     if (!pending) return;
     const lead = pending;
     try {
-      await api(`leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      const patch: any = { status };
+      if (callNote.trim()) patch.append_note = callNote.trim();
+      await api(`leads/${lead.id}`, { method: "PATCH", body: JSON.stringify(patch) });
+      setCallNote("");
       if (alsoText) {
         await api("sms", { method: "POST", body: JSON.stringify({ phone: lead.phone, body: mergeTemplate(alsoText, lead) }) })
           .then(() => notify(`Marked ${STATUS_META[status].label} · text sent`))
@@ -363,17 +438,21 @@ export default function DialerApp() {
   const [leads, setLeads] = useState<any[]>([]);
   const [leadFilter, setLeadFilter] = useState("");
   const [leadStateFilter, setLeadStateFilter] = useState("");
+  const [leadListFilter, setLeadListFilter] = useState("");
+  const [leadIndustryFilter, setLeadIndustryFilter] = useState("");
   const [leadSearch, setLeadSearch] = useState("");
   const [pasteText, setPasteText] = useState("");
   const [uploadMsg, setUploadMsg] = useState("");
   const [expandedLead, setExpandedLead] = useState<number | null>(null);
-  const [editDraft, setEditDraft] = useState<{ name: string; business: string; notes: string }>({ name: "", business: "", notes: "" });
+  const [editDraft, setEditDraft] = useState<{ name: string; business: string; notes: string; industry: string }>({ name: "", business: "", notes: "", industry: "" });
 
   const loadLeads = useCallback(async () => {
     try {
       const p = new URLSearchParams();
       if (leadFilter) p.set("status", leadFilter);
       if (leadStateFilter) p.set("state", leadStateFilter);
+      if (leadListFilter) p.set("list", leadListFilter);
+      if (leadIndustryFilter) p.set("industry", leadIndustryFilter);
       if (leadSearch.trim()) p.set("search", leadSearch.trim());
       const data = await api(`leads?${p}`);
       setLeads(data.leads || []);
@@ -381,24 +460,47 @@ export default function DialerApp() {
       (data.counts || []).forEach((r: any) => (c[r.status] = r.n));
       setCounts(c);
       if (data.states) setStateOptions(data.states);
+      if (data.lists) setListOptions(data.lists);
+      if (data.industries) setIndustryOptions(data.industries);
     } catch (err) { guard(err); }
-  }, [leadFilter, leadStateFilter, leadSearch, guard]);
+  }, [leadFilter, leadStateFilter, leadListFilter, leadIndustryFilter, leadSearch, guard]);
   const requeueSegment = async () => {
     if (!leadFilter || leadFilter === "new" || leadFilter === "dnc") { notify("Pick a status to reset to New"); return; }
     const label = STATUS_META[leadFilter]?.label || leadFilter;
-    if (!confirm(`Reset all ${label}${leadStateFilter ? ` in ${leadStateFilter}` : ""} back to New so they re-enter the dial queue?`)) return;
+    if (!confirm(`Reset all ${label}${leadStateFilter ? ` in ${leadStateFilter}` : ""}${leadListFilter ? ` from "${leadListFilter}"` : ""} back to New so they re-enter the dial queue?`)) return;
     try {
-      const res = await api("requeue", { method: "POST", body: JSON.stringify({ status: leadFilter, state: leadStateFilter }) });
+      const res = await api("requeue", { method: "POST", body: JSON.stringify({ status: leadFilter, state: leadStateFilter, list: leadListFilter, industry: leadIndustryFilter }) });
       notify(`${res.requeued} leads reset to New`);
+      loadLeads(); loadQueue();
+    } catch (err) { guard(err); }
+  };
+  const renameList = async () => {
+    if (!leadListFilter) return;
+    const to = prompt(`Rename list "${leadListFilter}" to:`, leadListFilter);
+    if (!to?.trim() || to.trim() === leadListFilter) return;
+    try {
+      const res = await api("lists", { method: "PATCH", body: JSON.stringify({ from: leadListFilter, to: to.trim() }) });
+      notify(`List renamed (${res.renamed} leads)`);
+      setLeadListFilter(to.trim());
+      loadLeads();
+    } catch (err) { guard(err); }
+  };
+  const deleteList = async () => {
+    if (!leadListFilter) return;
+    if (!confirm(`Delete the entire "${leadListFilter}" list AND all its leads? This can't be undone.`)) return;
+    try {
+      const res = await api("lists", { method: "DELETE", body: JSON.stringify({ name: leadListFilter }) });
+      notify(`Deleted ${res.deleted} leads`);
+      setLeadListFilter("");
       loadLeads(); loadQueue();
     } catch (err) { guard(err); }
   };
   useEffect(() => { if (authed && tab === "leads") loadLeads(); }, [authed, tab, loadLeads]);
 
-  const importRows = async (rows: { name: string; business: string; phone: string }[]) => {
+  const importRows = async (rows: { name: string; business: string; phone: string; industry?: string }[], listName = "") => {
     if (!rows.length) { setUploadMsg("No valid phone numbers to import."); return null; }
     try {
-      const res = await api("leads", { method: "POST", body: JSON.stringify({ rows }) });
+      const res = await api("leads", { method: "POST", body: JSON.stringify({ rows, listName }) });
       setUploadMsg(`✓ ${res.added} added · ${res.updated} already existed (history kept) · ${res.skipped} skipped`);
       loadLeads(); loadQueue();
       return res as { added: number; updated: number; skipped: number };
@@ -407,7 +509,7 @@ export default function DialerApp() {
   const uploadLeads = async (text: string) => {
     const rows = parseLeadsText(text);
     if (!rows.length) { setUploadMsg("No phone numbers found — need columns like name, business, phone."); return; }
-    await importRows(rows);
+    await importRows(rows, "Pasted leads");
     setPasteText("");
   };
   const patchLead = async (id: number, patch: any) => {
@@ -602,18 +704,29 @@ export default function DialerApp() {
                 <>
                   <h2 className="dlr-h dlr-display">Start dialing</h2>
                   <p className="dlr-sub">
-                    The dialer rings <b style={{ color: "var(--paper)" }}>your phone</b> first. Answer it, stay on the line,
-                    and leads start connecting automatically.
+                    {callMode === "browser"
+                      ? "Talk right through this tab — headphones + mic, no phone needed."
+                      : <>The dialer rings <b style={{ color: "var(--paper)" }}>your phone</b> first. Answer it, stay on the line, and leads start connecting automatically.</>}
                   </p>
 
                   <div style={{ marginTop: 18 }}>
-                    <label className="dlr-label" htmlFor="dlr-cell">Your phone (your headset)</label>
-                    <p className="dlr-sub" style={{ marginTop: 2 }}>Where the dialer calls <b style={{ color: "var(--paper)" }}>you</b> so you can talk. Leads never see this number.</p>
-                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                      <input id="dlr-cell" value={agentPhone} onChange={(e) => setAgentPhone(e.target.value)} placeholder="(404) 555-0123" className="dlr-input" />
-                      <button onClick={async () => { try { await api("settings", { method: "POST", body: JSON.stringify({ agentPhone }) }); notify("Saved"); } catch (err) { guard(err); } }} className="dlr-btn">Save</button>
+                    <label className="dlr-label">How you talk</label>
+                    <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                      <button onClick={() => saveCallMode("browser")} className={`dlr-chip${callMode === "browser" ? " on" : ""}`}>🎧 Web calling (this tab)</button>
+                      <button onClick={() => saveCallMode("phone")} className={`dlr-chip${callMode === "phone" ? " on" : ""}`}>📞 Call my phone</button>
                     </div>
                   </div>
+
+                  {callMode === "phone" && (
+                    <div style={{ marginTop: 18 }}>
+                      <label className="dlr-label" htmlFor="dlr-cell">Your phone (your headset)</label>
+                      <p className="dlr-sub" style={{ marginTop: 2 }}>Where the dialer calls <b style={{ color: "var(--paper)" }}>you</b> so you can talk. Leads never see this number.</p>
+                      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                        <input id="dlr-cell" value={agentPhone} onChange={(e) => setAgentPhone(e.target.value)} placeholder="(404) 555-0123" className="dlr-input" />
+                        <button onClick={async () => { try { await api("settings", { method: "POST", body: JSON.stringify({ agentPhone }) }); notify("Saved"); } catch (err) { guard(err); } }} className="dlr-btn">Save</button>
+                      </div>
+                    </div>
+                  )}
 
                   <div style={{ marginTop: 18 }}>
                     <label className="dlr-label" htmlFor="dlr-callerid">Call from (what leads see)</label>
@@ -644,6 +757,18 @@ export default function DialerApp() {
                           <option key={s.state} value={s.state}>{s.state} · {s.n}</option>
                         ))}
                       </select>
+                      <select value={dialList} onChange={(e) => saveDialFilter({ dialList: e.target.value })} className="dlr-select dlr-select-sm" aria-label="Filter by lead list">
+                        <option value="">All lists</option>
+                        {listOptions.map((l) => (
+                          <option key={l.list_name} value={l.list_name}>{l.list_name} · {l.n}</option>
+                        ))}
+                      </select>
+                      <select value={dialIndustry} onChange={(e) => saveDialFilter({ dialIndustry: e.target.value })} className="dlr-select dlr-select-sm" aria-label="Filter by industry">
+                        <option value="">All industries</option>
+                        {industryOptions.map((i) => (
+                          <option key={i.industry} value={i.industry}>{i.industry} · {i.n}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
@@ -663,8 +788,8 @@ export default function DialerApp() {
                     </div>
                   </div>
 
-                  <button onClick={startSession} disabled={busy || !agentPhone} className="dlr-btn go big" style={{ marginTop: 20 }}>
-                    ▶ Start session — call my phone
+                  <button onClick={startSession} disabled={busy || (callMode === "phone" && !agentPhone)} className="dlr-btn go big" style={{ marginTop: 20 }}>
+                    {callMode === "browser" ? "▶ Start session — talk in this tab" : "▶ Start session — call my phone"}
                   </button>
 
                   <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--line)" }}>
@@ -678,13 +803,15 @@ export default function DialerApp() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <h2 className="dlr-h dlr-display" style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span className="dlr-dot" />
-                      {session.agentAnswered ? "Session live" : "Ringing your phone…"}
+                      {session.agentAnswered ? "Session live" : callMode === "browser" ? "Connecting your browser…" : "Ringing your phone…"}
                     </h2>
                     <button onClick={stopSession} disabled={busy} className="dlr-btn danger">End</button>
                   </div>
 
                   {!session.agentAnswered && (
-                    <p className="dlr-sub" style={{ marginTop: 14 }}>Pick up — dialing begins the moment you answer.</p>
+                    <p className="dlr-sub" style={{ marginTop: 14 }}>
+                      {callMode === "browser" ? "Allow the microphone if asked — dialing starts as soon as audio connects." : "Pick up — dialing begins the moment you answer."}
+                    </p>
                   )}
 
                   {session.agentAnswered && (pending || ringing || dialing) ? (
@@ -713,7 +840,33 @@ export default function DialerApp() {
                             </div>
                           )}
 
-                          <p className="dlr-label" style={{ marginTop: 20, marginBottom: 8 }}>Mark this lead</p>
+                          <p className="dlr-label" style={{ marginTop: 18, marginBottom: 6 }}>Call note</p>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <input
+                              value={callNote}
+                              onChange={(e) => setCallNote(e.target.value)}
+                              placeholder="e.g. owner's name is Mike, call back after 3pm…"
+                              className="dlr-input"
+                            />
+                            <button
+                              onClick={async () => {
+                                if (!callNote.trim() || !pending) return;
+                                try {
+                                  await api(`leads/${pending.id}`, { method: "PATCH", body: JSON.stringify({ append_note: callNote.trim() }) });
+                                  setCallNote("");
+                                  notify("Note saved");
+                                } catch (err) { guard(err); }
+                              }}
+                              disabled={!callNote.trim()}
+                              className="dlr-btn"
+                              title="Save note now (also saves automatically when you mark)"
+                            >
+                              💾
+                            </button>
+                          </div>
+                          <p className="dlr-sub" style={{ marginTop: 4, fontSize: 11 }}>Saves to the lead when you mark the call (date-stamped).</p>
+
+                          <p className="dlr-label" style={{ marginTop: 18, marginBottom: 8 }}>Mark this lead</p>
                           <select
                             value=""
                             onChange={(e) => { if (e.target.value) mark(e.target.value); }}
@@ -812,6 +965,14 @@ export default function DialerApp() {
                     <option value="">All states</option>
                     {stateOptions.map((s) => <option key={s.state} value={s.state}>{s.state} · {s.n}</option>)}
                   </select>
+                  <select value={dialList} onChange={(e) => saveDialFilter({ dialList: e.target.value })} className="dlr-select dlr-select-sm" aria-label="Lead list">
+                    <option value="">All lists</option>
+                    {listOptions.map((l) => <option key={l.list_name} value={l.list_name}>{l.list_name} · {l.n}</option>)}
+                  </select>
+                  <select value={dialIndustry} onChange={(e) => saveDialFilter({ dialIndustry: e.target.value })} className="dlr-select dlr-select-sm" aria-label="Industry">
+                    <option value="">All industries</option>
+                    {industryOptions.map((i) => <option key={i.industry} value={i.industry}>{i.industry} · {i.n}</option>)}
+                  </select>
                 </div>
               )}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 12 }}>
@@ -891,8 +1052,28 @@ export default function DialerApp() {
                     {stateOptions.map((s) => <option key={s.state} value={s.state}>{s.state} · {s.n}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="dlr-label" htmlFor="dlr-listfilter" style={{ display: "block", marginBottom: 4 }}>Lead list</label>
+                  <select id="dlr-listfilter" value={leadListFilter} onChange={(e) => setLeadListFilter(e.target.value)} className="dlr-select dlr-select-sm">
+                    <option value="">All lists</option>
+                    {listOptions.map((l) => <option key={l.list_name} value={l.list_name}>{l.list_name} · {l.n}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="dlr-label" htmlFor="dlr-industryfilter" style={{ display: "block", marginBottom: 4 }}>Industry</label>
+                  <select id="dlr-industryfilter" value={leadIndustryFilter} onChange={(e) => setLeadIndustryFilter(e.target.value)} className="dlr-select dlr-select-sm">
+                    <option value="">All industries</option>
+                    {industryOptions.map((i) => <option key={i.industry} value={i.industry}>{i.industry} · {i.n}</option>)}
+                  </select>
+                </div>
                 {leadFilter && leadFilter !== "new" && leadFilter !== "dnc" && (
                   <button onClick={requeueSegment} className="dlr-btn" title="Reset this segment to New so they re-enter the dial queue" style={{ padding: "8px 12px" }}>↻ Reset to New</button>
+                )}
+                {leadListFilter && (
+                  <span style={{ display: "flex", gap: 6 }}>
+                    <button onClick={renameList} className="dlr-btn" style={{ padding: "8px 12px" }}>Rename list</button>
+                    <button onClick={deleteList} className="dlr-btn danger" style={{ padding: "8px 12px" }}>Delete list</button>
+                  </span>
                 )}
               </div>
               <ul style={{ marginTop: 16, display: "grid", gap: 7 }}>
@@ -905,13 +1086,18 @@ export default function DialerApp() {
                           {l.business && <span className="dlr-company" style={{ color: "var(--smoke)" }}> · {l.business}</span>}
                         </span>
                         <span className="dlr-phone" style={{ display: "block", marginTop: 2 }}>{fmtPhone(l.phone)}</span>
+                        {(l.industry || l.list_name || l.state) && (
+                          <span className="dlr-sub" style={{ display: "block", marginTop: 2, fontSize: 11 }}>
+                            {[l.industry, l.state, l.list_name].filter(Boolean).join(" · ")}
+                          </span>
+                        )}
                       </span>
                       <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                         <select value={l.status} onChange={(e) => patchLead(l.id, { status: e.target.value })} className="dlr-select" style={{ width: "auto", padding: "7px 9px", fontSize: 12 }}>
                           {Object.entries(STATUS_META).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
                         </select>
                         <button title="Text" onClick={() => { setTab("texts"); openThread(l.phone, l); }} className="dlr-btn" style={{ padding: "7px 11px" }}>💬</button>
-                        <button title="Edit" onClick={() => { setExpandedLead(expandedLead === l.id ? null : l.id); setEditDraft({ name: l.name || "", business: l.business || "", notes: l.notes || "" }); }} className="dlr-btn" style={{ padding: "7px 11px" }}>✎</button>
+                        <button title="Edit" onClick={() => { setExpandedLead(expandedLead === l.id ? null : l.id); setEditDraft({ name: l.name || "", business: l.business || "", notes: l.notes || "", industry: l.industry || "" }); }} className="dlr-btn" style={{ padding: "7px 11px" }}>✎</button>
                         <button title="Delete" onClick={() => deleteLead(l.id, l.name || l.business || fmtPhone(l.phone))} className="dlr-btn danger" style={{ padding: "7px 11px" }}>🗑</button>
                       </span>
                     </div>
@@ -927,17 +1113,23 @@ export default function DialerApp() {
                             <input value={editDraft.business} onChange={(e) => setEditDraft((d) => ({ ...d, business: e.target.value }))} className="dlr-input" placeholder="Business" />
                           </span>
                         </div>
-                        <span>
-                          <label className="dlr-label" style={{ display: "block", marginBottom: 4 }}>Notes</label>
-                          <input value={editDraft.notes} onChange={(e) => setEditDraft((d) => ({ ...d, notes: e.target.value }))} className="dlr-input" placeholder="Notes…" />
-                        </span>
+                        <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
+                          <span>
+                            <label className="dlr-label" style={{ display: "block", marginBottom: 4 }}>Industry</label>
+                            <input value={editDraft.industry} onChange={(e) => setEditDraft((d) => ({ ...d, industry: e.target.value }))} className="dlr-input" placeholder="e.g. Plumbing" />
+                          </span>
+                          <span>
+                            <label className="dlr-label" style={{ display: "block", marginBottom: 4 }}>Notes</label>
+                            <input value={editDraft.notes} onChange={(e) => setEditDraft((d) => ({ ...d, notes: e.target.value }))} className="dlr-input" placeholder="Notes…" />
+                          </span>
+                        </div>
                         <div style={{ display: "flex", gap: 8 }}>
                           <button onClick={() => { patchLead(l.id, editDraft); setExpandedLead(null); }} className="dlr-btn primary">Save changes</button>
                           <button onClick={() => setExpandedLead(null)} className="dlr-btn">Cancel</button>
                         </div>
                       </div>
                     ) : (
-                      l.notes && <p className="dlr-sub" style={{ fontStyle: "italic", marginTop: 5 }}>“{l.notes}”</p>
+                      l.notes && <p className="dlr-sub" style={{ fontStyle: "italic", marginTop: 5, whiteSpace: "pre-wrap" }}>“{l.notes}”</p>
                     )}
                   </li>
                 ))}

@@ -68,7 +68,12 @@ export async function GET(request: NextRequest) {
     talkSeconds,
     avgTalkSeconds: connected ? Math.round(talkSeconds / connected) : 0,
     totalLeads: statusRows.reduce((a, r) => a + r.n, 0),
-    interested: byStatus.interested || 0,
+    // "Interested" is the umbrella: generic + demo/text/email-interested.
+    interested:
+      (byStatus.interested || 0) +
+      (byStatus.demo_interested || 0) +
+      (byStatus.text_interested || 0) +
+      (byStatus.email_interested || 0),
     notInterested: byStatus.not_interested || 0,
     demo: byStatus.demo || 0,
     closed: byStatus.closed || 0,

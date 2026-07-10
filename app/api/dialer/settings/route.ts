@@ -13,7 +13,7 @@ import {
 export async function GET(request: NextRequest) {
   if (!isAuthed(request)) return unauthorized();
   await ensureSchema();
-  const [agentPhone, vmScript, templates, lines, callerId, dialSegment, dialState] = await Promise.all([
+  const [agentPhone, vmScript, templates, lines, callerId, dialSegment, dialState, dialList, dialIndustry, callMode] = await Promise.all([
     getSetting("agent_phone"),
     getSetting("vm_script"),
     getSetting("sms_templates"),
@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
     getSetting("caller_id"),
     getSetting("dial_segment"),
     getSetting("dial_state"),
+    getSetting("dial_list"),
+    getSetting("dial_industry"),
+    getSetting("call_mode"),
   ]);
   return NextResponse.json({
     agentPhone,
@@ -29,6 +32,9 @@ export async function GET(request: NextRequest) {
     callerId: callerId || "auto",
     dialSegment: dialSegment || "new",
     dialState: dialState || "",
+    dialList: dialList || "",
+    dialIndustry: dialIndustry || "",
+    callMode: callMode === "browser" ? "browser" : "phone",
     templates: templates
       ? JSON.parse(templates)
       : [
@@ -67,6 +73,15 @@ export async function POST(request: NextRequest) {
   }
   if (typeof body.dialState === "string") {
     await setSetting("dial_state", body.dialState.trim().toUpperCase().slice(0, 2));
+  }
+  if (typeof body.dialList === "string") {
+    await setSetting("dial_list", body.dialList.trim().slice(0, 80));
+  }
+  if (typeof body.dialIndustry === "string") {
+    await setSetting("dial_industry", body.dialIndustry.trim().slice(0, 80));
+  }
+  if (typeof body.callMode === "string") {
+    await setSetting("call_mode", body.callMode === "browser" ? "browser" : "phone");
   }
   if (Array.isArray(body.templates)) {
     await setSetting(
