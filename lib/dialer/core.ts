@@ -74,6 +74,8 @@ export async function ensureSchema() {
   )`;
   await q`CREATE INDEX IF NOT EXISTS dialer_messages_phone_idx ON dialer_messages (phone, created_at)`;
   await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS last_dialed_at timestamptz`;
+  await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT ''`;
+  await q`CREATE INDEX IF NOT EXISTS dialer_leads_status_state_idx ON dialer_leads (status, state)`;
   // area_code is UNIQUE: the reservation row is what makes "buy a number for
   // this area code" idempotent under a double-click (two purchases, two bills).
   await q`CREATE TABLE IF NOT EXISTS dialer_numbers (
@@ -89,6 +91,23 @@ export async function ensureSchema() {
   // installs created before the reservation logic existed.
   await q`CREATE UNIQUE INDEX IF NOT EXISTS dialer_numbers_area_code_key ON dialer_numbers (area_code)`;
   schemaReady = true;
+  // One-time backfill of the state column for leads imported before it
+  // existed. Guarded by a settings flag so it runs at most once.
+  if ((await getSetting("state_backfilled")) !== "1") {
+    await backfillLeadStates();
+    await setSetting("state_backfilled", "1");
+  }
+}
+
+// Fills dialer_leads.state from each lead's phone area code. Batched.
+async function backfillLeadStates() {
+  const { areaCodeOf, stateOfAreaCode } = await import("./areaCodes");
+  const q = sql();
+  const rows = (await q`SELECT id, phone FROM dialer_leads WHERE state = ''`) as any[];
+  for (const r of rows) {
+    const st = stateOfAreaCode(areaCodeOf(r.phone));
+    if (st) await q`UPDATE dialer_leads SET state = ${st} WHERE id = ${r.id}`;
+  }
 }
 
 export async function getSetting(key: string): Promise<string> {
@@ -450,10 +469,23 @@ export const DEFAULT_VM_SCRIPT =
 export const LEAD_STATUSES = [
   "new",
   "interested",
+  "demo",
+  "closed",
   "callback",
   "voicemail",
   "no_answer",
   "not_interested",
   "wrong_number",
   "dnc",
+] as const;
+
+// Statuses that can be re-dialed as a deliberate campaign segment. "new" and
+// due "callback" flow through the default queue; these are opt-in retries.
+export const DIALABLE_SEGMENTS = [
+  "new",
+  "callback",
+  "voicemail",
+  "no_answer",
+  "not_interested",
+  "interested",
 ] as const;

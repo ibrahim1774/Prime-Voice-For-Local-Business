@@ -16,11 +16,14 @@ export async function GET(request: NextRequest) {
       .filter((n: any) => n?.capabilities?.voice)
       .map((n: any) => {
         const area = areaCodeOf(n.phone_number);
+        const tollFree = ["800", "833", "844", "855", "866", "877", "888"].includes(area);
         return {
           phone: n.phone_number,
           friendly: n.friendly_name || "",
           areaCode: area,
-          state: stateOfAreaCode(area),
+          tollFree,
+          // Label: "Toll-free" for 8xx numbers, else the US state.
+          state: tollFree ? "Toll-free" : stateOfAreaCode(area),
         };
       });
     return NextResponse.json({ numbers });

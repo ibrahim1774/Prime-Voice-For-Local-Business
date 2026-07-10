@@ -13,6 +13,8 @@ import LeadImport from "./LeadImport";
 const STATUS_META: Record<string, { label: string; color: string }> = {
   new: { label: "New", color: "#8a8a92" },
   interested: { label: "Interested", color: "#34d399" },
+  demo: { label: "Demo set", color: "#22d3ee" },
+  closed: { label: "Closed / Won", color: "#4ade80" },
   callback: { label: "Callback", color: "#fbbf24" },
   voicemail: { label: "Voicemail", color: "#a78bfa" },
   no_answer: { label: "No answer", color: "#94a3b8" },
@@ -22,12 +24,23 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
 };
 const DISPOSITIONS = [
   "interested",
+  "demo",
+  "closed",
   "callback",
   "voicemail",
   "no_answer",
   "not_interested",
   "wrong_number",
   "dnc",
+];
+// Segments you can deliberately re-dial (voicemails, no-answers, etc.).
+const DIAL_SEGMENTS: { key: string; label: string }[] = [
+  { key: "new", label: "New leads (+ due callbacks)" },
+  { key: "voicemail", label: "Voicemails — retry" },
+  { key: "no_answer", label: "No answers — retry" },
+  { key: "callback", label: "Callbacks" },
+  { key: "not_interested", label: "Not interested — retry" },
+  { key: "interested", label: "Interested — follow up" },
 ];
 
 async function api(path: string, options?: RequestInit): Promise<any> {
@@ -136,7 +149,7 @@ export default function DialerApp() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [tab, setTab] = useState<"dial" | "leads" | "texts" | "calls" | "numbers">("dial");
+  const [tab, setTab] = useState<"dial" | "leads" | "texts" | "calls">("dial");
   const [toast, setToast] = useState("");
 
   const notify = useCallback((msg: string) => {
@@ -154,7 +167,10 @@ export default function DialerApp() {
   const [templates, setTemplates] = useState<string[]>([]);
   const [lines, setLines] = useState(1);
   const [callerId, setCallerId] = useState("auto");
+  const [dialSegment, setDialSegment] = useState("new");
+  const [dialState, setDialState] = useState("");
   const [twilioNumbers, setTwilioNumbers] = useState<any[]>([]);
+  const [stateOptions, setStateOptions] = useState<{ state: string; n: number }[]>([]);
   const loadSettings = useCallback(async () => {
     const s = await api("settings");
     setAgentPhone(s.agentPhone || "");
@@ -162,7 +178,15 @@ export default function DialerApp() {
     setTemplates(s.templates || []);
     setLines(s.lines || 1);
     setCallerId(s.callerId || "auto");
+    setDialSegment(s.dialSegment || "new");
+    setDialState(s.dialState || "");
   }, []);
+  const saveDialFilter = async (patch: { dialSegment?: string; dialState?: string }) => {
+    if (patch.dialSegment !== undefined) setDialSegment(patch.dialSegment);
+    if (patch.dialState !== undefined) setDialState(patch.dialState);
+    try { await api("settings", { method: "POST", body: JSON.stringify(patch) }); loadQueue(); }
+    catch (err) { guard(err); }
+  };
   const loadTwilioNumbers = useCallback(async () => {
     try { setTwilioNumbers((await api("twilio-numbers")).numbers || []); } catch { /* non-fatal */ }
   }, []);
@@ -209,6 +233,7 @@ export default function DialerApp() {
       const c: Record<string, number> = {};
       (data.counts || []).forEach((r: any) => (c[r.status] = r.n));
       setCounts(c);
+      if (data.states) setStateOptions(data.states);
     } catch (err) { guard(err); }
   }, [guard]);
   useEffect(() => { if (authed) loadQueue(); }, [authed, loadQueue]);
@@ -320,15 +345,24 @@ export default function DialerApp() {
 
   // ── stats ──
   const [stats, setStats] = useState<any>(null);
-  const [statsRange, setStatsRange] = useState<"today" | "7d" | "all">("today");
-  const loadStats = useCallback(async (range: string) => {
-    try { setStats(await api(`stats?range=${range}`)); } catch { /* non-fatal */ }
-  }, []);
-  useEffect(() => { if (authed && tab === "dial") loadStats(statsRange); }, [authed, tab, statsRange, loadStats]);
+  const [statsRange, setStatsRange] = useState<"today" | "7d" | "30d" | "all" | "custom">("7d");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const loadStats = useCallback(async () => {
+    try {
+      const qs =
+        statsRange === "custom" && customFrom && customTo
+          ? `from=${customFrom}&to=${customTo}`
+          : `range=${statsRange === "custom" ? "7d" : statsRange}`;
+      setStats(await api(`stats?${qs}`));
+    } catch { /* non-fatal */ }
+  }, [statsRange, customFrom, customTo]);
+  useEffect(() => { if (authed && tab === "dial") loadStats(); }, [authed, tab, loadStats]);
 
   // ── leads ──
   const [leads, setLeads] = useState<any[]>([]);
   const [leadFilter, setLeadFilter] = useState("");
+  const [leadStateFilter, setLeadStateFilter] = useState("");
   const [leadSearch, setLeadSearch] = useState("");
   const [pasteText, setPasteText] = useState("");
   const [uploadMsg, setUploadMsg] = useState("");
@@ -339,14 +373,26 @@ export default function DialerApp() {
     try {
       const p = new URLSearchParams();
       if (leadFilter) p.set("status", leadFilter);
+      if (leadStateFilter) p.set("state", leadStateFilter);
       if (leadSearch.trim()) p.set("search", leadSearch.trim());
       const data = await api(`leads?${p}`);
       setLeads(data.leads || []);
       const c: Record<string, number> = {};
       (data.counts || []).forEach((r: any) => (c[r.status] = r.n));
       setCounts(c);
+      if (data.states) setStateOptions(data.states);
     } catch (err) { guard(err); }
-  }, [leadFilter, leadSearch, guard]);
+  }, [leadFilter, leadStateFilter, leadSearch, guard]);
+  const requeueSegment = async () => {
+    if (!leadFilter || leadFilter === "new" || leadFilter === "dnc") { notify("Pick a status to reset to New"); return; }
+    const label = STATUS_META[leadFilter]?.label || leadFilter;
+    if (!confirm(`Reset all ${label}${leadStateFilter ? ` in ${leadStateFilter}` : ""} back to New so they re-enter the dial queue?`)) return;
+    try {
+      const res = await api("requeue", { method: "POST", body: JSON.stringify({ status: leadFilter, state: leadStateFilter }) });
+      notify(`${res.requeued} leads reset to New`);
+      loadLeads(); loadQueue();
+    } catch (err) { guard(err); }
+  };
   useEffect(() => { if (authed && tab === "leads") loadLeads(); }, [authed, tab, loadLeads]);
 
   const importRows = async (rows: { name: string; business: string; phone: string }[]) => {
@@ -433,35 +479,6 @@ export default function DialerApp() {
     api("recordings").then((d) => setCallLog(d.calls || [])).catch(guard);
   }, [authed, tab, guard]);
 
-  // ── numbers ──
-  const [numbers, setNumbers] = useState<any[]>([]);
-  const [areaCode, setAreaCode] = useState("");
-  const [preview, setPreview] = useState<any>(null);
-  const [numBusy, setNumBusy] = useState(false);
-  const loadNumbers = useCallback(async () => {
-    try { setNumbers((await api("numbers")).numbers || []); } catch (err) { guard(err); }
-  }, [guard]);
-  useEffect(() => { if (authed && tab === "numbers") loadNumbers(); }, [authed, tab, loadNumbers]);
-
-  const lookupNumber = async () => {
-    setNumBusy(true); setPreview(null);
-    try { setPreview(await api("numbers", { method: "POST", body: JSON.stringify({ areaCode }) })); }
-    catch (err) { guard(err); } finally { setNumBusy(false); }
-  };
-  const buyNumber = async () => {
-    if (!preview?.phone) return;
-    setNumBusy(true);
-    try {
-      const res = await api("numbers", { method: "POST", body: JSON.stringify({ areaCode, phone: preview.phone, confirm: true }) });
-      notify(`✓ ${fmtPhone(res.phone)} is yours — now calling ${res.areaCode} leads from it`);
-      setPreview(null); setAreaCode(""); loadNumbers();
-    } catch (err) { guard(err); } finally { setNumBusy(false); }
-  };
-  const releaseNumber = async (id: number, phone: string) => {
-    if (!confirm(`Release ${fmtPhone(phone)}? Its $1.15/mo charge stops and the number is gone for good.`)) return;
-    try { await api("numbers", { method: "DELETE", body: JSON.stringify({ id }) }); notify("Number released"); loadNumbers(); }
-    catch (err) { guard(err); }
-  };
 
   // ── render ──
   if (authed === null) {
@@ -497,7 +514,7 @@ export default function DialerApp() {
             <h1 className="dlr-display" style={{ fontSize: 20, marginTop: 2 }}>Command Dialing Center</h1>
           </div>
           <nav className="dlr-tabs">
-            {(["dial", "leads", "texts", "calls", "numbers"] as const).map((t) => (
+            {(["dial", "leads", "texts", "calls"] as const).map((t) => (
               <button key={t} onClick={() => setTab(t)} className={`dlr-tab${tab === t ? " active" : ""}`}>
                 {t}
                 {t === "texts" && unread > 0 && <span className="badge">{unread}</span>}
@@ -512,22 +529,30 @@ export default function DialerApp() {
           <section className="dlr-panel dlr-panel-p" style={{ marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <h2 className="dlr-h dlr-display">Analytics</h2>
-              <div style={{ display: "flex", gap: 4 }}>
-                {([["today", "Today"], ["7d", "7 days"], ["all", "All time"]] as const).map(([k, label]) => (
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                {([["today", "Today"], ["7d", "7 days"], ["30d", "30 days"], ["all", "All time"]] as const).map(([k, label]) => (
                   <button key={k} onClick={() => setStatsRange(k)} className={`dlr-chip${statsRange === k ? " on" : ""}`}>{label}</button>
                 ))}
+                <span style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 4 }}>
+                  <input type="date" value={customFrom} max={customTo || undefined} onChange={(e) => { setCustomFrom(e.target.value); setStatsRange("custom"); }} className="dlr-select dlr-select-sm" style={{ padding: "6px 8px" }} />
+                  <span className="dlr-sub" style={{ marginTop: 0 }}>→</span>
+                  <input type="date" value={customTo} min={customFrom || undefined} onChange={(e) => { setCustomTo(e.target.value); setStatsRange("custom"); }} className="dlr-select dlr-select-sm" style={{ padding: "6px 8px" }} />
+                </span>
               </div>
             </div>
+
             <div className="dlr-metrics" style={{ marginTop: 14 }}>
               {(() => {
                 const s = stats || {};
                 const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
                 const cells = [
                   { k: "Dials made", n: s.dials || 0, sub: "calls placed", color: "var(--paper)" },
-                  { k: "Connected", n: s.connected || 0, sub: `${pct(s.connected || 0, s.dials || 0)}% of dials`, color: "var(--live)" },
+                  { k: "Connection rate", n: `${pct(s.connected || 0, s.dials || 0)}%`, sub: `${s.connected || 0} talked to`, color: "var(--live)" },
+                  { k: "Avg call", n: s.avgTalkSeconds ? mmss(s.avgTalkSeconds) : "0:00", sub: `${Math.round((s.talkSeconds || 0) / 60)} min total`, color: "var(--paper)" },
                   { k: "Interested", n: s.interested || 0, sub: `${pct(s.interested || 0, s.totalLeads || 0)}% of leads`, color: "var(--live)" },
+                  { k: "Demos set", n: s.demo || 0, sub: `${pct(s.demo || 0, s.interested || 0)}% of interested`, color: "#22d3ee" },
+                  { k: "Closed / Won", n: s.closed || 0, sub: `${pct(s.closed || 0, s.demo || 0)}% of demos`, color: "#4ade80" },
                   { k: "Not interested", n: s.notInterested || 0, sub: `${pct(s.notInterested || 0, s.totalLeads || 0)}% of leads`, color: "var(--danger)" },
-                  { k: "Callbacks", n: s.callback || 0, sub: "to follow up", color: "var(--warn)" },
                   { k: "Texts sent", n: s.textsSent || 0, sub: "outbound SMS", color: "var(--paper)" },
                 ];
                 return cells.map((c) => (
@@ -539,6 +564,37 @@ export default function DialerApp() {
                 ));
               })()}
             </div>
+
+            {/* per-day chart */}
+            {(() => {
+              const series: any[] = stats?.series || [];
+              if (!series.length) return <p className="dlr-sub" style={{ marginTop: 14 }}>No calls in this range yet.</p>;
+              const max = Math.max(1, ...series.map((d) => d.dials));
+              return (
+                <div style={{ marginTop: 18 }}>
+                  <p className="dlr-label" style={{ marginBottom: 10 }}>Per day — dials &amp; connections</p>
+                  <div className="dlr-chart">
+                    {series.map((d) => {
+                      const label = d.day.slice(5); // MM-DD
+                      const connRate = d.dials ? Math.round((d.connected / d.dials) * 100) : 0;
+                      return (
+                        <div key={d.day} className="dlr-chart-col" title={`${d.day}\n${d.dials} dials · ${d.connected} connected (${connRate}%) · ${mmss(d.talkSeconds)} talk`}>
+                          <div className="dlr-chart-bar" style={{ height: `${(d.dials / max) * 100}%` }}>
+                            <div className="dlr-chart-fill" style={{ height: `${d.dials ? (d.connected / d.dials) * 100 : 0}%` }} />
+                          </div>
+                          <span className="dlr-chart-n dlr-mono">{d.dials}</span>
+                          <span className="dlr-chart-x dlr-mono">{label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
+                    <span className="dlr-sub" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: "rgba(246,246,244,0.2)" }} /> Dials</span>
+                    <span className="dlr-sub" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--live)" }} /> Connected</span>
+                  </div>
+                </div>
+              );
+            })()}
           </section>
           <div className="dlr-grid main">
             <section className="dlr-panel dlr-panel-p">
@@ -566,11 +622,29 @@ export default function DialerApp() {
                       <option value="auto">Auto — match each lead&apos;s area code</option>
                       {twilioNumbers.map((n) => (
                         <option key={n.phone} value={n.phone}>
-                          {fmtPhone(n.phone)}{n.state ? ` — ${n.state}` : n.friendly ? ` — ${n.friendly}` : ""}
+                          {fmtPhone(n.phone)}{n.state ? ` — ${n.state}` : (n.friendly && n.friendly.replace(/\D/g, "") !== n.phone.replace(/\D/g, "")) ? ` — ${n.friendly}` : ""}
                         </option>
                       ))}
                     </select>
                     {!twilioNumbers.length && <p className="dlr-sub" style={{ marginTop: 6, fontSize: 11.5 }}>Loading your Twilio numbers…</p>}
+                  </div>
+
+                  <div style={{ marginTop: 18 }}>
+                    <label className="dlr-label" htmlFor="dlr-segment">Who to dial</label>
+                    <p className="dlr-sub" style={{ marginTop: 2 }}>Pick the batch to call through. Re-dial voicemails or no-answers without waiting for the daily cooldown.</p>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                      <select id="dlr-segment" value={dialSegment} onChange={(e) => saveDialFilter({ dialSegment: e.target.value })} className="dlr-select dlr-select-sm">
+                        {DIAL_SEGMENTS.map((s) => (
+                          <option key={s.key} value={s.key}>{s.label}{counts[s.key] ? ` · ${counts[s.key]}` : ""}</option>
+                        ))}
+                      </select>
+                      <select value={dialState} onChange={(e) => saveDialFilter({ dialState: e.target.value })} className="dlr-select dlr-select-sm" aria-label="Filter by state">
+                        <option value="">All states</option>
+                        {stateOptions.map((s) => (
+                          <option key={s.state} value={s.state}>{s.state} · {s.n}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <div style={{ marginTop: 18 }}>
@@ -683,11 +757,17 @@ export default function DialerApp() {
                           )}
                         </>
                       ) : (
-                        <div style={{ marginTop: 12 }}>
+                        <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+                          {(session.waveLeads || []).length === 0 && (
+                            <p className="dlr-sub" style={{ marginTop: 0 }}>Placing {lines > 1 ? `${lines} calls` : "the call"}…</p>
+                          )}
                           {(session.waveLeads || []).map((l: any) => (
-                            <p key={l.callSid} className="dlr-mono" style={{ fontSize: 12, color: "var(--smoke)", marginTop: 4 }}>
-                              {fmtPhone(l.phone)} · {l.status}
-                            </p>
+                            <div key={l.callSid} style={{ borderLeft: "2px solid rgba(52,211,153,0.5)", paddingLeft: 12 }}>
+                              <p className="dlr-name" style={{ fontSize: 17 }}>{l.name || "Unknown"}</p>
+                              {l.business && <p className="dlr-company" style={{ color: "var(--smoke)" }}>{l.business}</p>}
+                              <p className="dlr-phone" style={{ marginTop: 2 }}>{fmtPhone(l.phone)}</p>
+                              <p className="dlr-sub" style={{ marginTop: 2, fontSize: 11 }}>{l.status === "in-progress" ? "🟢 answered" : l.status === "ringing" ? "ringing…" : l.status || "dialing…"}</p>
+                            </div>
                           ))}
                         </div>
                       )}
@@ -715,10 +795,28 @@ export default function DialerApp() {
             </section>
 
             <section className="dlr-panel dlr-panel-p">
-              <h2 className="dlr-h dlr-display">Up next</h2>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <h2 className="dlr-h dlr-display">Up next</h2>
+                <span className="dlr-sub" style={{ marginTop: 0, fontSize: 11.5 }}>
+                  {DIAL_SEGMENTS.find((s) => s.key === dialSegment)?.label || "New leads"}{dialState ? ` · ${dialState}` : ""}
+                </span>
+              </div>
+              {session.active && (
+                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                  <select value={dialSegment} onChange={(e) => saveDialFilter({ dialSegment: e.target.value })} className="dlr-select dlr-select-sm" aria-label="Who to dial">
+                    {DIAL_SEGMENTS.map((s) => (
+                      <option key={s.key} value={s.key}>{s.label}{counts[s.key] ? ` · ${counts[s.key]}` : ""}</option>
+                    ))}
+                  </select>
+                  <select value={dialState} onChange={(e) => saveDialFilter({ dialState: e.target.value })} className="dlr-select dlr-select-sm" aria-label="State">
+                    <option value="">All states</option>
+                    {stateOptions.map((s) => <option key={s.state} value={s.state}>{s.state} · {s.n}</option>)}
+                  </select>
+                </div>
+              )}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 12 }}>
                 <div className="dlr-stat"><p className="n dlr-mono">{counts.new || 0}</p><p className="k dlr-eyebrow">New</p></div>
-                <div className="dlr-stat"><p className="n dlr-mono">{counts.callback || 0}</p><p className="k dlr-eyebrow">Callback</p></div>
+                <div className="dlr-stat"><p className="n dlr-mono" style={{ color: "#a78bfa" }}>{counts.voicemail || 0}</p><p className="k dlr-eyebrow">Voicemail</p></div>
                 <div className="dlr-stat"><p className="n dlr-mono" style={{ color: "var(--live)" }}>{counts.interested || 0}</p><p className="k dlr-eyebrow">Interested</p></div>
               </div>
               <ul style={{ marginTop: 14, display: "grid", gap: 7 }}>
@@ -766,10 +864,13 @@ export default function DialerApp() {
             </section>
 
             <section className="dlr-panel dlr-panel-p">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                <input value={leadSearch} onChange={(e) => setLeadSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && loadLeads()} placeholder="Search name, business, number…" className="dlr-input" style={{ maxWidth: 260 }} />
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
+                <span style={{ flex: 1, minWidth: 180 }}>
+                  <label className="dlr-label" style={{ display: "block", marginBottom: 4 }}>Search</label>
+                  <input value={leadSearch} onChange={(e) => setLeadSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && loadLeads()} placeholder="Name, business, number…" className="dlr-input" />
+                </span>
                 <div>
-                  <label className="dlr-label" htmlFor="dlr-filter" style={{ display: "block", marginBottom: 4 }}>Filter by marking</label>
+                  <label className="dlr-label" htmlFor="dlr-filter" style={{ display: "block", marginBottom: 4 }}>Marking</label>
                   <select
                     id="dlr-filter"
                     value={leadFilter}
@@ -783,6 +884,16 @@ export default function DialerApp() {
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="dlr-label" htmlFor="dlr-statefilter" style={{ display: "block", marginBottom: 4 }}>State</label>
+                  <select id="dlr-statefilter" value={leadStateFilter} onChange={(e) => setLeadStateFilter(e.target.value)} className="dlr-select dlr-select-sm">
+                    <option value="">All states</option>
+                    {stateOptions.map((s) => <option key={s.state} value={s.state}>{s.state} · {s.n}</option>)}
+                  </select>
+                </div>
+                {leadFilter && leadFilter !== "new" && leadFilter !== "dnc" && (
+                  <button onClick={requeueSegment} className="dlr-btn" title="Reset this segment to New so they re-enter the dial queue" style={{ padding: "8px 12px" }}>↻ Reset to New</button>
+                )}
               </div>
               <ul style={{ marginTop: 16, display: "grid", gap: 7 }}>
                 {leads.map((l) => (
@@ -996,47 +1107,6 @@ export default function DialerApp() {
         )}
 
         {/* ══ NUMBERS ══ */}
-        {tab === "numbers" && (
-          <div style={{ display: "grid", gap: 18 }}>
-            <section className="dlr-panel dlr-panel-p">
-              <h2 className="dlr-h dlr-display">Local presence</h2>
-              <p className="dlr-sub">
-                Calls show a number from the lead&apos;s own area code — people answer local numbers far more often.
-                Matching order: exact area code → same state → your main line. Callbacks forward to your phone and
-                texts land in the Texts tab.
-              </p>
-              <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-                <input value={areaCode} onChange={(e) => setAreaCode(e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="Area code, e.g. 404" className="dlr-input dlr-mono" style={{ maxWidth: 190 }} />
-                <button onClick={lookupNumber} disabled={numBusy || areaCode.length !== 3} className="dlr-btn">Find a number</button>
-              </div>
-
-              {preview && (
-                <div className="dlr-live" style={{ marginTop: 14, borderColor: "var(--line-2)", background: "rgba(246,246,244,0.03)" }}>
-                  <p className="dlr-eyebrow">Available</p>
-                  <p className="dlr-display dlr-mono" style={{ fontSize: 22, marginTop: 6 }}>{fmtPhone(preview.phone)}</p>
-                  <p className="dlr-sub">{preview.state ? `${preview.state} · ` : ""}{preview.monthly}</p>
-                  <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                    <button onClick={buyNumber} disabled={numBusy} className="dlr-btn go">Buy &amp; use for {preview.areaCode} leads</button>
-                    <button onClick={() => setPreview(null)} className="dlr-btn">Cancel</button>
-                  </div>
-                </div>
-              )}
-
-              <ul style={{ marginTop: 18, display: "grid", gap: 7 }}>
-                {numbers.map((n) => (
-                  <li key={n.id} className="dlr-row">
-                    <span>
-                      <span className="dlr-mono" style={{ fontSize: 13.5, fontWeight: 600 }}>{fmtPhone(n.phone)}</span>
-                      <span className="dlr-sub" style={{ marginTop: 1 }}>Area {n.area_code}{n.state ? ` · ${n.state}` : ""} · $1.15/mo</span>
-                    </span>
-                    <button onClick={() => releaseNumber(n.id, n.phone)} className="dlr-btn danger" style={{ padding: "7px 12px" }}>Release</button>
-                  </li>
-                ))}
-                {!numbers.length && <li className="dlr-sub">No local numbers yet — all calls go out from your main line.</li>}
-              </ul>
-            </section>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -7,23 +7,28 @@ import {
   setSetting,
   unauthorized,
   DEFAULT_VM_SCRIPT,
+  DIALABLE_SEGMENTS,
 } from "@/lib/dialer/core";
 
 export async function GET(request: NextRequest) {
   if (!isAuthed(request)) return unauthorized();
   await ensureSchema();
-  const [agentPhone, vmScript, templates, lines, callerId] = await Promise.all([
+  const [agentPhone, vmScript, templates, lines, callerId, dialSegment, dialState] = await Promise.all([
     getSetting("agent_phone"),
     getSetting("vm_script"),
     getSetting("sms_templates"),
     getSetting("lines"),
     getSetting("caller_id"),
+    getSetting("dial_segment"),
+    getSetting("dial_state"),
   ]);
   return NextResponse.json({
     agentPhone,
     vmScript: vmScript || DEFAULT_VM_SCRIPT,
     lines: Math.min(3, Math.max(1, Number(lines) || 1)),
     callerId: callerId || "auto",
+    dialSegment: dialSegment || "new",
+    dialState: dialState || "",
     templates: templates
       ? JSON.parse(templates)
       : [
@@ -55,6 +60,13 @@ export async function POST(request: NextRequest) {
     // must be a real E.164 number the account owns.
     const v = body.callerId.trim();
     await setSetting("caller_id", v === "auto" || /^\+\d{10,15}$/.test(v) ? (v === "auto" ? "" : v) : "");
+  }
+  if (typeof body.dialSegment === "string") {
+    const v = body.dialSegment.trim();
+    await setSetting("dial_segment", (DIALABLE_SEGMENTS as readonly string[]).includes(v) ? v : "new");
+  }
+  if (typeof body.dialState === "string") {
+    await setSetting("dial_state", body.dialState.trim().toUpperCase().slice(0, 2));
   }
   if (Array.isArray(body.templates)) {
     await setSetting(
