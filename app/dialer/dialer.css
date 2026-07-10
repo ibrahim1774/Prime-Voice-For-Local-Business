@@ -1,7 +1,7 @@
 /* ── /dialer — "Switchboard" ────────────────────────────────────────────────
    An operator's console, not a SaaS dashboard. Warm ink + bone, one brass
    accent, status colors read as lamp glass (desaturated, warm) instead of
-   neon. Schibsted Grotesk display, IBM Plex Sans UI; Plex Mono is reserved
+   neon. Geist everywhere (Vercel's typeface) with Geist Mono reserved
    for data — numbers, timestamps, counts. The signature element is the line
    lamp: it blinks brass at the real US ring cadence (2s on / 4s off, synced
    with the audible ringback) and holds steady green when connected. */
@@ -26,23 +26,23 @@
     radial-gradient(1100px 640px at 78% -10%, rgba(201, 151, 63, 0.05), transparent 58%),
     var(--ink);
   color: var(--paper);
-  font-family: var(--font-plex-sans), system-ui, sans-serif;
+  font-family: var(--font-geist), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 body:has(.dlr) { background: #121009; }
 
 .dlr-display {
-  font-family: var(--font-display), var(--font-plex-sans), system-ui, sans-serif;
+  font-family: var(--font-geist), system-ui, sans-serif;
   letter-spacing: -0.01em;
 }
 .dlr-mono {
-  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
 }
 /* Readout style — kept for genuine console readouts (line status, stat keys),
    nowhere else. Tracking tightened from costume (0.32em) to legible (0.13em). */
 .dlr-eyebrow {
-  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-size: 10px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -63,7 +63,7 @@ body:has(.dlr) { background: #121009; }
 .dlr-tab {
   position: relative; border: 0; background: transparent; cursor: pointer;
   padding: 8px 14px; border-radius: 7px; color: var(--smoke);
-  font-family: var(--font-plex-sans), system-ui, sans-serif;
+  font-family: var(--font-geist), system-ui, sans-serif;
   font-size: 12.5px; font-weight: 600; letter-spacing: 0;
   transition: color 0.18s;
 }
@@ -71,7 +71,7 @@ body:has(.dlr) { background: #121009; }
 .dlr-tab.active { color: var(--ink); background: var(--paper); }
 .dlr-tab .badge {
   margin-left: 7px; padding: 1px 6px; border-radius: 99px; font-size: 9.5px;
-  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
   background: var(--brass); color: var(--ink); font-weight: 700;
 }
 
@@ -126,17 +126,17 @@ body:has(.dlr) { background: #121009; }
 
 /* Crucial lead data — name, company, phone. The name is display face; the
    number is mono because it IS data. Everything around them stays muted. */
-.dlr-name { font-family: var(--font-display), system-ui, sans-serif; font-size: 16px; font-weight: 700; color: var(--paper); letter-spacing: -0.01em; }
+.dlr-name { font-family: var(--font-geist), system-ui, sans-serif; font-size: 16px; font-weight: 700; color: var(--paper); letter-spacing: -0.01em; }
 .dlr-company { font-size: 13.5px; font-weight: 500; color: var(--smoke); }
 .dlr-phone {
-  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   font-size: 14px; font-weight: 500; color: var(--paper); letter-spacing: 0.01em;
 }
-.dlr-name-lg { font-family: var(--font-display), system-ui, sans-serif; font-size: 27px; font-weight: 800; color: var(--paper); letter-spacing: -0.02em; line-height: 1.1; }
+.dlr-name-lg { font-family: var(--font-geist), system-ui, sans-serif; font-size: 27px; font-weight: 800; color: var(--paper); letter-spacing: -0.02em; line-height: 1.1; }
 .dlr-company-lg { font-size: 15px; font-weight: 500; color: var(--smoke); }
 .dlr-phone-lg {
-  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   font-size: 17px; font-weight: 500; color: var(--brass-lit);
 }
@@ -160,8 +160,8 @@ body:has(.dlr) { background: #121009; }
   display: flex; align-items: flex-end; transition: height 0.3s cubic-bezier(0.19,1,0.22,1);
 }
 .dlr-chart-fill { width: 100%; background: var(--brass); border-radius: 3px 3px 0 0; transition: height 0.3s cubic-bezier(0.19,1,0.22,1); }
-.dlr-chart-n { font-family: var(--font-plex-mono), ui-monospace, monospace; font-size: 10px; color: var(--smoke); }
-.dlr-chart-x { font-family: var(--font-plex-mono), ui-monospace, monospace; font-size: 9px; color: var(--smoke-d); white-space: nowrap; }
+.dlr-chart-n { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 10px; color: var(--smoke); }
+.dlr-chart-x { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 9px; color: var(--smoke-d); white-space: nowrap; }
 input[type="date"].dlr-select-sm { color-scheme: dark; }
 
 /* import drop zone */
@@ -200,7 +200,7 @@ input[type="date"].dlr-select-sm { color-scheme: dark; }
 .dlr-btn.wide { width: 100%; }
 
 /* pills / chips */
-.dlr-pill { display: inline-flex; align-items: center; gap: 5px; border-radius: 5px; padding: 3px 8px; font-family: var(--font-plex-mono), ui-monospace, monospace; font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid; }
+.dlr-pill { display: inline-flex; align-items: center; gap: 5px; border-radius: 5px; padding: 3px 8px; font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid; }
 .dlr-chip { border: 1px solid var(--line-2); border-radius: 7px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: var(--smoke); background: transparent; cursor: pointer; font-family: inherit; transition: all 0.14s; }
 .dlr-chip:hover { color: var(--paper); border-color: var(--brass); }
 .dlr-chip.on { background: var(--paper); color: var(--ink); border-color: var(--paper); }
@@ -258,7 +258,7 @@ input[type="date"].dlr-select-sm { color-scheme: dark; }
   transition: border-color 0.18s;
 }
 .dlr-stat:hover { border-color: var(--line-2); }
-.dlr-stat .n { font-family: var(--font-display), system-ui, sans-serif; font-size: 25px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; }
+.dlr-stat .n { font-family: var(--font-geist), system-ui, sans-serif; font-size: 25px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; }
 .dlr-stat .k { margin-top: 3px; }
 
 /* sms bubbles */
