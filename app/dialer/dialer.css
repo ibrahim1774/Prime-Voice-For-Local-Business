@@ -113,6 +113,23 @@ body:has(.dlr) { background: var(--ink); }
   font-size: 13px;
 }
 
+/* Crucial lead data — name, company, phone. Loud and white so it's the
+   first thing read; everything else stays muted around it. */
+.dlr-name { font-size: 15.5px; font-weight: 700; color: var(--paper); letter-spacing: -0.01em; }
+.dlr-company { font-size: 14px; font-weight: 600; color: var(--paper); }
+.dlr-phone {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 14.5px; font-weight: 600; color: var(--paper); letter-spacing: 0.01em;
+}
+.dlr-name-lg { font-size: 27px; font-weight: 720; color: var(--paper); letter-spacing: -0.02em; }
+.dlr-company-lg { font-size: 15.5px; font-weight: 600; color: var(--paper); }
+.dlr-phone-lg {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 16px; font-weight: 600; color: var(--paper);
+}
+
 /* import drop zone */
 .dlr-drop {
   border: 1.5px dashed var(--line-2);

@@ -153,13 +153,25 @@ export default function DialerApp() {
   const [vmScript, setVmScript] = useState("");
   const [templates, setTemplates] = useState<string[]>([]);
   const [lines, setLines] = useState(1);
+  const [callerId, setCallerId] = useState("auto");
+  const [twilioNumbers, setTwilioNumbers] = useState<any[]>([]);
   const loadSettings = useCallback(async () => {
     const s = await api("settings");
     setAgentPhone(s.agentPhone || "");
     setVmScript(s.vmScript || "");
     setTemplates(s.templates || []);
     setLines(s.lines || 1);
+    setCallerId(s.callerId || "auto");
   }, []);
+  const loadTwilioNumbers = useCallback(async () => {
+    try { setTwilioNumbers((await api("twilio-numbers")).numbers || []); } catch { /* non-fatal */ }
+  }, []);
+  useEffect(() => { if (authed) loadTwilioNumbers(); }, [authed, loadTwilioNumbers]);
+  const saveCallerId = async (v: string) => {
+    setCallerId(v);
+    try { await api("settings", { method: "POST", body: JSON.stringify({ callerId: v }) }); notify("Caller ID saved"); }
+    catch (err) { guard(err); }
+  };
   useEffect(() => {
     loadSettings().then(() => setAuthed(true)).catch(() => setAuthed(false));
   }, [loadSettings]);
@@ -494,11 +506,26 @@ export default function DialerApp() {
                   </p>
 
                   <div style={{ marginTop: 18 }}>
-                    <label className="dlr-label" htmlFor="dlr-cell">Your phone</label>
+                    <label className="dlr-label" htmlFor="dlr-cell">Your phone (your headset)</label>
+                    <p className="dlr-sub" style={{ marginTop: 2 }}>Where the dialer calls <b style={{ color: "var(--paper)" }}>you</b> so you can talk. Leads never see this number.</p>
                     <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                       <input id="dlr-cell" value={agentPhone} onChange={(e) => setAgentPhone(e.target.value)} placeholder="(404) 555-0123" className="dlr-input" />
                       <button onClick={async () => { try { await api("settings", { method: "POST", body: JSON.stringify({ agentPhone }) }); notify("Saved"); } catch (err) { guard(err); } }} className="dlr-btn">Save</button>
                     </div>
+                  </div>
+
+                  <div style={{ marginTop: 18 }}>
+                    <label className="dlr-label" htmlFor="dlr-callerid">Call from (what leads see)</label>
+                    <p className="dlr-sub" style={{ marginTop: 2 }}>The caller ID shown to the people you dial.</p>
+                    <select id="dlr-callerid" value={callerId} onChange={(e) => saveCallerId(e.target.value)} className="dlr-select" style={{ marginTop: 6 }}>
+                      <option value="auto">Auto — match each lead&apos;s area code</option>
+                      {twilioNumbers.map((n) => (
+                        <option key={n.phone} value={n.phone}>
+                          {fmtPhone(n.phone)}{n.state ? ` — ${n.state}` : n.friendly ? ` — ${n.friendly}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    {!twilioNumbers.length && <p className="dlr-sub" style={{ marginTop: 6, fontSize: 11.5 }}>Loading your Twilio numbers…</p>}
                   </div>
 
                   <div style={{ marginTop: 18 }}>
@@ -552,9 +579,9 @@ export default function DialerApp() {
 
                       {pending ? (
                         <>
-                          <p className="dlr-display" style={{ fontSize: 23, marginTop: 10 }}>{pending.name || "Unknown"}</p>
-                          <p className="dlr-sub">{pending.business || "—"}</p>
-                          <p className="dlr-mono" style={{ fontSize: 13, color: "var(--smoke)", marginTop: 3 }}>{fmtPhone(pending.phone)}</p>
+                          <p className="dlr-name-lg" style={{ marginTop: 10 }}>{pending.name || "Unknown"}</p>
+                          <p className="dlr-company-lg" style={{ marginTop: 2 }}>{pending.business || "—"}</p>
+                          <p className="dlr-phone-lg" style={{ marginTop: 5 }}>{fmtPhone(pending.phone)}</p>
                           {w?.amd && (
                             <p style={{ marginTop: 10, fontSize: 12.5, color: w.amd === "human" ? "var(--live)" : "var(--violet)" }}>
                               {w.amd === "human" ? "👤 Human answered" : `🤖 Machine detected (${w.amd})`}
@@ -653,10 +680,11 @@ export default function DialerApp() {
                 {queue.slice(0, 9).map((l) => (
                   <li key={l.id} className="dlr-row">
                     <span style={{ minWidth: 0 }}>
-                      <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span className="dlr-name" style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {l.name || l.business || fmtPhone(l.phone)}
                       </span>
-                      <span className="dlr-mono" style={{ fontSize: 11, color: "var(--smoke-d)" }}>{fmtPhone(l.phone)}</span>
+                      {l.business && l.name && <span className="dlr-company" style={{ display: "block", color: "var(--smoke)" }}>{l.business}</span>}
+                      <span className="dlr-phone" style={{ display: "block", marginTop: 1 }}>{fmtPhone(l.phone)}</span>
                     </span>
                     <StatusPill status={l.status} />
                   </li>
@@ -712,10 +740,11 @@ export default function DialerApp() {
                   <li key={l.id} className="dlr-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                       <span style={{ minWidth: 0 }}>
-                        <span style={{ display: "block", fontSize: 13.5, fontWeight: 600 }}>
-                          {l.name || "—"} <span style={{ color: "var(--smoke-d)", fontWeight: 400 }}>· {l.business || "—"}</span>
+                        <span style={{ display: "block" }}>
+                          <span className="dlr-name">{l.name || "—"}</span>
+                          {l.business && <span className="dlr-company" style={{ color: "var(--smoke)" }}> · {l.business}</span>}
                         </span>
-                        <span className="dlr-mono" style={{ fontSize: 11.5, color: "var(--smoke-d)" }}>{fmtPhone(l.phone)}</span>
+                        <span className="dlr-phone" style={{ display: "block", marginTop: 2 }}>{fmtPhone(l.phone)}</span>
                       </span>
                       <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                         <select value={l.status} onChange={(e) => patchLead(l.id, { status: e.target.value })} className="dlr-select" style={{ width: "auto", padding: "7px 9px", fontSize: 12 }}>
@@ -754,7 +783,7 @@ export default function DialerApp() {
                     <button onClick={() => openThread(t.phone, t)} className="dlr-row" style={{ width: "100%", textAlign: "left", cursor: "pointer", background: openPhone === t.phone ? "rgba(246,246,244,0.05)" : "transparent", borderColor: openPhone === t.phone ? "var(--line-2)" : "var(--line)" }}>
                       <span style={{ minWidth: 0, flex: 1 }}>
                         <span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span className="dlr-name" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {t.name || t.business || fmtPhone(t.phone)}
                           </span>
                           {t.unread > 0 && <span className="dlr-pill" style={{ background: "var(--live)", color: "#04160f", borderColor: "var(--live)" }}>{t.unread}</span>}
@@ -829,9 +858,11 @@ export default function DialerApp() {
             <section className="dlr-panel dlr-panel-p" style={{ display: "flex", flexDirection: "column", minHeight: 480 }}>
               {openPhone ? (
                 <>
-                  <p style={{ paddingBottom: 10, borderBottom: "1px solid var(--line)", fontSize: 13.5, fontWeight: 600 }}>
-                    {openLead?.name || openLead?.business ? `${openLead?.name || ""}${openLead?.business ? ` · ${openLead.business}` : ""} · ` : ""}
-                    <span className="dlr-mono" style={{ color: "var(--smoke)" }}>{fmtPhone(openPhone)}</span>
+                  <p style={{ paddingBottom: 10, borderBottom: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 8 }}>
+                    {(openLead?.name || openLead?.business) && (
+                      <span className="dlr-name">{openLead?.name || openLead?.business}{openLead?.name && openLead?.business ? <span className="dlr-company" style={{ color: "var(--smoke)" }}> · {openLead.business}</span> : null}</span>
+                    )}
+                    <span className="dlr-phone">{fmtPhone(openPhone)}</span>
                   </p>
                   <div className="dlr-scroll" style={{ flex: 1, display: "grid", gap: 7, alignContent: "start", padding: "14px 0" }}>
                     {messages.map((m) => (
@@ -869,7 +900,8 @@ export default function DialerApp() {
                 <li key={c.id} className="dlr-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                     <span>
-                      <span style={{ fontSize: 13.5, fontWeight: 600 }}>{c.name || c.business || fmtPhone(c.phone || "")}</span>
+                      <span className="dlr-name">{c.name || c.business || fmtPhone(c.phone || "")}</span>
+                      {c.phone && (c.name || c.business) && <span className="dlr-phone" style={{ marginLeft: 8 }}>{fmtPhone(c.phone)}</span>}
                       <span className="dlr-mono" style={{ marginLeft: 9, fontSize: 11.5, color: "var(--smoke-d)" }}>
                         {timeAgo(c.started_at)} · {c.duration_seconds ? mmss(c.duration_seconds) : "—"} · {c.status}
                         {c.amd ? ` · ${c.amd === "human" ? "human" : "machine"}` : ""}

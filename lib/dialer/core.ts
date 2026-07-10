@@ -371,11 +371,17 @@ export async function twilio(
   return json;
 }
 
-// Local presence: pick the caller ID for a lead — exact area-code match from
-// the owned-number pool, then any same-state number, then the default line.
+// Pick the caller ID for a lead.
+//  - A pinned number (caller_id setting = an E.164 number) is always used.
+//  - "auto"/unset → local presence: exact area-code match from the owned
+//    pool, then any same-state number, then the default line.
 export async function pickCallerId(leadPhone: string): Promise<string> {
   const { areaCodeOf, stateOfAreaCode } = await import("./areaCodes");
   const { from } = twilioEnv();
+
+  const pinned = await getSetting("caller_id");
+  if (pinned && /^\+\d{10,15}$/.test(pinned)) return pinned;
+
   const code = areaCodeOf(leadPhone);
   if (!code) return from;
   const pool = (await sql()`SELECT phone, area_code, state FROM dialer_numbers`) as any[];
