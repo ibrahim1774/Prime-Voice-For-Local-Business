@@ -23,10 +23,12 @@ export async function GET(request: NextRequest) {
 
   let rows: any[];
   if (queue) {
-    // Next up: due callbacks first (time-sensitive), then fresh leads. DNC excluded.
+    // Next up: due callbacks first (time-sensitive), then fresh leads. DNC
+    // excluded; anyone dialed in the last 20h sits out until tomorrow.
     rows = (await q`
       SELECT * FROM dialer_leads
-      WHERE status = 'new' OR (status = 'callback' AND (callback_at IS NULL OR callback_at <= now()))
+      WHERE (status = 'new' OR (status = 'callback' AND (callback_at IS NULL OR callback_at <= now())))
+        AND (last_dialed_at IS NULL OR last_dialed_at < now() - interval '20 hours')
       ORDER BY (status = 'callback') DESC, id ASC
       LIMIT ${limit}`) as any[];
   } else if (search) {

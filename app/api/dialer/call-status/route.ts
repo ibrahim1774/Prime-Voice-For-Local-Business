@@ -3,12 +3,15 @@ import {
   ensureSchema,
   getSession,
   saveSession,
+  setSetting,
   sql,
   validTwilioRequest,
 } from "@/lib/dialer/core";
 
-// Twilio status callback for both legs. Lead legs update the call log;
-// a completed agent leg ends the session.
+// Twilio status callback for both legs. Lead legs update the call log only
+// (wave/winner state is derived from dialer_calls + the claim key, so this
+// webhook never touches the session JSON for lead calls). An answered agent
+// leg unlocks dialing; a completed one ends the session.
 export async function POST(request: NextRequest) {
   const form = new URLSearchParams(await request.text());
   const url = new URL(request.url);
@@ -22,9 +25,14 @@ export async function POST(request: NextRequest) {
   const duration = Number(form.get("CallDuration") || 0);
 
   if (kind === "agent") {
-    if (status === "completed" || status === "failed" || status === "no-answer" || status === "busy") {
-      const session = await getSession();
-      if (session?.agentCallSid === callSid) await saveSession(null);
+    const session = await getSession();
+    if (session?.agentCallSid === callSid) {
+      if (status === "in-progress") {
+        await setSetting("agent_answered", "1");
+      } else if (["completed", "failed", "no-answer", "busy", "canceled"].includes(status)) {
+        await saveSession(null);
+        await setSetting("agent_answered", "");
+      }
     }
     return NextResponse.json({ ok: true });
   }
@@ -34,12 +42,6 @@ export async function POST(request: NextRequest) {
       UPDATE dialer_calls
       SET status = ${status}, duration_seconds = GREATEST(duration_seconds, ${duration})
       WHERE call_sid = ${callSid}`;
-    if (["completed", "busy", "failed", "no-answer", "canceled"].includes(status)) {
-      const session = await getSession();
-      if (session?.currentCallSid === callSid) {
-        await saveSession({ ...session, currentCallSid: null, currentLeadId: null });
-      }
-    }
   }
   return NextResponse.json({ ok: true });
 }

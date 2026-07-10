@@ -4,17 +4,20 @@ import {
   ensureSchema,
   getSession,
   isAuthed,
+  sql,
   twilio,
   unauthorized,
+  waveWinner,
   webhookToken,
 } from "@/lib/dialer/core";
 
-// POST { action: "vmdrop" | "hangup" } — controls the current lead call.
+// POST { action: "vmdrop" | "hangup" } — controls the wave's winning call.
 export async function POST(request: NextRequest) {
   if (!isAuthed(request)) return unauthorized();
   await ensureSchema();
   const session = await getSession();
-  if (!session?.active || !session.currentCallSid) {
+  const winnerSid = session?.waveId ? await waveWinner(session.waveId) : "";
+  if (!session?.active || !winnerSid) {
     return NextResponse.json({ error: "No call in progress" }, { status: 409 });
   }
   const body = await request.json().catch(() => ({}));
@@ -22,14 +25,18 @@ export async function POST(request: NextRequest) {
   try {
     if (body.action === "vmdrop") {
       // Redirect the lead leg to the voicemail script, then it hangs up.
-      await twilio(`/Calls/${session.currentCallSid}.json`, {
+      await twilio(`/Calls/${winnerSid}.json`, {
         Url: `${BASE_URL}/api/dialer/twiml/vmdrop?t=${webhookToken()}`,
         Method: "POST",
       });
       return NextResponse.json({ ok: true, dropped: true });
     }
     if (body.action === "hangup") {
-      await twilio(`/Calls/${session.currentCallSid}.json`, { Status: "completed" });
+      await twilio(`/Calls/${winnerSid}.json`, { Status: "completed" });
+      // Record it ourselves too: if Twilio's status callback goes missing the
+      // wave would otherwise read as live forever and block the next dial.
+      await sql()`
+        UPDATE dialer_calls SET status = 'completed' WHERE call_sid = ${winnerSid}`;
       return NextResponse.json({ ok: true });
     }
   } catch (err: any) {
