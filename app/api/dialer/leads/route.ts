@@ -22,21 +22,28 @@ export async function GET(request: NextRequest) {
   const search = (p.get("search") || "").trim();
   const queue = p.get("queue") === "1";
   const stateFilter = (p.get("state") || "").trim().toUpperCase();
+  const listFilter = (p.get("list") || "").trim();
+  const industryFilter = (p.get("industry") || "").trim();
   const limit = Math.min(Number(p.get("limit")) || 500, 2000);
   const q = sql();
 
   let rows: any[];
   if (queue) {
-    // The dialing queue honors the saved segment + state (set on the Dial tab).
+    // The dialing queue honors the saved segment + state + list + industry
+    // (set on the Dial tab), so Up next always previews the real batch.
     const segment = (await getSetting("dial_segment")) || "new";
     const seg = (DIALABLE_SEGMENTS as readonly string[]).includes(segment) ? segment : "new";
     const st = (await getSetting("dial_state")).toUpperCase();
+    const list = await getSetting("dial_list");
+    const ind = await getSetting("dial_industry");
     if (seg === "new") {
       // Default: due callbacks first, then fresh leads; 20h re-dial cooldown.
       rows = (await q`
         SELECT * FROM dialer_leads
         WHERE (status = 'new' OR (status = 'callback' AND (callback_at IS NULL OR callback_at <= now())))
           AND (${st} = '' OR state = ${st})
+          AND (${list} = '' OR list_name = ${list})
+          AND (${ind} = '' OR industry = ${ind})
           AND (last_dialed_at IS NULL OR last_dialed_at < now() - interval '20 hours')
         ORDER BY (status = 'callback') DESC, id ASC
         LIMIT ${limit}`) as any[];
@@ -46,25 +53,21 @@ export async function GET(request: NextRequest) {
       rows = (await q`
         SELECT * FROM dialer_leads
         WHERE status = ${seg} AND (${st} = '' OR state = ${st})
+          AND (${list} = '' OR list_name = ${list})
+          AND (${ind} = '' OR industry = ${ind})
         ORDER BY last_dialed_at ASC NULLS FIRST, id ASC
         LIMIT ${limit}`) as any[];
     }
-  } else if (search) {
-    const like = `%${search}%`;
-    rows = (await q`
-      SELECT * FROM dialer_leads
-      WHERE (name ILIKE ${like} OR business ILIKE ${like} OR phone LIKE ${like})
-        AND (${stateFilter} = '' OR state = ${stateFilter})
-      ORDER BY updated_at DESC LIMIT ${limit}`) as any[];
-  } else if (status && (LEAD_STATUSES as readonly string[]).includes(status)) {
-    rows = (await q`
-      SELECT * FROM dialer_leads
-      WHERE status = ${status} AND (${stateFilter} = '' OR state = ${stateFilter})
-      ORDER BY updated_at DESC LIMIT ${limit}`) as any[];
   } else {
+    const like = `%${search}%`;
+    const stat = status && (LEAD_STATUSES as readonly string[]).includes(status) ? status : "";
     rows = (await q`
       SELECT * FROM dialer_leads
-      WHERE (${stateFilter} = '' OR state = ${stateFilter})
+      WHERE (${search} = '' OR name ILIKE ${like} OR business ILIKE ${like} OR phone LIKE ${like})
+        AND (${stat} = '' OR status = ${stat})
+        AND (${stateFilter} = '' OR state = ${stateFilter})
+        AND (${listFilter} = '' OR list_name = ${listFilter})
+        AND (${industryFilter} = '' OR industry = ${industryFilter})
       ORDER BY updated_at DESC LIMIT ${limit}`) as any[];
   }
 
@@ -72,16 +75,22 @@ export async function GET(request: NextRequest) {
     SELECT status, count(*)::int AS n FROM dialer_leads GROUP BY status`) as any[];
   const states = (await q`
     SELECT state, count(*)::int AS n FROM dialer_leads WHERE state <> '' GROUP BY state ORDER BY state`) as any[];
-  return NextResponse.json({ leads: rows, counts, states });
+  const lists = (await q`
+    SELECT list_name, count(*)::int AS n FROM dialer_leads WHERE list_name <> '' GROUP BY list_name ORDER BY list_name`) as any[];
+  const industries = (await q`
+    SELECT industry, count(*)::int AS n FROM dialer_leads WHERE industry <> '' GROUP BY industry ORDER BY industry`) as any[];
+  return NextResponse.json({ leads: rows, counts, states, lists, industries });
 }
 
-// POST — bulk upsert { rows: [{name, business, phone}] }. Dedupes by phone;
-// existing leads keep their status/notes/history, only blank fields fill in.
+// POST — bulk upsert { rows: [{name, business, phone, industry?}], listName? }.
+// Dedupes by phone; existing leads keep their status/notes/history, only
+// blank fields fill in.
 export async function POST(request: NextRequest) {
   if (!isAuthed(request)) return unauthorized();
   await ensureSchema();
   const body = await request.json().catch(() => ({}));
   const rows: any[] = Array.isArray(body?.rows) ? body.rows : [];
+  const listName = String(body?.listName ?? "").trim().slice(0, 80);
   if (!rows.length) {
     return NextResponse.json({ error: "No rows" }, { status: 400 });
   }
@@ -103,14 +112,17 @@ export async function POST(request: NextRequest) {
     seen.add(phone);
     const name = String(row?.name ?? "").trim().slice(0, 120);
     const business = String(row?.business ?? "").trim().slice(0, 160);
+    const industry = String(row?.industry ?? "").trim().slice(0, 80);
     const state = stateOfAreaCode(areaCodeOf(phone));
     const result = (await q`
-      INSERT INTO dialer_leads (phone, name, business, state)
-      VALUES (${phone}, ${name}, ${business}, ${state})
+      INSERT INTO dialer_leads (phone, name, business, state, industry, list_name)
+      VALUES (${phone}, ${name}, ${business}, ${state}, ${industry}, ${listName})
       ON CONFLICT (phone) DO UPDATE SET
         name = CASE WHEN dialer_leads.name = '' THEN EXCLUDED.name ELSE dialer_leads.name END,
         business = CASE WHEN dialer_leads.business = '' THEN EXCLUDED.business ELSE dialer_leads.business END,
         state = CASE WHEN dialer_leads.state = '' THEN EXCLUDED.state ELSE dialer_leads.state END,
+        industry = CASE WHEN dialer_leads.industry = '' THEN EXCLUDED.industry ELSE dialer_leads.industry END,
+        list_name = CASE WHEN dialer_leads.list_name = '' THEN EXCLUDED.list_name ELSE dialer_leads.list_name END,
         updated_at = now()
       RETURNING (xmax = 0) AS inserted`) as any[];
     if (result[0]?.inserted) added++;

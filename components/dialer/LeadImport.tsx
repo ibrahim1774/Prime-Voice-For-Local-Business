@@ -21,6 +21,7 @@ const FIELDS = [
   { key: "phone", label: "Phone number", required: true },
   { key: "name", label: "Name", required: false },
   { key: "business", label: "Business", required: false },
+  { key: "industry", label: "Industry", required: false },
 ] as const;
 type FieldKey = (typeof FIELDS)[number]["key"];
 
@@ -53,12 +54,13 @@ function toParsed(grid: Grid, fileName: string): Parsed {
 
 // Best-guess column for each field, so the common case needs no clicks.
 function autoMap(p: Parsed): Record<FieldKey, number> {
-  const map: Record<FieldKey, number> = { phone: -1, name: -1, business: -1 };
+  const map: Record<FieldKey, number> = { phone: -1, name: -1, business: -1, industry: -1 };
   const lower = p.headers.map((h) => h.toLowerCase());
   if (p.hasHeader) {
     map.phone = lower.findIndex((h) => /phone|number|cell|mobile|tel/.test(h));
     map.business = lower.findIndex((h) => /business|company|org|shop|store/.test(h));
     map.name = lower.findIndex((h) => /name|contact|owner/.test(h) && !/business|company/.test(h));
+    map.industry = lower.findIndex((h) => /industry|category|type|niche|vertical/.test(h));
   }
   if (map.phone < 0) {
     // Column with the most phone-looking values.
@@ -69,7 +71,7 @@ function autoMap(p: Parsed): Record<FieldKey, number> {
     }
     map.phone = best;
   }
-  const taken = new Set([map.phone, map.business, map.name].filter((i) => i >= 0));
+  const taken = new Set([map.phone, map.business, map.name, map.industry].filter((i) => i >= 0));
   if (map.name < 0) map.name = [...Array(p.headers.length).keys()].find((i) => !taken.has(i)) ?? -1;
   taken.add(map.name);
   if (map.business < 0) map.business = [...Array(p.headers.length).keys()].find((i) => !taken.has(i)) ?? -1;
@@ -82,11 +84,16 @@ export default function LeadImport({
   onImport,
   onDone,
 }: {
-  onImport: (rows: { name: string; business: string; phone: string }[]) => Promise<{ added: number; updated: number; skipped: number } | null>;
+  onImport: (
+    rows: { name: string; business: string; phone: string; industry: string }[],
+    listName: string
+  ) => Promise<{ added: number; updated: number; skipped: number } | null>;
   onDone: () => void;
 }) {
   const [parsed, setParsed] = useState<Parsed | null>(null);
-  const [map, setMap] = useState<Record<FieldKey, number>>({ phone: -1, name: -1, business: -1 });
+  const [map, setMap] = useState<Record<FieldKey, number>>({ phone: -1, name: -1, business: -1, industry: -1 });
+  const [listName, setListName] = useState("");
+  const [industryAll, setIndustryAll] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -103,6 +110,7 @@ export default function LeadImport({
       }
       setParsed(p);
       setMap(autoMap(p));
+      setListName(file.name.replace(/\.(csv|xlsx|xls|txt)$/i, "").slice(0, 80));
     } catch {
       setError("Couldn't read that file. Use a .csv, .xlsx, or .xls export.");
     }
@@ -121,9 +129,10 @@ export default function LeadImport({
         phone: r[map.phone] || "",
         name: map.name >= 0 ? r[map.name] || "" : "",
         business: map.business >= 0 ? r[map.business] || "" : "",
+        industry: map.industry >= 0 ? r[map.industry] || "" : industryAll.trim(),
       }))
       .filter((r) => looksPhone(r.phone));
-    const res = await onImport(rows);
+    const res = await onImport(rows, listName.trim());
     setBusy(false);
     if (res) {
       setParsed(null);
@@ -184,6 +193,19 @@ export default function LeadImport({
         <button onClick={() => { setParsed(null); setError(""); }} className="dlr-btn" style={{ padding: "7px 12px" }}>
           Choose another file
         </button>
+      </div>
+
+      <div style={{ marginTop: 14, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <span>
+          <label className="dlr-label" style={{ display: "block", marginBottom: 4 }}>List name</label>
+          <input value={listName} onChange={(e) => setListName(e.target.value.slice(0, 80))} placeholder="e.g. GA Plumbers July" className="dlr-input" style={{ width: 240 }} />
+        </span>
+        {map.industry < 0 && (
+          <span>
+            <label className="dlr-label" style={{ display: "block", marginBottom: 4 }}>Industry for this whole list (optional)</label>
+            <input value={industryAll} onChange={(e) => setIndustryAll(e.target.value.slice(0, 80))} placeholder="e.g. Plumbing" className="dlr-input" style={{ width: 200 }} />
+          </span>
+        )}
       </div>
 
       <p className="dlr-label" style={{ marginTop: 16, marginBottom: 8 }}>Map your columns</p>

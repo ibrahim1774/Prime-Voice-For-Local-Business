@@ -75,7 +75,10 @@ export async function ensureSchema() {
   await q`CREATE INDEX IF NOT EXISTS dialer_messages_phone_idx ON dialer_messages (phone, created_at)`;
   await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS last_dialed_at timestamptz`;
   await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT ''`;
+  await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS list_name text NOT NULL DEFAULT ''`;
+  await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS industry text NOT NULL DEFAULT ''`;
   await q`CREATE INDEX IF NOT EXISTS dialer_leads_status_state_idx ON dialer_leads (status, state)`;
+  await q`CREATE INDEX IF NOT EXISTS dialer_leads_list_idx ON dialer_leads (list_name)`;
   // area_code is UNIQUE: the reservation row is what makes "buy a number for
   // this area code" idempotent under a double-click (two purchases, two bills).
   await q`CREATE TABLE IF NOT EXISTS dialer_numbers (
@@ -437,6 +440,115 @@ export async function purgeExpiredRecordings(): Promise<number> {
   return purged;
 }
 
+// ── browser calling (WebRTC) ────────────────────────────────────────────────
+// The browser joins the session conference through a TwiML App + API key that
+// are created ONCE on the user's Twilio account and stored in dialer_settings
+// — no extra env vars, no dashboard steps.
+
+export async function ensureWebrtcConfig(): Promise<{
+  appSid: string;
+  keySid: string;
+  keySecret: string;
+}> {
+  let [appSid, keySid, keySecret] = await Promise.all([
+    getSetting("twiml_app_sid"),
+    getSetting("api_key_sid"),
+    getSetting("api_key_secret"),
+  ]);
+  if (appSid && keySid && keySecret) return { appSid, keySid, keySecret };
+
+  // Claim-row guard: two concurrent first-token requests must not both
+  // provision (the loser's API-key secret would be orphaned unrecoverably).
+  const claimed = (await sql()`
+    INSERT INTO dialer_settings (key, value) VALUES ('webrtc_provisioning', '1')
+    ON CONFLICT (key) DO NOTHING RETURNING key`) as any[];
+  if (!claimed.length) {
+    // Someone else is provisioning — wait for their values to land.
+    for (let i = 0; i < 10; i++) {
+      await new Promise((r) => setTimeout(r, 700));
+      [appSid, keySid, keySecret] = await Promise.all([
+        getSetting("twiml_app_sid"),
+        getSetting("api_key_sid"),
+        getSetting("api_key_secret"),
+      ]);
+      if (appSid && keySid && keySecret) return { appSid, keySid, keySecret };
+    }
+    throw new Error("Browser calling is still setting up — try again in a moment.");
+  }
+
+  try {
+    if (!appSid) {
+      const app = await twilio("/Applications.json", {
+        FriendlyName: "Dialer browser calling",
+        VoiceUrl: `${BASE_URL}/api/dialer/twiml/client?t=${webhookToken()}`,
+        VoiceMethod: "POST",
+        // Status callbacks for the browser leg: without these, a closed tab
+        // leaves the session live and waves dial leads into an empty room.
+        StatusCallback: `${BASE_URL}/api/dialer/call-status?t=${webhookToken()}&kind=browser-agent`,
+        StatusCallbackMethod: "POST",
+      });
+      appSid = app.sid;
+      await setSetting("twiml_app_sid", appSid);
+    }
+    if (!keySid || !keySecret) {
+      const key = await twilio("/Keys.json", { FriendlyName: "Dialer browser calling" });
+      keySid = key.sid;
+      keySecret = key.secret;
+      await setSetting("api_key_sid", keySid);
+      await setSetting("api_key_secret", keySecret);
+    }
+  } finally {
+    await sql()`DELETE FROM dialer_settings WHERE key = 'webrtc_provisioning'`;
+  }
+  return { appSid, keySid, keySecret };
+}
+
+function b64url(input: Buffer | string): string {
+  return Buffer.from(input).toString("base64url");
+}
+
+// Twilio Voice access token (JWT, HS256) — hand-rolled so we don't need the
+// full twilio node library for one token shape.
+export function voiceAccessToken(opts: {
+  accountSid: string;
+  keySid: string;
+  keySecret: string;
+  appSid: string;
+  identity: string;
+}): string {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "HS256", typ: "JWT", cty: "twilio-fpa;v=1" };
+  const payload = {
+    jti: `${opts.keySid}-${now}`,
+    iss: opts.keySid,
+    sub: opts.accountSid,
+    iat: now,
+    exp: now + 3600,
+    grants: {
+      identity: opts.identity,
+      voice: { outgoing: { application_sid: opts.appSid } },
+    },
+  };
+  const signingInput = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(payload))}`;
+  const sig = crypto.createHmac("sha256", opts.keySecret).update(signingInput).digest("base64url");
+  return `${signingInput}.${sig}`;
+}
+
+// Human-readable messages for the Twilio errors an operator actually hits.
+export function friendlyTwilioError(err: any): string {
+  const msg = String(err?.message || "");
+  if (/21215|not authorized to call|geo/i.test(msg)) {
+    return "Twilio can't call that number — international calling to its country is disabled on your account (Twilio Console → Voice → Geo Permissions), or use browser calling instead.";
+  }
+  if (/21211|invalid.*phone number/i.test(msg)) {
+    return "That phone number isn't valid — check the digits and try again.";
+  }
+  if (/20003|authenticat/i.test(msg)) {
+    return "Twilio rejected the account credentials — check TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN in Vercel.";
+  }
+  return msg || "Twilio call failed";
+}
+
 // ── misc ────────────────────────────────────────────────────────────────────
 
 export function normalizePhone(input: string): string | null {
@@ -469,11 +581,15 @@ export const DEFAULT_VM_SCRIPT =
 export const LEAD_STATUSES = [
   "new",
   "interested",
+  "demo_interested",
+  "text_interested",
+  "email_interested",
   "demo",
   "closed",
   "callback",
   "voicemail",
   "no_answer",
+  "sms_sent",
   "not_interested",
   "wrong_number",
   "dnc",
@@ -486,6 +602,14 @@ export const DIALABLE_SEGMENTS = [
   "callback",
   "voicemail",
   "no_answer",
+  "sms_sent",
   "not_interested",
   "interested",
+  "demo_interested",
+  "text_interested",
+  "email_interested",
 ] as const;
+
+// Auto-marking a text send may only upgrade these "no human disposition yet"
+// statuses to sms_sent — a human judgment is never overwritten.
+export const SMS_AUTO_UPGRADEABLE = ["new", "voicemail", "no_answer"] as const;

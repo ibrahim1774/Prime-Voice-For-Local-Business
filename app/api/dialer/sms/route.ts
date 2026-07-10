@@ -7,6 +7,7 @@ import {
   twilio,
   twilioEnv,
   unauthorized,
+  SMS_AUTO_UPGRADEABLE,
 } from "@/lib/dialer/core";
 
 export const maxDuration = 60;
@@ -52,6 +53,11 @@ export async function POST(request: NextRequest) {
     await sql()`
       INSERT INTO dialer_messages (phone, direction, body, sid, read)
       VALUES (${phone}, 'out', ${body}, ${msg.sid || null}, true)`;
+    // Auto-upgrade to "SMS sent" — but only from statuses that carry no human
+    // judgment yet. Interested/callback/etc. are never overwritten by a text.
+    await sql()`
+      UPDATE dialer_leads SET status = 'sms_sent', updated_at = now()
+      WHERE phone = ${phone} AND status = ANY(${SMS_AUTO_UPGRADEABLE as unknown as string[]})`;
     return NextResponse.json({ ok: true, sid: msg.sid });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || "Send failed" }, { status: 502 });

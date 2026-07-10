@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  cancelCalls,
   ensureSchema,
   getSession,
+  getSetting,
   saveSession,
   setSetting,
   sql,
@@ -37,11 +39,48 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // The browser leg (Voice SDK via the TwiML App). A dead browser leg — tab
+  // closed, network dropped — must end the session, or auto-dial keeps waving
+  // leads into an empty conference.
+  if (kind === "browser-agent") {
+    const browserSid = await getSetting("browser_agent_sid");
+    if (callSid && callSid === browserSid) {
+      if (["completed", "failed", "no-answer", "busy", "canceled"].includes(status)) {
+        const session = await getSession();
+        if (session) await cancelCalls((session.wave || []).map((w) => w.callSid).filter(Boolean));
+        await saveSession(null);
+        await setSetting("agent_answered", "");
+        await setSetting("browser_agent_sid", "");
+      }
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   if (callSid) {
     await sql()`
       UPDATE dialer_calls
       SET status = ${status}, duration_seconds = GREATEST(duration_seconds, ${duration})
       WHERE call_sid = ${callSid}`;
+
+    // Safe auto-marking on terminal lead calls: machine → voicemail, rang out
+    // → no_answer. Only ever upgrades a still-'new' lead — human judgments
+    // (interested, not interested, callback…) are never set automatically.
+    if (["completed", "busy", "failed", "no-answer", "canceled"].includes(status)) {
+      const rows = (await sql()`
+        SELECT c.amd, l.id AS lead_id, l.status AS lead_status
+        FROM dialer_calls c JOIN dialer_leads l ON l.id = c.lead_id
+        WHERE c.call_sid = ${callSid}`) as any[];
+      const r = rows[0];
+      if (r?.lead_status === "new") {
+        if ((r.amd || "").startsWith("machine")) {
+          await sql()`UPDATE dialer_leads SET status = 'voicemail', updated_at = now() WHERE id = ${r.lead_id} AND status = 'new'`;
+        } else if (["no-answer", "busy"].includes(status)) {
+          // NOT "canceled": that's a wave loser WE hung up (or End session) —
+          // those re-queue for another attempt instead of burning the lead.
+          await sql()`UPDATE dialer_leads SET status = 'no_answer', updated_at = now() WHERE id = ${r.lead_id} AND status = 'new'`;
+        }
+      }
+    }
   }
   return NextResponse.json({ ok: true });
 }

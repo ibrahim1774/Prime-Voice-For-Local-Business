@@ -18,6 +18,8 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const status = String(body?.status ?? "");
   const state = String(body?.state ?? "").trim().toUpperCase();
+  const list = String(body?.list ?? "").trim();
+  const industry = String(body?.industry ?? "").trim();
   if (!(LEAD_STATUSES as readonly string[]).includes(status) || status === "dnc" || status === "new") {
     return NextResponse.json({ error: "Pick a segment to requeue" }, { status: 400 });
   }
@@ -25,6 +27,8 @@ export async function POST(request: NextRequest) {
     UPDATE dialer_leads
     SET status = 'new', last_dialed_at = NULL, callback_at = NULL, updated_at = now()
     WHERE status = ${status} AND (${state} = '' OR state = ${state})
+      AND (${list} = '' OR list_name = ${list})
+      AND (${industry} = '' OR industry = ${industry})
     RETURNING id`) as any[];
   return NextResponse.json({ ok: true, requeued: rows.length });
 }

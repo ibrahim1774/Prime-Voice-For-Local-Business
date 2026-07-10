@@ -5,6 +5,7 @@ import {
   createWaveClaim,
   DIALABLE_SEGMENTS,
   ensureSchema,
+  friendlyTwilioError,
   getSession,
   getSetting,
   isAuthed,
@@ -59,11 +60,15 @@ export async function POST(request: NextRequest) {
     const segment = (await getSetting("dial_segment")) || "new";
     const seg = (DIALABLE_SEGMENTS as readonly string[]).includes(segment) ? segment : "new";
     const st = (await getSetting("dial_state")).toUpperCase();
+    const list = await getSetting("dial_list");
+    const ind = await getSetting("dial_industry");
     if (seg === "new") {
       leads = (await q`
         SELECT * FROM dialer_leads
         WHERE (status = 'new' OR (status = 'callback' AND (callback_at IS NULL OR callback_at <= now())))
           AND (${st} = '' OR state = ${st})
+          AND (${list} = '' OR list_name = ${list})
+          AND (${ind} = '' OR industry = ${ind})
           AND (last_dialed_at IS NULL OR last_dialed_at < now() - interval '20 hours')
         ORDER BY (status = 'callback') DESC, id ASC
         LIMIT ${lines}`) as any[];
@@ -71,6 +76,8 @@ export async function POST(request: NextRequest) {
       leads = (await q`
         SELECT * FROM dialer_leads
         WHERE status = ${seg} AND (${st} = '' OR state = ${st})
+          AND (${list} = '' OR list_name = ${list})
+          AND (${ind} = '' OR industry = ${ind})
         ORDER BY last_dialed_at ASC NULLS FIRST, id ASC
         LIMIT ${lines}`) as any[];
     }
@@ -84,6 +91,7 @@ export async function POST(request: NextRequest) {
 
   const t = webhookToken();
   const wave: WaveCall[] = [];
+  let lastError: any = null;
   for (const lead of leads) {
     const callerId = await pickCallerId(lead.phone);
     try {
@@ -107,11 +115,15 @@ export async function POST(request: NextRequest) {
         ON CONFLICT (call_sid) DO NOTHING`;
       await q`UPDATE dialer_leads SET last_dialed_at = now() WHERE id = ${lead.id}`;
     } catch (err) {
+      lastError = err;
       console.error(`dial: failed to place call to ${lead.phone}`, err);
     }
   }
   if (!wave.length) {
-    return NextResponse.json({ error: "Could not place any calls" }, { status: 502 });
+    return NextResponse.json(
+      { error: lastError ? friendlyTwilioError(lastError) : "Could not place any calls" },
+      { status: 502 }
+    );
   }
 
   await saveSession({
