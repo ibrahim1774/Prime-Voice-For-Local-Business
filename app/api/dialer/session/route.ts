@@ -31,6 +31,14 @@ export async function GET(request: NextRequest) {
   const agentAnswered = (await getSetting("agent_answered")) === "1";
   const state = await waveState(session);
 
+  const lastAutoRaw = await getSetting("last_auto_outcome");
+  let lastAuto: any = null;
+  try {
+    lastAuto = lastAutoRaw ? JSON.parse(lastAutoRaw) : null;
+  } catch {
+    lastAuto = null;
+  }
+
   let winnerCall: any = null;
   let winnerLead: any = null;
   if (state.winnerSid) {
@@ -50,11 +58,27 @@ export async function GET(request: NextRequest) {
     after(() => cancelCalls(state.stragglers));
   }
 
+  // The winner was auto-resolved (a voicemail we detected + handled) when the
+  // last auto-outcome is tagged for THIS winner in THIS wave. The client uses
+  // it to (a) never show a manual-mark card for an auto-handled voicemail and
+  // (b) advance once the wave ends. A real human conversation never sets
+  // last_auto_outcome, so those always stop for the agent to mark. Note: this
+  // can be true while the call is still up (drop mode plays the script) — the
+  // client only advances when waveActive is also false.
+  const winnerResolved = Boolean(
+    winnerLead &&
+      lastAuto &&
+      lastAuto.waveId === session.waveId &&
+      lastAuto.leadId === winnerLead.id
+  );
+
   return NextResponse.json({
     active: true,
     agentAnswered,
     startedAt: session.startedAt,
     waveActive: state.active,
+    lastAuto,
+    winnerResolved,
     waveLeads: state.calls.map((c) => ({
       leadId: c.lead_id,
       name: c.name,
@@ -90,6 +114,7 @@ export async function POST(request: NextRequest) {
     const t = webhookToken();
     await setSetting("agent_answered", "");
     await setSetting("browser_agent_sid", "");
+    await setSetting("last_auto_outcome", "");
 
     if (mode === "browser") {
       // No agent call — the browser joins the conference via the Voice SDK

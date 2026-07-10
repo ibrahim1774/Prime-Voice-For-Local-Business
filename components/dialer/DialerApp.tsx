@@ -14,7 +14,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   new: { label: "New", color: "#8a8a92" },
   interested: { label: "Interested", color: "#34d399" },
   demo_interested: { label: "Demo interested", color: "#2dd4bf" },
-  text_interested: { label: "Text interested", color: "#60a5fa" },
+  text_interested: { label: "SMS interested", color: "#60a5fa" },
   email_interested: { label: "Email interested", color: "#f0abfc" },
   demo: { label: "Demo set", color: "#22d3ee" },
   closed: { label: "Closed / Won", color: "#4ade80" },
@@ -27,16 +27,12 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   dnc: { label: "DNC", color: "#ef4444" },
 };
 const DISPOSITIONS = [
-  "interested",
   "demo_interested",
   "text_interested",
   "email_interested",
-  "demo",
-  "closed",
   "callback",
   "voicemail",
   "no_answer",
-  "sms_sent",
   "not_interested",
   "wrong_number",
   "dnc",
@@ -51,7 +47,7 @@ const DIAL_SEGMENTS: { key: string; label: string }[] = [
   { key: "not_interested", label: "Not interested — retry" },
   { key: "interested", label: "Interested — follow up" },
   { key: "demo_interested", label: "Demo interested — follow up" },
-  { key: "text_interested", label: "Text interested — follow up" },
+  { key: "text_interested", label: "SMS interested — follow up" },
   { key: "email_interested", label: "Email interested — follow up" },
 ];
 
@@ -184,6 +180,7 @@ export default function DialerApp() {
   const [dialList, setDialList] = useState("");
   const [dialIndustry, setDialIndustry] = useState("");
   const [callMode, setCallMode] = useState<"phone" | "browser">("phone");
+  const [vmMode, setVmMode] = useState<"listen" | "skip" | "drop">("skip");
   const [twilioNumbers, setTwilioNumbers] = useState<any[]>([]);
   const [stateOptions, setStateOptions] = useState<{ state: string; n: number }[]>([]);
   const [listOptions, setListOptions] = useState<{ list_name: string; n: number }[]>([]);
@@ -205,7 +202,13 @@ export default function DialerApp() {
     setDialList(s.dialList || "");
     setDialIndustry(s.dialIndustry || "");
     setCallMode(s.callMode === "browser" ? "browser" : "phone");
+    setVmMode(["listen", "skip", "drop"].includes(s.vmMode) ? s.vmMode : "skip");
   }, []);
+  const saveVmMode = async (m: "listen" | "skip" | "drop") => {
+    setVmMode(m);
+    try { await api("settings", { method: "POST", body: JSON.stringify({ vmMode: m }) }); }
+    catch (err) { guard(err); }
+  };
   const saveDialFilter = async (patch: { dialSegment?: string; dialState?: string; dialList?: string; dialIndustry?: string }) => {
     if (patch.dialSegment !== undefined) setDialSegment(patch.dialSegment);
     if (patch.dialState !== undefined) setDialState(patch.dialState);
@@ -273,7 +276,11 @@ export default function DialerApp() {
     try {
       await api("dial", { method: "POST", body: JSON.stringify(leadId ? { leadId } : {}) });
     } catch (err: any) {
-      if (err?.message?.includes("Queue is empty")) notify("Queue is empty — add more leads");
+      const msg = err?.message || "";
+      if (msg.includes("Queue is empty")) notify("Queue is empty — add more leads");
+      // A wave is already live (the poll and a manual/auto trigger raced) —
+      // benign: the running wave stands, nothing was skipped.
+      else if (msg.includes("still in progress")) { /* no-op */ }
       else guard(err);
     } finally {
       setDialing(false);
@@ -292,12 +299,14 @@ export default function DialerApp() {
         setSession(s);
         if (!s.active) { setPending(null); return; }
 
-        if (s.winnerLead) {
+        // Only a genuine live human becomes a "mark this lead" card. A
+        // voicemail we auto-skipped (winnerResolved) never stops the flow.
+        if (s.winnerLead && !s.winnerResolved) {
           setPending((prev: any) => (prev?.id === s.winnerLead.id ? prev : s.winnerLead));
         }
-        // Wave finished: winner's call ended (or nobody answered).
+        // Wave finished: human hung up, voicemail skipped, or nobody answered.
         if (!s.waveActive && !refs.current.dialing) {
-          const needsMark = Boolean(s.winnerLead);
+          const needsMark = Boolean(s.winnerLead) && !s.winnerResolved;
           if (!needsMark && s.agentAnswered && refs.current.autoDial) {
             setPending(null);
             fireWave();
@@ -331,10 +340,69 @@ export default function DialerApp() {
     deviceRef.current = null;
   };
 
+  // Ringback tone (web calling only): the conference bridge means the agent
+  // otherwise hears dead silence while a lead's phone rings. Synthesize a US
+  // ringback (440+480 Hz, 2s on / 4s off) in-tab — no Twilio round-trip, so it
+  // stops the instant the human answers with zero risk of talking over them.
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const ringRef = useRef<any>(null);
+  const ensureAudioCtx = () => {
+    try {
+      const Ctor = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext | undefined;
+      if (!Ctor) return null;
+      if (!audioCtxRef.current) audioCtxRef.current = new Ctor();
+      if (audioCtxRef.current.state === "suspended") audioCtxRef.current.resume().catch(() => {});
+      return audioCtxRef.current;
+    } catch { return null; }
+  };
+  const stopRingback = () => {
+    const r = ringRef.current;
+    if (!r) return;
+    ringRef.current = null;
+    try { clearInterval(r.timer); } catch {}
+    try { r.gain.gain.cancelScheduledValues(r.ctx.currentTime); r.gain.gain.value = 0; } catch {}
+    try { r.osc1.stop(); r.osc2.stop(); } catch {}
+  };
+  const startRingback = () => {
+    if (ringRef.current) return;
+    const ctx = ensureAudioCtx();
+    if (!ctx) return;
+    try {
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      gain.connect(ctx.destination);
+      const osc1 = ctx.createOscillator(); osc1.frequency.value = 440;
+      const osc2 = ctx.createOscillator(); osc2.frequency.value = 480;
+      osc1.connect(gain); osc2.connect(gain);
+      osc1.start(); osc2.start();
+      const ring = () => {
+        const t = ctx.currentTime;
+        gain.gain.cancelScheduledValues(t);
+        gain.gain.setValueAtTime(0.06, t);   // 2s tone
+        gain.gain.setValueAtTime(0, t + 2);  // then 4s of silence
+      };
+      ring();
+      const timer = setInterval(ring, 6000);
+      ringRef.current = { ctx, gain, osc1, osc2, timer };
+    } catch { /* audio unavailable — fall back to silence */ }
+  };
+  // Ring while a lead is actually ringing (wave live, no one bridged yet), web
+  // mode only; stop on answer, wave end, or session end.
+  const ringActive = callMode === "browser" && session.active && session.agentAnswered && session.waveActive && !session.winnerCall;
+  useEffect(() => {
+    if (ringActive) startRingback(); else stopRingback();
+  }, [ringActive]);
+  // If auth drops (poll 401s) or we sign out, the poll interval is torn down
+  // and session freezes — make sure the tone doesn't keep playing under the
+  // login screen.
+  useEffect(() => { if (!authed) stopRingback(); }, [authed]);
+  useEffect(() => () => { stopRingback(); try { audioCtxRef.current?.close(); } catch {} }, []);
+
   const startSession = async () => {
     setBusy(true);
     try {
       if (callMode === "browser") {
+        ensureAudioCtx(); // unlock audio inside the click so ringback can play
         const started = await api("session", { method: "POST", body: JSON.stringify({ action: "start", mode: "browser" }) });
         try {
           const { token } = await api("webrtc-token");
@@ -371,6 +439,7 @@ export default function DialerApp() {
   const stopSession = async () => {
     setBusy(true);
     try {
+      stopRingback();
       destroyDevice();
       await api("session", { method: "POST", body: JSON.stringify({ action: "stop" }) });
       setPending(null);
@@ -803,6 +872,22 @@ export default function DialerApp() {
                     </div>
                   </div>
 
+                  <div style={{ marginTop: 18 }}>
+                    <label className="dlr-label" htmlFor="dlr-vmmode">When it reaches a voicemail</label>
+                    <p className="dlr-sub" style={{ marginTop: 2 }}>
+                      {vmMode === "listen"
+                        ? "Bridges you in so you can decide — you mark it yourself."
+                        : vmMode === "drop"
+                        ? "Auto-detects the machine, leaves your voicemail script, marks the lead “Voicemail,” and moves on."
+                        : "Auto-detects the machine, marks the lead “Voicemail,” and jumps to the next number — no listening."}
+                    </p>
+                    <select id="dlr-vmmode" value={vmMode} onChange={(e) => saveVmMode(e.target.value as "listen" | "skip" | "drop")} className="dlr-select" style={{ marginTop: 6 }}>
+                      <option value="skip">Skip &amp; mark voicemail — go to next (recommended)</option>
+                      <option value="drop">Leave my voicemail, mark it, then go to next</option>
+                      <option value="listen">Let me decide — bridge me in</option>
+                    </select>
+                  </div>
+
                   <button onClick={startSession} disabled={busy || (callMode === "phone" && !agentPhone)} className="dlr-btn go big" style={{ marginTop: 20 }}>
                     {callMode === "browser" ? "▶ Start session — talk in this tab" : "▶ Start session — call my phone"}
                   </button>
@@ -822,6 +907,18 @@ export default function DialerApp() {
                     </h2>
                     <button onClick={stopSession} disabled={busy} className="dlr-btn danger">End</button>
                   </div>
+
+                  {session.lastAuto && (
+                    <p className="dlr-sub" style={{ marginTop: 10, fontSize: 12 }}>
+                      Last:{" "}
+                      <span style={{ color: "var(--paper)" }}>{session.lastAuto.business || session.lastAuto.name || "Lead"}</span>
+                      {" → "}
+                      <span style={{ color: STATUS_META[session.lastAuto.outcome]?.color || "var(--smoke)" }}>
+                        {STATUS_META[session.lastAuto.outcome]?.label || session.lastAuto.outcome}
+                        {session.lastAuto.outcome === "voicemail" && vmMode === "drop" ? " (dropped)" : ""}
+                      </span>
+                    </p>
+                  )}
 
                   {!session.agentAnswered && (
                     <p className="dlr-sub" style={{ marginTop: 14 }}>
@@ -911,8 +1008,8 @@ export default function DialerApp() {
                                 “{mergeTemplate(templates[selectedTemplate] || "", pending)}”
                               </p>
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 8 }}>
-                                <button onClick={() => mark("interested", templates[selectedTemplate])} className="dlr-btn" style={{ borderColor: "rgba(52,211,153,0.45)", color: "var(--live)" }}>
-                                  ✓ Interested + send
+                                <button onClick={() => mark("text_interested", templates[selectedTemplate])} className="dlr-btn" style={{ borderColor: "rgba(96,165,250,0.5)", color: "#60a5fa" }}>
+                                  ✓ SMS interested + send
                                 </button>
                                 <button onClick={() => quickText(templates[selectedTemplate])} className="dlr-btn">
                                   💬 Send only

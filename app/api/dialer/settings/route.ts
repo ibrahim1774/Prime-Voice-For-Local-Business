@@ -13,7 +13,7 @@ import {
 export async function GET(request: NextRequest) {
   if (!isAuthed(request)) return unauthorized();
   await ensureSchema();
-  const [agentPhone, vmScript, templates, lines, callerId, dialSegment, dialState, dialList, dialIndustry, callMode] = await Promise.all([
+  const [agentPhone, vmScript, templates, lines, callerId, dialSegment, dialState, dialList, dialIndustry, callMode, vmMode] = await Promise.all([
     getSetting("agent_phone"),
     getSetting("vm_script"),
     getSetting("sms_templates"),
@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     getSetting("dial_list"),
     getSetting("dial_industry"),
     getSetting("call_mode"),
+    getSetting("vm_mode"),
   ]);
   return NextResponse.json({
     agentPhone,
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
     dialList: dialList || "",
     dialIndustry: dialIndustry || "",
     callMode: callMode === "browser" ? "browser" : "phone",
+    vmMode: ["listen", "skip", "drop"].includes(vmMode) ? vmMode : "skip",
     templates: templates
       ? JSON.parse(templates)
       : [
@@ -82,6 +84,10 @@ export async function POST(request: NextRequest) {
   }
   if (typeof body.callMode === "string") {
     await setSetting("call_mode", body.callMode === "browser" ? "browser" : "phone");
+  }
+  if (typeof body.vmMode === "string") {
+    const v = body.vmMode.trim();
+    await setSetting("vm_mode", ["listen", "skip", "drop"].includes(v) ? v : "skip");
   }
   if (Array.isArray(body.templates)) {
     await setSetting(
