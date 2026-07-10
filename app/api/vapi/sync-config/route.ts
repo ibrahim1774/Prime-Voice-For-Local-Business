@@ -81,6 +81,11 @@ export async function POST(request: NextRequest) {
               type: "string",
               description: "Why they called / what they asked about",
             },
+            qualified: {
+              type: "boolean",
+              description:
+                "true ONLY if the caller actually shared details about their business (its name, what kind of business it is, or what they do). false if they said little or nothing about a business.",
+            },
           },
         },
       },
