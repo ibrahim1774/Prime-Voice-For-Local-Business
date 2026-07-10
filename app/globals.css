@@ -811,3 +811,65 @@ body:has(.mv2) { background: var(--m-ink); }
   background: var(--m-ink);
   animation: mv2-pulse 1.6s ease-in-out infinite;
 }
+
+/* ── /bookcall — setup-call booking on the .mv2 system ──────────────────── */
+.mv2.mv2-bookcall {
+  min-height: 100dvh;
+  background: var(--m-ink);
+  color: var(--m-paper);
+}
+.mv2 .mv2-bookcall-shell {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 880px;
+  padding: 52px 16px 44px;
+  text-align: center;
+}
+.mv2 .mv2-bookcall-eyebrow {
+  justify-content: center;
+  text-transform: uppercase;
+  color: var(--m-smoke-d);
+}
+.mv2 .mv2-bookcall-h {
+  margin: 18px 0 0;
+  font-weight: 620;
+  font-size: clamp(28px, 4.8vw, 46px);
+  line-height: 1.1;
+  text-wrap: balance;
+}
+.mv2 .mv2-bookcall-sub {
+  margin: 14px auto 0;
+  max-width: 46ch;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--m-smoke-d);
+}
+.mv2 .mv2-bookcall-star {
+  margin: 24px auto 0;
+  max-width: 64ch;
+  padding: 15px 20px;
+  border: 1px solid var(--m-line-d);
+  border-radius: 14px;
+  background: rgba(247, 246, 243, 0.05);
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--m-paper);
+  text-wrap: pretty;
+}
+.mv2 .mv2-bookcall-cal {
+  margin-top: 26px;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid var(--m-line-d);
+  background: #ffffff;
+}
+.mv2 .mv2-bookcall-cal iframe {
+  display: block;
+  width: 100%;
+  min-height: 920px;
+  border: 0;
+}
+@media (max-width: 640px) {
+  .mv2 .mv2-bookcall-shell { padding-top: 40px; }
+  .mv2 .mv2-bookcall-cal { border-radius: 12px; }
+}

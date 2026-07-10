@@ -55,29 +55,31 @@ function buildSmsBody(lead: {
   business?: string;
   summary?: string;
   callerNumber: string;
-  durationSeconds?: number;
-  recordingUrl?: string;
 }): string {
   const who =
     lead.name && lead.business
       ? `${lead.name} from ${lead.business}`
       : lead.name || lead.business || "A caller";
-  const mins = lead.durationSeconds
-    ? ` · ${Math.floor(lead.durationSeconds / 60)}:${String(
-        Math.round(lead.durationSeconds % 60)
-      ).padStart(2, "0")}`
-    : "";
 
-  const lines = [
-    `🔔 New lead — ${who} just called.`,
-    lead.summary ? truncate(lead.summary, 240) : "",
-    `📞 ${lead.callerNumber}${mins}`,
-    lead.recordingUrl ? `▶️ Recording: ${lead.recordingUrl}` : "",
-    "",
-    "This is the alert Montivaro sends you every time your AI receptionist takes a call. montivaro.com",
-  ].filter(Boolean);
+  const header = [`🔔 New lead — ${who} just called.`];
+  if (lead.summary) header.push(truncate(lead.summary, 240));
+  header.push(`📞 ${lead.callerNumber}`);
 
-  return lines.join("\n");
+  const pitch = [
+    "This is a sample of the alert your AI receptionist sends after a potential new customer calls. We custom-build yours to your own business:",
+    "• 24/7 or after-hours only, 7 days a week",
+    "• Your choice of voice, if you want",
+    "• Custom call flow + intake questions",
+    "• Notifications — SMS, email, or both",
+    "• CRM integration with your current booking platform",
+  ];
+
+  return [
+    header.join("\n"),
+    pitch.join("\n"),
+    "Depending on what you need and your call volume, plans range from $97–$497/mo — usage minutes included.",
+    "📅 Book a phone call with us — choose a time that works best for you and we'll get this set up:\nmontivaro.com/bookcall",
+  ].join("\n\n");
 }
 
 export async function POST(request: NextRequest) {
@@ -123,16 +125,17 @@ export async function POST(request: NextRequest) {
         ? message.analysis.summary
         : "",
     callerNumber: callerNumber || "",
-    durationSeconds:
-      typeof message?.durationSeconds === "number"
-        ? message.durationSeconds
-        : undefined,
-    recordingUrl:
-      message?.artifact?.recordingUrl ||
-      message?.recordingUrl ||
-      message?.artifact?.recording?.mono?.combinedUrl ||
-      "",
   };
+
+  // Only text real leads: the analysis marks the call qualified when the
+  // caller actually described their business. A hangup, wrong number, or
+  // "hello?...click" gets no pitch.
+  const businessType =
+    typeof structured.businessType === "string"
+      ? structured.businessType.trim()
+      : "";
+  const qualified =
+    structured.qualified === true || Boolean(lead.business) || Boolean(businessType);
 
   // Keep the Make lead flow (or any other consumer) alive: forward the raw
   // report when FORWARD_WEBHOOK_URL is set. Fire-and-forget, fail-soft.
@@ -157,6 +160,12 @@ export async function POST(request: NextRequest) {
       console.log("call-report: no caller number (web call?) — no SMS sent");
       return;
     }
+    if (!qualified) {
+      console.log(
+        `call-report: caller ${lead.callerNumber} gave no business details — no SMS sent`
+      );
+      return;
+    }
 
     await new Promise((resolve) => setTimeout(resolve, SMS_DELAY_MS));
     try {
@@ -169,6 +178,10 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    sms: lead.callerNumber ? "scheduled" : "skipped-no-number",
+    sms: !lead.callerNumber
+      ? "skipped-no-number"
+      : !qualified
+        ? "skipped-not-qualified"
+        : "scheduled",
   });
 }
