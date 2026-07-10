@@ -77,6 +77,9 @@ export async function ensureSchema() {
   await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT ''`;
   await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS list_name text NOT NULL DEFAULT ''`;
   await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS industry text NOT NULL DEFAULT ''`;
+  // Wave losers get a short apology message, not a conversation — flagged so
+  // the Calls tab can show only real prospect calls.
+  await q`ALTER TABLE dialer_calls ADD COLUMN IF NOT EXISTS wave_lost boolean NOT NULL DEFAULT false`;
   await q`CREATE INDEX IF NOT EXISTS dialer_leads_status_state_idx ON dialer_leads (status, state)`;
   await q`CREATE INDEX IF NOT EXISTS dialer_leads_list_idx ON dialer_leads (list_name)`;
   // area_code is UNIQUE: the reservation row is what makes "buy a number for

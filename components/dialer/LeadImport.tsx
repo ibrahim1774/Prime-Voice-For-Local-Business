@@ -7,6 +7,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import * as XLSX from "xlsx";
+import { Icon } from "./icons";
 
 type Grid = string[][];
 
@@ -163,7 +164,7 @@ export default function LeadImport({
           if (f) loadFile(f);
         }}
         className="dlr-drop"
-        style={{ borderColor: dragOver ? "rgba(246,246,244,0.5)" : undefined, background: dragOver ? "rgba(246,246,244,0.05)" : undefined }}
+        style={{ borderColor: dragOver ? "rgba(201,151,63,0.6)" : undefined, background: dragOver ? "rgba(237,231,218,0.05)" : undefined }}
         role="button"
         tabIndex={0}
         onClick={() => fileRef.current?.click()}
@@ -176,7 +177,7 @@ export default function LeadImport({
           hidden
           onChange={(e) => { const f = e.target.files?.[0]; if (f) loadFile(f); e.target.value = ""; }}
         />
-        <p style={{ fontSize: 26 }}>⬆</p>
+        <p style={{ color: "var(--smoke)" }}><Icon name="upload" size={24} /></p>
         <p style={{ fontSize: 14, fontWeight: 600, marginTop: 6 }}>Drop a CSV or Excel file, or click to choose</p>
         <p className="dlr-sub" style={{ marginTop: 4 }}>.csv, .xlsx, or .xls — you&apos;ll map the columns next.</p>
         {error && <p style={{ marginTop: 10, fontSize: 12.5, color: "var(--danger)" }}>{error}</p>}
