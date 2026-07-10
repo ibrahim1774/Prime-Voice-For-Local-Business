@@ -67,17 +67,40 @@ export async function POST(request: NextRequest) {
     // (interested, not interested, callback…) are never set automatically.
     if (["completed", "busy", "failed", "no-answer", "canceled"].includes(status)) {
       const rows = (await sql()`
-        SELECT c.amd, l.id AS lead_id, l.status AS lead_status
+        SELECT c.amd, l.id AS lead_id, l.name, l.business, l.status AS lead_status
         FROM dialer_calls c JOIN dialer_leads l ON l.id = c.lead_id
         WHERE c.call_sid = ${callSid}`) as any[];
       const r = rows[0];
       if (r?.lead_status === "new") {
+        let outcome = "";
         if ((r.amd || "").startsWith("machine")) {
           await sql()`UPDATE dialer_leads SET status = 'voicemail', updated_at = now() WHERE id = ${r.lead_id} AND status = 'new'`;
+          outcome = "voicemail";
         } else if (["no-answer", "busy"].includes(status)) {
           // NOT "canceled": that's a wave loser WE hung up (or End session) —
           // those re-queue for another attempt instead of burning the lead.
           await sql()`UPDATE dialer_leads SET status = 'no_answer', updated_at = now() WHERE id = ${r.lead_id} AND status = 'new'`;
+          outcome = "no_answer";
+        }
+        // Record what just happened (tagged with the live wave) so the UI can
+        // show "Last: <business> → No answer" as it advances — nothing is
+        // skipped silently. Only stamp when this call actually belongs to the
+        // live wave: a delayed/out-of-order webhook for a prior wave must not
+        // mis-tag the current one (which could false-resolve a live winner).
+        if (outcome) {
+          const session = await getSession();
+          if (session?.active && (session.wave || []).some((w) => w.callSid === callSid)) {
+            await setSetting(
+              "last_auto_outcome",
+              JSON.stringify({
+                waveId: session.waveId,
+                leadId: r.lead_id,
+                name: r.name,
+                business: r.business,
+                outcome,
+              })
+            );
+          }
         }
       }
     }
