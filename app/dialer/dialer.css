@@ -104,6 +104,15 @@ body:has(.dlr) { background: var(--ink); }
 .dlr-textarea { resize: vertical; line-height: 1.55; }
 .dlr-select option { background: #101014; color: var(--paper); }
 
+/* Menus sized to their content, not the panel — a full-width select opens a
+   full-width native menu, which reads as a modal rather than a control. */
+.dlr-select-sm {
+  width: auto;
+  max-width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
 /* buttons */
 .dlr-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;

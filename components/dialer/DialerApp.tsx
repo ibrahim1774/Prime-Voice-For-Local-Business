@@ -182,6 +182,7 @@ export default function DialerApp() {
   const [autoDial, setAutoDial] = useState(true);
   const [handsFree, setHandsFree] = useState(false);
   const [pending, setPending] = useState<any>(null); // lead awaiting a mark
+  const [selectedTemplate, setSelectedTemplate] = useState(0);
   const [busy, setBusy] = useState(false);
   const [dialing, setDialing] = useState(false);
 
@@ -548,28 +549,41 @@ export default function DialerApp() {
                           )}
 
                           <p className="dlr-label" style={{ marginTop: 20, marginBottom: 8 }}>Mark this lead</p>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                          <select
+                            value=""
+                            onChange={(e) => { if (e.target.value) mark(e.target.value); }}
+                            className="dlr-select dlr-select-sm"
+                            aria-label="Mark this lead"
+                          >
+                            <option value="" disabled>Choose a marking…</option>
                             {DISPOSITIONS.map((d) => (
-                              <button key={d} onClick={() => mark(d)} className="dlr-btn" style={{ borderColor: `${STATUS_META[d].color}55`, color: STATUS_META[d].color, padding: "9px 13px" }}>
-                                {STATUS_META[d].label}
-                              </button>
+                              <option key={d} value={d}>{STATUS_META[d].label}</option>
                             ))}
-                          </div>
+                          </select>
 
                           {templates.length > 0 && (
                             <>
-                              <p className="dlr-label" style={{ marginTop: 20, marginBottom: 8 }}>Send a text to {pending.name || "this lead"}</p>
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                                {templates.map((t, i) => (
-                                  <button key={i} onClick={() => mark("interested", t)} className="dlr-btn" style={{ borderColor: "rgba(52,211,153,0.45)", color: "var(--live)", padding: "9px 13px" }}>
-                                    ✓ Interested + text {i + 1}
-                                  </button>
+                              <p className="dlr-label" style={{ marginTop: 18, marginBottom: 8 }}>Text {pending.name || "this lead"}</p>
+                              <select
+                                value={selectedTemplate}
+                                onChange={(e) => setSelectedTemplate(Number(e.target.value))}
+                                className="dlr-select dlr-select-sm"
+                                aria-label="Choose a text template"
+                              >
+                                {templates.map((_, i) => (
+                                  <option key={i} value={i}>Template {i + 1}</option>
                                 ))}
-                                {templates.map((t, i) => (
-                                  <button key={`only-${i}`} onClick={() => quickText(t)} className="dlr-btn" style={{ padding: "9px 13px" }}>
-                                    💬 Text {i + 1} only
-                                  </button>
-                                ))}
+                              </select>
+                              <p className="dlr-sub" style={{ fontSize: 11.5, marginTop: 6 }}>
+                                “{mergeTemplate(templates[selectedTemplate] || "", pending)}”
+                              </p>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 8 }}>
+                                <button onClick={() => mark("interested", templates[selectedTemplate])} className="dlr-btn" style={{ borderColor: "rgba(52,211,153,0.45)", color: "var(--live)" }}>
+                                  ✓ Interested + send
+                                </button>
+                                <button onClick={() => quickText(templates[selectedTemplate])} className="dlr-btn">
+                                  💬 Send only
+                                </button>
                               </div>
                               <p className="dlr-sub" style={{ marginTop: 8, fontSize: 11.5 }}>
                                 Templates fill in their name and business. Edit them in the Texts tab.
@@ -654,12 +668,21 @@ export default function DialerApp() {
             <section className="dlr-panel dlr-panel-p">
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                 <input value={leadSearch} onChange={(e) => setLeadSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && loadLeads()} placeholder="Search name, business, number…" className="dlr-input" style={{ maxWidth: 260 }} />
-                <button onClick={() => setLeadFilter("")} className={`dlr-chip${!leadFilter ? " on" : ""}`}>All</button>
-                {Object.entries(STATUS_META).map(([k, m]) => (
-                  <button key={k} onClick={() => setLeadFilter(k)} className={`dlr-chip${leadFilter === k ? " on" : ""}`} style={leadFilter === k ? { background: m.color, borderColor: m.color, color: "#08080a" } : { color: m.color, borderColor: `${m.color}44` }}>
-                    {m.label}{counts[k] ? ` · ${counts[k]}` : ""}
-                  </button>
-                ))}
+                <div>
+                  <label className="dlr-label" htmlFor="dlr-filter" style={{ display: "block", marginBottom: 4 }}>Filter by marking</label>
+                  <select
+                    id="dlr-filter"
+                    value={leadFilter}
+                    onChange={(e) => setLeadFilter(e.target.value)}
+                    className="dlr-select dlr-select-sm"
+                    style={{ borderColor: leadFilter ? `${STATUS_META[leadFilter]?.color}88` : undefined, color: leadFilter ? STATUS_META[leadFilter]?.color : undefined }}
+                  >
+                    <option value="">All leads{Object.values(counts).length ? ` · ${Object.values(counts).reduce((a, b) => a + b, 0)}` : ""}</option>
+                    {Object.entries(STATUS_META).map(([k, m]) => (
+                      <option key={k} value={k}>{m.label}{counts[k] ? ` · ${counts[k]}` : " · 0"}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <ul style={{ marginTop: 16, display: "grid", gap: 7 }}>
                 {leads.map((l) => (
