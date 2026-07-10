@@ -552,7 +552,7 @@ export default function DialerApp() {
                           <select
                             value=""
                             onChange={(e) => { if (e.target.value) mark(e.target.value); }}
-                            className="dlr-select"
+                            className="dlr-select dlr-select-sm"
                             aria-label="Mark this lead"
                           >
                             <option value="" disabled>Choose a marking…</option>
@@ -567,15 +567,16 @@ export default function DialerApp() {
                               <select
                                 value={selectedTemplate}
                                 onChange={(e) => setSelectedTemplate(Number(e.target.value))}
-                                className="dlr-select"
+                                className="dlr-select dlr-select-sm"
                                 aria-label="Choose a text template"
                               >
-                                {templates.map((t, i) => (
-                                  <option key={i} value={i}>
-                                    Template {i + 1} — {mergeTemplate(t, pending).slice(0, 60)}…
-                                  </option>
+                                {templates.map((_, i) => (
+                                  <option key={i} value={i}>Template {i + 1}</option>
                                 ))}
                               </select>
+                              <p className="dlr-sub" style={{ fontSize: 11.5, marginTop: 6 }}>
+                                “{mergeTemplate(templates[selectedTemplate] || "", pending)}”
+                              </p>
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 8 }}>
                                 <button onClick={() => mark("interested", templates[selectedTemplate])} className="dlr-btn" style={{ borderColor: "rgba(52,211,153,0.45)", color: "var(--live)" }}>
                                   ✓ Interested + send
@@ -673,8 +674,8 @@ export default function DialerApp() {
                     id="dlr-filter"
                     value={leadFilter}
                     onChange={(e) => setLeadFilter(e.target.value)}
-                    className="dlr-select"
-                    style={{ width: "auto", minWidth: 200, borderColor: leadFilter ? `${STATUS_META[leadFilter]?.color}88` : undefined, color: leadFilter ? STATUS_META[leadFilter]?.color : undefined }}
+                    className="dlr-select dlr-select-sm"
+                    style={{ borderColor: leadFilter ? `${STATUS_META[leadFilter]?.color}88` : undefined, color: leadFilter ? STATUS_META[leadFilter]?.color : undefined }}
                   >
                     <option value="">All leads{Object.values(counts).length ? ` · ${Object.values(counts).reduce((a, b) => a + b, 0)}` : ""}</option>
                     {Object.entries(STATUS_META).map(([k, m]) => (
