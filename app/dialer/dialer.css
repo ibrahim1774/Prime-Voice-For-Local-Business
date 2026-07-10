@@ -227,6 +227,30 @@ input[type="date"].dlr-select-sm { color-scheme: dark; }
 .dlr-bubble.out { margin-left: auto; background: var(--paper); color: var(--ink); border-bottom-right-radius: 5px; }
 .dlr-bubble.in { margin-right: auto; background: rgba(246,246,244,0.08); border-bottom-left-radius: 5px; }
 
+/* per-message delete (reveals on hover of its row) */
+.dlr-bubble-wrap { display: flex; align-items: center; gap: 6px; }
+.dlr-bubble-wrap.out { flex-direction: row-reverse; }
+.dlr-msg-del {
+  flex-shrink: 0; border: 0; background: transparent; cursor: pointer;
+  color: var(--smoke-d); font-size: 12px; line-height: 1; padding: 4px;
+  opacity: 0; transition: opacity 0.14s, color 0.14s;
+}
+.dlr-bubble-wrap:hover .dlr-msg-del { opacity: 1; }
+.dlr-msg-del:hover { color: var(--danger); }
+
+/* per-conversation delete (reveals on hover of the thread row) */
+.dlr-thread-del {
+  position: absolute; right: 10px; bottom: 9px;
+  border: 0; background: transparent; cursor: pointer;
+  color: var(--smoke-d); font-size: 12.5px; line-height: 1; padding: 3px;
+  opacity: 0; transition: opacity 0.14s, color 0.14s;
+}
+.dlr-thread-row:hover .dlr-thread-del { opacity: 1; }
+.dlr-thread-del:hover { color: var(--danger); }
+@media (hover: none) {
+  .dlr-msg-del, .dlr-thread-del { opacity: 0.6; }
+}
+
 /* toast */
 .dlr-toast { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 60; border-radius: 12px; padding: 12px 18px; font-size: 13px; font-weight: 600; background: var(--paper); color: var(--ink); box-shadow: 0 20px 50px -20px rgba(0,0,0,0.7); animation: dlr-drop 0.3s cubic-bezier(0.19,1,0.22,1); }
 @keyframes dlr-drop { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }

@@ -29,6 +29,24 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ threads: rows });
 }
 
+// DELETE { phone } — clear a whole conversation. { messageId } — one message.
+// Only clears the inbox; the number is never blocked (a new reply reopens it).
+export async function DELETE(request: NextRequest) {
+  if (!isAuthed(request)) return unauthorized();
+  await ensureSchema();
+  const body = await request.json().catch(() => ({}));
+  if (body?.messageId !== undefined) {
+    const id = Number(body.messageId);
+    if (!Number.isInteger(id)) return NextResponse.json({ error: "Bad message id" }, { status: 400 });
+    await sql()`DELETE FROM dialer_messages WHERE id = ${id}`;
+    return NextResponse.json({ ok: true });
+  }
+  const phone = normalizePhone(String(body?.phone ?? ""));
+  if (!phone) return NextResponse.json({ error: "Bad phone number" }, { status: 400 });
+  const rows = (await sql()`DELETE FROM dialer_messages WHERE phone = ${phone} RETURNING id`) as any[];
+  return NextResponse.json({ ok: true, deleted: rows.length });
+}
+
 // POST { phone, body } — send an SMS from the local Twilio number.
 export async function POST(request: NextRequest) {
   if (!isAuthed(request)) return unauthorized();

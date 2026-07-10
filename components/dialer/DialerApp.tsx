@@ -573,6 +573,21 @@ export default function DialerApp() {
       openThread(to, openLead);
     } catch (err) { guard(err); }
   };
+  const deleteThread = async (phone: string, label: string) => {
+    if (!confirm(`Delete the conversation with ${label}? This clears the messages from your inbox (the number isn't blocked — a new reply reopens it).`)) return;
+    try {
+      await api("sms", { method: "DELETE", body: JSON.stringify({ phone }) });
+      if (openPhone === phone) { setOpenPhone(""); setMessages([]); }
+      loadThreads();
+    } catch (err) { guard(err); }
+  };
+  const deleteMessage = async (id: number) => {
+    try {
+      await api("sms", { method: "DELETE", body: JSON.stringify({ messageId: id }) });
+      setMessages((ms) => ms.filter((m) => m.id !== id));
+      loadThreads();
+    } catch (err) { guard(err); }
+  };
 
   // ── calls ──
   const [callLog, setCallLog] = useState<any[]>([]);
@@ -1149,7 +1164,7 @@ export default function DialerApp() {
               </div>
               <ul className="dlr-scroll" style={{ marginTop: 12, display: "grid", gap: 6, maxHeight: 460 }}>
                 {threads.map((t) => (
-                  <li key={t.phone}>
+                  <li key={t.phone} className="dlr-thread-row" style={{ position: "relative" }}>
                     <button onClick={() => openThread(t.phone, t)} className="dlr-row" style={{ width: "100%", textAlign: "left", cursor: "pointer", background: openPhone === t.phone ? "rgba(246,246,244,0.05)" : "transparent", borderColor: openPhone === t.phone ? "var(--line-2)" : "var(--line)" }}>
                       <span style={{ minWidth: 0, flex: 1 }}>
                         <span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
@@ -1158,11 +1173,17 @@ export default function DialerApp() {
                           </span>
                           {t.unread > 0 && <span className="dlr-pill" style={{ background: "var(--live)", color: "#04160f", borderColor: "var(--live)" }}>{t.unread}</span>}
                         </span>
-                        <span style={{ display: "block", fontSize: 11.5, color: "var(--smoke-d)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span style={{ display: "block", fontSize: 11.5, color: "var(--smoke-d)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 22 }}>
                           {t.direction === "in" ? "↩ " : ""}{t.body}
                         </span>
                       </span>
                     </button>
+                    <button
+                      onClick={() => deleteThread(t.phone, t.name || t.business || fmtPhone(t.phone))}
+                      className="dlr-thread-del"
+                      title="Delete conversation"
+                      aria-label="Delete conversation"
+                    >🗑</button>
                   </li>
                 ))}
                 {!threads.length && <li className="dlr-sub">No conversations yet.</li>}
@@ -1239,9 +1260,12 @@ export default function DialerApp() {
                   </div>
                   <div className="dlr-scroll" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 9, padding: "16px 2px", minHeight: 260 }}>
                     {messages.map((m) => (
-                      <div key={m.id} className={`dlr-bubble ${m.direction === "out" ? "out" : "in"}`}>
-                        <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.body}</span>
-                        <span style={{ display: "block", marginTop: 4, fontSize: 9.5, opacity: 0.55 }}>{m.direction === "out" ? "Sent" : "Received"} · {timeAgo(m.created_at)}</span>
+                      <div key={m.id} className={`dlr-bubble-wrap ${m.direction === "out" ? "out" : "in"}`}>
+                        <div className={`dlr-bubble ${m.direction === "out" ? "out" : "in"}`}>
+                          <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.body}</span>
+                          <span style={{ display: "block", marginTop: 4, fontSize: 9.5, opacity: 0.55 }}>{m.direction === "out" ? "Sent" : "Received"} · {timeAgo(m.created_at)}</span>
+                        </div>
+                        <button onClick={() => deleteMessage(m.id)} className="dlr-msg-del" title="Delete message" aria-label="Delete message">✕</button>
                       </div>
                     ))}
                     {!messages.length && <p className="dlr-sub" style={{ margin: "auto" }}>No messages yet — say hi 👋</p>}
