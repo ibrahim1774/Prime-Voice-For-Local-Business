@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     await sql()`
       UPDATE dialer_leads SET last_dialed_at = NULL
       WHERE id = (SELECT lead_id FROM dialer_calls WHERE call_sid = ${callSid})
-        AND status = 'new'`;
+        AND status = ANY(${["new", "voicemail", "no_answer"] as unknown as string[]})`;
   });
   return twimlResponse(
     `<Say voice="Polly.Matthew">Sorry, we just missed you — this is Ibrahim with Montivaro. We will try you again shortly. Thanks!</Say><Hangup/>`

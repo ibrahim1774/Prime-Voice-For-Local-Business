@@ -184,6 +184,9 @@ export default function DialerApp() {
   const [dialIndustry, setDialIndustry] = useState("");
   const [callMode, setCallMode] = useState<"phone" | "browser">("phone");
   const [vmMode, setVmMode] = useState<"listen" | "skip" | "drop">("skip");
+  const [redialAttempts, setRedialAttempts] = useState(1);
+  const [redialGapHours, setRedialGapHours] = useState(2);
+  const [dialShuffle, setDialShuffle] = useState(false);
   const [twilioNumbers, setTwilioNumbers] = useState<any[]>([]);
   const [stateOptions, setStateOptions] = useState<{ state: string; n: number }[]>([]);
   const [listOptions, setListOptions] = useState<{ list_name: string; n: number }[]>([]);
@@ -206,7 +209,17 @@ export default function DialerApp() {
     setDialIndustry(s.dialIndustry || "");
     setCallMode(s.callMode === "browser" ? "browser" : "phone");
     setVmMode(["listen", "skip", "drop"].includes(s.vmMode) ? s.vmMode : "skip");
+    setRedialAttempts(s.redialAttempts || 1);
+    setRedialGapHours(s.redialGapHours || 2);
+    setDialShuffle(Boolean(s.dialShuffle));
   }, []);
+  const saveRetry = async (patch: { redialAttempts?: number; redialGapHours?: number; dialShuffle?: boolean }) => {
+    if (patch.redialAttempts !== undefined) setRedialAttempts(patch.redialAttempts);
+    if (patch.redialGapHours !== undefined) setRedialGapHours(patch.redialGapHours);
+    if (patch.dialShuffle !== undefined) setDialShuffle(patch.dialShuffle);
+    try { await api("settings", { method: "POST", body: JSON.stringify(patch) }); loadQueue(); }
+    catch (err) { guard(err); }
+  };
   const saveVmMode = async (m: "listen" | "skip" | "drop") => {
     setVmMode(m);
     try { await api("settings", { method: "POST", body: JSON.stringify({ vmMode: m }) }); }
@@ -273,14 +286,23 @@ export default function DialerApp() {
   }, [guard]);
   useEffect(() => { if (authed) loadQueue(); }, [authed, loadQueue]);
 
+  // When the queue is empty (or every lead is waiting out its retry gap),
+  // back off for 30s instead of re-asking every poll tick — no toast spam,
+  // and dialing resumes by itself once a gap elapses or leads are added.
+  const emptyBackoffRef = useRef(0);
   const fireWave = useCallback(async (leadId?: number) => {
     if (refs.current.dialing) return;
+    if (!leadId && Date.now() < emptyBackoffRef.current) return;
     setDialing(true);
     try {
       await api("dial", { method: "POST", body: JSON.stringify(leadId ? { leadId } : {}) });
+      emptyBackoffRef.current = 0;
     } catch (err: any) {
       const msg = err?.message || "";
-      if (msg.includes("Queue is empty")) notify("Queue is empty — add more leads");
+      if (msg.includes("Queue is empty")) {
+        if (Date.now() - emptyBackoffRef.current > 0) notify("Queue is empty (or every number is waiting out its retry gap)");
+        emptyBackoffRef.current = Date.now() + 30_000;
+      }
       // A wave is already live (the poll and a manual/auto trigger raced) —
       // benign: the running wave stands, nothing was skipped.
       else if (msg.includes("still in progress")) { /* no-op */ }
@@ -290,6 +312,25 @@ export default function DialerApp() {
       loadQueue();
     }
   }, [guard, notify, loadQueue]);
+
+  // Manual dial — punch in any number from the header. The call is tracked
+  // like every other (a lead row is created/reused server-side).
+  const [manualPhone, setManualPhone] = useState("");
+  const dialManual = async () => {
+    const raw = manualPhone.trim();
+    if (!raw) return;
+    if (!refs.current.session?.active) { notify("Start a session first — then I can place calls"); return; }
+    if (refs.current.dialing || refs.current.session?.waveActive) { notify("A call is already in progress"); return; }
+    setDialing(true);
+    try {
+      await api("dial", { method: "POST", body: JSON.stringify({ phone: raw }) });
+      setManualPhone("");
+      setTab("dial");
+    } catch (err) { guard(err); } finally {
+      setDialing(false);
+      loadQueue();
+    }
+  };
 
   // Poll session; auto-advance when a wave ends.
   useEffect(() => {
@@ -702,14 +743,34 @@ export default function DialerApp() {
             <p className="dlr-eyebrow">Montivaro</p>
             <h1 className="dlr-display" style={{ fontSize: 20, marginTop: 2 }}>Command Dialing Center</h1>
           </div>
-          <nav className="dlr-tabs">
-            {(["dial", "leads", "texts", "calls"] as const).map((t) => (
-              <button key={t} onClick={() => setTab(t)} className={`dlr-tab${tab === t ? " active" : ""}`}>
-                {TAB_LABELS[t]}
-                {t === "texts" && unread > 0 && <span className="badge">{unread}</span>}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <form
+              onSubmit={(e) => { e.preventDefault(); dialManual(); }}
+              style={{ display: "flex", gap: 6 }}
+              title={session.active ? "Dial any number through the live session" : "Start a session first, then dial any number from here"}
+            >
+              <input
+                value={manualPhone}
+                onChange={(e) => setManualPhone(e.target.value)}
+                placeholder="Dial a number…"
+                inputMode="tel"
+                className="dlr-input dlr-mono"
+                style={{ width: 150, padding: "8px 10px", fontSize: 12.5 }}
+                aria-label="Dial a number manually"
+              />
+              <button type="submit" disabled={!manualPhone.trim() || dialing} className="dlr-btn" style={{ padding: "8px 11px" }} aria-label="Call this number">
+                <Icon name="phone" />
               </button>
-            ))}
-          </nav>
+            </form>
+            <nav className="dlr-tabs">
+              {(["dial", "leads", "texts", "calls"] as const).map((t) => (
+                <button key={t} onClick={() => setTab(t)} className={`dlr-tab${tab === t ? " active" : ""}`}>
+                  {TAB_LABELS[t]}
+                  {t === "texts" && unread > 0 && <span className="badge">{unread}</span>}
+                </button>
+              ))}
+            </nav>
+          </div>
         </header>
 
         {/* ══ DIAL ══ */}
@@ -856,6 +917,33 @@ export default function DialerApp() {
                           <option key={i.industry} value={i.industry}>{i.industry} · {i.n}</option>
                         ))}
                       </select>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 18 }}>
+                    <label className="dlr-label">Retries</label>
+                    <p className="dlr-sub" style={{ marginTop: 2 }}>
+                      {redialAttempts === 1
+                        ? "One try per number per day. Bump it up and unreached leads (voicemail / no answer) cycle back into the queue after the wait, up to your limit."
+                        : `Each number gets up to ${redialAttempts} tries in 24 hours, at least ${redialGapHours}h apart. Only unreached leads retry — anyone you marked stays marked.`}
+                    </p>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+                      <select value={redialAttempts} onChange={(e) => saveRetry({ redialAttempts: Number(e.target.value) })} className="dlr-select dlr-select-sm" aria-label="Tries per number per day">
+                        {[1, 2, 3, 4].map((n) => (
+                          <option key={n} value={n}>{n}× per day</option>
+                        ))}
+                      </select>
+                      {redialAttempts > 1 && (
+                        <select value={redialGapHours} onChange={(e) => saveRetry({ redialGapHours: Number(e.target.value) })} className="dlr-select dlr-select-sm" aria-label="Hours between tries">
+                          {[1, 2, 3, 4, 6].map((n) => (
+                            <option key={n} value={n}>wait {n}h between tries</option>
+                          ))}
+                        </select>
+                      )}
+                      <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "var(--smoke)" }}>
+                        <input type="checkbox" checked={dialShuffle} onChange={(e) => saveRetry({ dialShuffle: e.target.checked })} />
+                        Random order
+                      </label>
                     </div>
                   </div>
 
