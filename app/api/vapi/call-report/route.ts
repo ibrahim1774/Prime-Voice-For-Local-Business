@@ -62,23 +62,25 @@ function buildSmsBody(lead: {
       : lead.name || lead.business || "A caller";
 
   const header = [`🔔 New lead — ${who} just called.`];
-  if (lead.summary) header.push(truncate(lead.summary, 240));
+  if (lead.summary) header.push(truncate(lead.summary, 120));
   header.push(`📞 ${lead.callerNumber}`);
 
   const pitch = [
-    "This is a sample of the alert your AI receptionist sends after a potential new customer calls. We custom-build yours to your own business:",
-    "• 24/7 or after-hours only, 7 days a week",
-    "• Your choice of voice, if you want",
-    "• Custom call flow + intake questions",
-    "• Notifications — SMS, email, or both",
-    "• CRM integration with your current booking platform",
+    "Sample AI Receptionist Call Alert.",
+    "",
+    "We custom-build yours to your own business:",
+    "• Built for your business",
+    "• 24/7 or after-hours",
+    "• Custom call flow",
+    "• SMS/email alerts",
+    "• CRM integration",
   ];
 
   return [
     header.join("\n"),
     pitch.join("\n"),
-    "Depending on what you need and your call volume, plans range from $97–$497/mo — usage minutes included.",
-    "📅 Book a phone call with us — choose a time that works best for you and we'll get this set up:\nmontivaro.com/bookcall",
+    "Price ranges from $199/month to $997/month depending on what your needs are - usage minutes included",
+    "📅 Choose a time and we'll handle the setup.\nmontivaro.com/bookcall",
   ].join("\n\n");
 }
 
