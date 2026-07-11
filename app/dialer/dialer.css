@@ -1,35 +1,35 @@
-/* ── /dialer — "Switchboard" ────────────────────────────────────────────────
-   An operator's console, not a SaaS dashboard. Warm ink + bone, one brass
-   accent, status colors read as lamp glass (desaturated, warm) instead of
-   neon. Geist everywhere (Vercel's typeface) with Geist Mono reserved
-   for data — numbers, timestamps, counts. The signature element is the line
-   lamp: it blinks brass at the real US ring cadence (2s on / 4s off, synced
-   with the audible ringback) and holds steady green when connected. */
+/* ── /dialer — "Command" console ────────────────────────────────────────────
+   Premium monochrome: carbon + paper, zero accent hue except live-state
+   green and danger red. Geist everywhere (Vercel's typeface) with Geist
+   Mono reserved for data — numbers, timestamps, counts. The signature
+   element is the line lamp: it blinks white at the real US ring cadence
+   (2s on / 4s off, synced with the audible ringback) and holds steady
+   green when connected. */
 
 .dlr {
-  --ink: #121009;
-  --panel: #191611;
-  --panel-2: #1f1b14;
-  --paper: #ede7da;
-  --smoke: #9b9283;
-  --smoke-d: #6f675a;
-  --line: rgba(237, 231, 218, 0.09);
-  --line-2: rgba(237, 231, 218, 0.17);
-  --brass: #c9973f;
-  --brass-lit: #e8b558;
-  --live: #97b76a;
-  --warn: #c9973f;
-  --danger: #d0705a;
-  --violet: #b08fc0;
+  --ink: #08080a;
+  --panel: #101014;
+  --panel-2: #16161c;
+  --paper: #f6f6f4;
+  --smoke: #8a8a92;
+  --smoke-d: #6b6b73;
+  --brass: #f6f6f4;      /* monochrome: the old brand accent is plain paper */
+  --brass-lit: #ffffff;
+  --line: rgba(246, 246, 244, 0.10);
+  --line-2: rgba(246, 246, 244, 0.16);
+  --live: #34d399;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --violet: #a78bfa;
   min-height: 100dvh;
   background:
-    radial-gradient(1100px 640px at 78% -10%, rgba(201, 151, 63, 0.05), transparent 58%),
+    radial-gradient(1100px 640px at 78% -10%, rgba(246, 246, 244, 0.045), transparent 58%),
     var(--ink);
   color: var(--paper);
   font-family: var(--font-geist), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-body:has(.dlr) { background: #121009; }
+body:has(.dlr) { background: #08080a; }
 
 .dlr-display {
   font-family: var(--font-geist), system-ui, sans-serif;
@@ -59,7 +59,7 @@ body:has(.dlr) { background: #121009; }
   background: linear-gradient(var(--ink) 62%, transparent);
   backdrop-filter: blur(6px);
 }
-.dlr-tabs { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: rgba(237,231,218,0.02); }
+.dlr-tabs { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: rgba(246,246,244,0.02); }
 .dlr-tab {
   position: relative; border: 0; background: transparent; cursor: pointer;
   padding: 8px 14px; border-radius: 7px; color: var(--smoke);
@@ -80,7 +80,7 @@ body:has(.dlr) { background: #121009; }
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel);
-  box-shadow: 0 1px 0 rgba(237,231,218,0.03) inset;
+  box-shadow: 0 1px 0 rgba(246,246,244,0.03) inset;
 }
 .dlr-panel-p { padding: 24px; }
 @media (max-width: 640px) { .dlr-panel-p { padding: 18px; } }
@@ -102,7 +102,7 @@ body:has(.dlr) { background: #121009; }
 /* inputs */
 .dlr-input, .dlr-textarea, .dlr-select {
   width: 100%; border: 1px solid var(--line-2); border-radius: 8px;
-  background: rgba(18,16,9,0.55); color: var(--paper);
+  background: rgba(8,8,10,0.6); color: var(--paper);
   padding: 10px 12px; font-size: 13.5px; outline: none;
   font-family: inherit;
   transition: border-color 0.16s, box-shadow 0.16s;
@@ -110,10 +110,10 @@ body:has(.dlr) { background: #121009; }
 .dlr-input::placeholder, .dlr-textarea::placeholder { color: var(--smoke-d); }
 .dlr-input:focus, .dlr-textarea:focus, .dlr-select:focus {
   border-color: var(--brass);
-  box-shadow: 0 0 0 3px rgba(201, 151, 63, 0.14);
+  box-shadow: 0 0 0 3px rgba(246, 246, 244, 0.08);
 }
 .dlr-textarea { resize: vertical; line-height: 1.55; }
-.dlr-select option { background: #191611; color: var(--paper); }
+.dlr-select option { background: #101014; color: var(--paper); }
 
 /* Menus sized to their content, not the panel — a full-width select opens a
    full-width native menu, which reads as a modal rather than a control. */
@@ -156,10 +156,10 @@ body:has(.dlr) { background: #121009; }
 .dlr-chart-col { flex: 1 0 26px; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
 .dlr-chart-bar {
   position: relative; width: 60%; max-width: 26px; min-height: 3px;
-  background: rgba(237,231,218,0.12); border-radius: 3px 3px 0 0;
+  background: rgba(246,246,244,0.12); border-radius: 3px 3px 0 0;
   display: flex; align-items: flex-end; transition: height 0.3s cubic-bezier(0.19,1,0.22,1);
 }
-.dlr-chart-fill { width: 100%; background: var(--brass); border-radius: 3px 3px 0 0; transition: height 0.3s cubic-bezier(0.19,1,0.22,1); }
+.dlr-chart-fill { width: 100%; background: var(--live); border-radius: 3px 3px 0 0; transition: height 0.3s cubic-bezier(0.19,1,0.22,1); }
 .dlr-chart-n { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 10px; color: var(--smoke); }
 .dlr-chart-x { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 9px; color: var(--smoke-d); white-space: nowrap; }
 input[type="date"].dlr-select-sm { color-scheme: dark; }
@@ -173,7 +173,7 @@ input[type="date"].dlr-select-sm { color-scheme: dark; }
   cursor: pointer;
   transition: border-color 0.16s, background 0.16s;
 }
-.dlr-drop:hover { border-color: var(--brass); background: rgba(201,151,63,0.04); }
+.dlr-drop:hover { border-color: rgba(246,246,244,0.4); background: rgba(246,246,244,0.03); }
 .dlr-drop:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 
 /* buttons */
@@ -185,17 +185,17 @@ input[type="date"].dlr-select-sm { color-scheme: dark; }
   font-family: inherit;
   transition: transform 0.12s, background 0.16s, border-color 0.16s, opacity 0.16s;
 }
-.dlr-btn:hover { background: rgba(237,231,218,0.06); }
+.dlr-btn:hover { background: rgba(246,246,244,0.06); }
 .dlr-btn:active { transform: translateY(1px); }
 .dlr-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .dlr-btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 .dlr-btn.primary { background: var(--paper); color: var(--ink); border-color: var(--paper); }
 .dlr-btn.primary:hover { background: #fbf7ec; }
-.dlr-btn.go { background: var(--brass); color: #1b1204; border-color: var(--brass); font-weight: 700; }
-.dlr-btn.go:hover { background: var(--brass-lit); border-color: var(--brass-lit); }
-.dlr-btn.danger { border-color: rgba(208,112,90,0.4); color: var(--danger); }
-.dlr-btn.danger:hover { background: rgba(208,112,90,0.08); }
-.dlr-btn.violet { background: var(--violet); color: #1e1226; border-color: var(--violet); }
+.dlr-btn.go { background: var(--live); color: #04160f; border-color: var(--live); font-weight: 700; }
+.dlr-btn.go:hover { filter: brightness(1.06); }
+.dlr-btn.danger { border-color: rgba(248,113,113,0.4); color: var(--danger); }
+.dlr-btn.danger:hover { background: rgba(248,113,113,0.08); }
+.dlr-btn.violet { background: var(--violet); color: #140b2e; border-color: var(--violet); }
 .dlr-btn.big { padding: 15px; font-size: 13.5px; width: 100%; }
 .dlr-btn.wide { width: 100%; }
 
@@ -207,7 +207,7 @@ input[type="date"].dlr-select-sm { color-scheme: dark; }
 
 /* list rows */
 .dlr-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 9px; padding: 11px 13px; transition: border-color 0.14s, background 0.14s; }
-.dlr-row:hover { border-color: var(--line-2); background: rgba(237,231,218,0.02); }
+.dlr-row:hover { border-color: var(--line-2); background: rgba(246,246,244,0.02); }
 
 /* ── the line lamp — signature element ──────────────────────────────────────
    A physical lamp: bezel, glass, glow. Blinks brass at the true US ring
@@ -215,9 +215,9 @@ input[type="date"].dlr-select-sm { color-scheme: dark; }
    steady green while connected, unlit when idle. */
 .dlr-lamp {
   display: inline-block; width: 12px; height: 12px; border-radius: 3.5px;
-  background: rgba(237,231,218,0.07);
+  background: rgba(246,246,244,0.07);
   border: 1px solid var(--line-2);
-  box-shadow: 0 1px 0 rgba(237,231,218,0.06) inset;
+  box-shadow: 0 1px 0 rgba(246,246,244,0.06) inset;
 }
 .dlr-lamp.ringing {
   animation: dlr-ring-lamp 6s steps(1, end) infinite;
@@ -225,12 +225,12 @@ input[type="date"].dlr-select-sm { color-scheme: dark; }
 .dlr-lamp.live {
   background: var(--live);
   border-color: var(--live);
-  box-shadow: 0 0 10px rgba(151,183,106,0.55), 0 0 2px rgba(151,183,106,0.9);
+  box-shadow: 0 0 10px rgba(52,211,153,0.55), 0 0 2px rgba(52,211,153,0.9);
 }
 @keyframes dlr-ring-lamp {
-  0%   { background: var(--brass-lit); border-color: var(--brass-lit); box-shadow: 0 0 10px rgba(232,181,88,0.6), 0 0 2px rgba(232,181,88,0.95); }
-  33%  { background: rgba(237,231,218,0.07); border-color: var(--line-2); box-shadow: none; }
-  100% { background: rgba(237,231,218,0.07); border-color: var(--line-2); box-shadow: none; }
+  0%   { background: var(--brass-lit); border-color: var(--brass-lit); box-shadow: 0 0 10px rgba(246,246,244,0.55), 0 0 2px rgba(255,255,255,0.95); }
+  33%  { background: rgba(246,246,244,0.07); border-color: var(--line-2); box-shadow: none; }
+  100% { background: rgba(246,246,244,0.07); border-color: var(--line-2); box-shadow: none; }
 }
 
 /* live call card */
@@ -244,7 +244,7 @@ input[type="date"].dlr-select-sm { color-scheme: dark; }
   border-radius: 0 3px 3px 0; background: var(--brass);
 }
 .dlr-live.connected::before { background: var(--live); }
-.dlr-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--live); box-shadow: 0 0 8px rgba(151,183,106,0.5); }
+.dlr-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--live); box-shadow: 0 0 8px rgba(52,211,153,0.5); }
 
 /* dialing waveform */
 .dlr-wave { display: flex; align-items: center; gap: 3px; height: 26px; }
@@ -254,7 +254,7 @@ input[type="date"].dlr-select-sm { color-scheme: dark; }
 /* stat */
 .dlr-stat {
   border: 1px solid var(--line); border-radius: 9px; padding: 14px;
-  background: rgba(237,231,218,0.015);
+  background: rgba(246,246,244,0.015);
   transition: border-color 0.18s;
 }
 .dlr-stat:hover { border-color: var(--line-2); }
@@ -264,7 +264,7 @@ input[type="date"].dlr-select-sm { color-scheme: dark; }
 /* sms bubbles */
 .dlr-bubble { max-width: 82%; width: fit-content; border-radius: 12px; padding: 10px 14px; font-size: 13.5px; line-height: 1.5; }
 .dlr-bubble.out { margin-left: auto; background: var(--paper); color: var(--ink); border-bottom-right-radius: 4px; }
-.dlr-bubble.in { margin-right: auto; background: rgba(237,231,218,0.08); border-bottom-left-radius: 4px; }
+.dlr-bubble.in { margin-right: auto; background: rgba(246,246,244,0.08); border-bottom-left-radius: 4px; }
 
 /* per-message delete (reveals on hover of its row) */
 .dlr-bubble-wrap { display: flex; align-items: center; gap: 6px; }
