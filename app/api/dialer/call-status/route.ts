@@ -63,23 +63,25 @@ export async function POST(request: NextRequest) {
       WHERE call_sid = ${callSid}`;
 
     // Safe auto-marking on terminal lead calls: machine → voicemail, rang out
-    // → no_answer. Only ever upgrades a still-'new' lead — human judgments
-    // (interested, not interested, callback…) are never set automatically.
+    // → no_answer. Only ever touches auto-marked statuses (new, or a prior
+    // voicemail/no-answer being retried) — human judgments (interested, not
+    // interested, callback…) are never set automatically.
     if (["completed", "busy", "failed", "no-answer", "canceled"].includes(status)) {
       const rows = (await sql()`
         SELECT c.amd, l.id AS lead_id, l.name, l.business, l.status AS lead_status
         FROM dialer_calls c JOIN dialer_leads l ON l.id = c.lead_id
         WHERE c.call_sid = ${callSid}`) as any[];
       const r = rows[0];
-      if (r?.lead_status === "new") {
+      const AUTO_STATUSES = ["new", "voicemail", "no_answer"];
+      if (r && AUTO_STATUSES.includes(r.lead_status)) {
         let outcome = "";
         if ((r.amd || "").startsWith("machine")) {
-          await sql()`UPDATE dialer_leads SET status = 'voicemail', updated_at = now() WHERE id = ${r.lead_id} AND status = 'new'`;
+          await sql()`UPDATE dialer_leads SET status = 'voicemail', updated_at = now() WHERE id = ${r.lead_id} AND status = ANY(${AUTO_STATUSES as unknown as string[]})`;
           outcome = "voicemail";
         } else if (["no-answer", "busy"].includes(status)) {
           // NOT "canceled": that's a wave loser WE hung up (or End session) —
           // those re-queue for another attempt instead of burning the lead.
-          await sql()`UPDATE dialer_leads SET status = 'no_answer', updated_at = now() WHERE id = ${r.lead_id} AND status = 'new'`;
+          await sql()`UPDATE dialer_leads SET status = 'no_answer', updated_at = now() WHERE id = ${r.lead_id} AND status = ANY(${AUTO_STATUSES as unknown as string[]})`;
           outcome = "no_answer";
         }
         // Record what just happened (tagged with the live wave) so the UI can

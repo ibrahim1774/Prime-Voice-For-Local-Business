@@ -42,12 +42,15 @@ export async function POST(request: NextRequest) {
           FROM dialer_calls c JOIN dialer_leads l ON l.id = c.lead_id
           WHERE c.call_sid = ${callSid}`) as any[];
         const r = rows[0];
-        // Only ever act on a still-'new' lead. If the agent already marked it
-        // (interested, callback…) mid-call, a late or false "machine" verdict
-        // must NEVER cut them off or overwrite their judgment — this is the
-        // guard that keeps a real human from being hung up and mislabeled.
-        if (r && r.status === "new") {
-          await sql()`UPDATE dialer_leads SET status = 'voicemail', updated_at = now() WHERE id = ${r.id} AND status = 'new'`;
+        // Only ever act on auto-marked statuses — new, or an earlier
+        // voicemail/no-answer being retried. If the agent marked the lead
+        // themselves (interested, callback…) mid-call, a late or false
+        // "machine" verdict must NEVER cut them off or overwrite their
+        // judgment — this is the guard that keeps a real human from being
+        // hung up and mislabeled.
+        const AUTO_STATUSES = ["new", "voicemail", "no_answer"];
+        if (r && AUTO_STATUSES.includes(r.status)) {
+          await sql()`UPDATE dialer_leads SET status = 'voicemail', updated_at = now() WHERE id = ${r.id} AND status = ANY(${AUTO_STATUSES as unknown as string[]})`;
           // Tagged with waveId so the client advances exactly once for this
           // wave and ignores stale outcomes — no skipped or repeated leads.
           await setSetting(

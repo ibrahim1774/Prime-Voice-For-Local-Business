@@ -13,7 +13,7 @@ import {
 export async function GET(request: NextRequest) {
   if (!isAuthed(request)) return unauthorized();
   await ensureSchema();
-  const [agentPhone, vmScript, templates, lines, callerId, dialSegment, dialState, dialList, dialIndustry, callMode, vmMode] = await Promise.all([
+  const [agentPhone, vmScript, templates, lines, callerId, dialSegment, dialState, dialList, dialIndustry, callMode, vmMode, redialAttempts, redialGapHours, dialShuffle] = await Promise.all([
     getSetting("agent_phone"),
     getSetting("vm_script"),
     getSetting("sms_templates"),
@@ -25,6 +25,9 @@ export async function GET(request: NextRequest) {
     getSetting("dial_industry"),
     getSetting("call_mode"),
     getSetting("vm_mode"),
+    getSetting("redial_attempts"),
+    getSetting("redial_gap_hours"),
+    getSetting("dial_shuffle"),
   ]);
   return NextResponse.json({
     agentPhone,
@@ -37,6 +40,9 @@ export async function GET(request: NextRequest) {
     dialIndustry: dialIndustry || "",
     callMode: callMode === "browser" ? "browser" : "phone",
     vmMode: ["listen", "skip", "drop"].includes(vmMode) ? vmMode : "skip",
+    redialAttempts: Math.min(4, Math.max(1, Number(redialAttempts) || 1)),
+    redialGapHours: Math.min(6, Math.max(1, Number(redialGapHours) || 2)),
+    dialShuffle: dialShuffle === "1",
     templates: templates
       ? JSON.parse(templates)
       : [
@@ -88,6 +94,15 @@ export async function POST(request: NextRequest) {
   if (typeof body.vmMode === "string") {
     const v = body.vmMode.trim();
     await setSetting("vm_mode", ["listen", "skip", "drop"].includes(v) ? v : "skip");
+  }
+  if (body.redialAttempts !== undefined) {
+    await setSetting("redial_attempts", String(Math.min(4, Math.max(1, Number(body.redialAttempts) || 1))));
+  }
+  if (body.redialGapHours !== undefined) {
+    await setSetting("redial_gap_hours", String(Math.min(6, Math.max(1, Number(body.redialGapHours) || 2))));
+  }
+  if (body.dialShuffle !== undefined) {
+    await setSetting("dial_shuffle", body.dialShuffle ? "1" : "");
   }
   if (Array.isArray(body.templates)) {
     await setSetting(

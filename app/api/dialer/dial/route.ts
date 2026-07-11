@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { areaCodeOf, stateOfAreaCode } from "@/lib/dialer/areaCodes";
 import {
   BASE_URL,
   cancelCalls,
@@ -9,6 +10,7 @@ import {
   getSession,
   getSetting,
   isAuthed,
+  normalizePhone,
   pickCallerId,
   saveSession,
   sql,
@@ -50,7 +52,24 @@ export async function POST(request: NextRequest) {
   const q = sql();
 
   let leads: any[];
-  if (body.leadId) {
+  if (body.phone) {
+    // Manual dial: any number, punched in from the header. Upsert a lead row
+    // so the call is tracked like every other (notes, marks, history) — an
+    // existing lead with this number is reused, DNC is always refused.
+    const phone = normalizePhone(String(body.phone));
+    if (!phone) {
+      return NextResponse.json({ error: "Enter a valid phone number" }, { status: 400 });
+    }
+    const leadState = stateOfAreaCode(areaCodeOf(phone)) || "";
+    leads = (await q`
+      INSERT INTO dialer_leads (phone, name, business, list_name, state)
+      VALUES (${phone}, '', '', 'Manual', ${leadState})
+      ON CONFLICT (phone) DO UPDATE SET updated_at = now()
+      RETURNING *`) as any[];
+    if (leads[0]?.status === "dnc") {
+      return NextResponse.json({ error: "That number is marked Do Not Call" }, { status: 409 });
+    }
+  } else if (body.leadId) {
     leads = (await q`
       SELECT * FROM dialer_leads WHERE id = ${Number(body.leadId)} AND status <> 'dnc'`) as any[];
   } else {
@@ -63,14 +82,34 @@ export async function POST(request: NextRequest) {
     const list = await getSetting("dial_list");
     const ind = await getSetting("dial_industry");
     if (seg === "new") {
+      // Retry-aware eligibility — kept in exact sync with the queue preview
+      // in leads/route.ts (attempts per 24h, gap between tries, shuffle).
+      const attempts = Math.min(4, Math.max(1, Number(await getSetting("redial_attempts")) || 1));
+      const gapH = Math.min(6, Math.max(1, Number(await getSetting("redial_gap_hours")) || 2));
+      const shuffle = (await getSetting("dial_shuffle")) === "1";
+      const retryStatuses = attempts > 1 ? ["new", "voicemail", "no_answer"] : ["new"];
       leads = (await q`
         SELECT * FROM dialer_leads
-        WHERE (status = 'new' OR (status = 'callback' AND (callback_at IS NULL OR callback_at <= now())))
+        WHERE (
+            (status = 'callback' AND (callback_at IS NULL OR callback_at <= now()))
+            OR status = ANY(${retryStatuses as unknown as string[]})
+          )
+          -- The attempt cap + gap apply to EVERY branch (callbacks included —
+          -- an unanswered due callback must not be redialed every wave).
+          -- Canceled legs and answered wave-losers (apology message, no
+          -- conversation) don't count as attempts.
+          AND (SELECT count(*) FROM dialer_calls c
+               WHERE c.lead_id = dialer_leads.id
+                 AND c.started_at > now() - interval '24 hours'
+                 AND c.status <> 'canceled'
+                 AND NOT c.wave_lost) < ${attempts}
+          AND (last_dialed_at IS NULL OR last_dialed_at < now() - ${gapH} * interval '1 hour')
           AND (${st} = '' OR state = ${st})
           AND (${list} = '' OR list_name = ${list})
           AND (${ind} = '' OR industry = ${ind})
-          AND (last_dialed_at IS NULL OR last_dialed_at < now() - interval '20 hours')
-        ORDER BY (status = 'callback') DESC, id ASC
+        ORDER BY (status = 'callback') DESC,
+                 CASE WHEN ${shuffle} THEN random() END,
+                 (last_dialed_at IS NULL) DESC, last_dialed_at ASC, id ASC
         LIMIT ${lines}`) as any[];
     } else {
       leads = (await q`

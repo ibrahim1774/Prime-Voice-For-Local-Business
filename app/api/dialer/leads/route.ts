@@ -37,15 +37,38 @@ export async function GET(request: NextRequest) {
     const list = await getSetting("dial_list");
     const ind = await getSetting("dial_industry");
     if (seg === "new") {
-      // Default: due callbacks first, then fresh leads; 20h re-dial cooldown.
+      // Default batch: due callbacks first, then fresh leads. Retry rules
+      // (mirrored EXACTLY in the dial route): each number gets at most
+      // `redial_attempts` tries per rolling 24h (canceled wave-losers don't
+      // count), spaced `redial_gap_hours` apart. With attempts > 1, unreached
+      // leads (voicemail / no-answer) cycle back into the queue after the gap
+      // — human marks never do. Optional shuffle randomizes the order.
+      const attempts = Math.min(4, Math.max(1, Number(await getSetting("redial_attempts")) || 1));
+      const gapH = Math.min(6, Math.max(1, Number(await getSetting("redial_gap_hours")) || 2));
+      const shuffle = (await getSetting("dial_shuffle")) === "1";
+      const retryStatuses = attempts > 1 ? ["new", "voicemail", "no_answer"] : ["new"];
       rows = (await q`
         SELECT * FROM dialer_leads
-        WHERE (status = 'new' OR (status = 'callback' AND (callback_at IS NULL OR callback_at <= now())))
+        WHERE (
+            (status = 'callback' AND (callback_at IS NULL OR callback_at <= now()))
+            OR status = ANY(${retryStatuses as unknown as string[]})
+          )
+          -- The attempt cap + gap apply to EVERY branch (callbacks included —
+          -- an unanswered due callback must not be redialed every wave).
+          -- Canceled legs and answered wave-losers (apology message, no
+          -- conversation) don't count as attempts.
+          AND (SELECT count(*) FROM dialer_calls c
+               WHERE c.lead_id = dialer_leads.id
+                 AND c.started_at > now() - interval '24 hours'
+                 AND c.status <> 'canceled'
+                 AND NOT c.wave_lost) < ${attempts}
+          AND (last_dialed_at IS NULL OR last_dialed_at < now() - ${gapH} * interval '1 hour')
           AND (${st} = '' OR state = ${st})
           AND (${list} = '' OR list_name = ${list})
           AND (${ind} = '' OR industry = ${ind})
-          AND (last_dialed_at IS NULL OR last_dialed_at < now() - interval '20 hours')
-        ORDER BY (status = 'callback') DESC, id ASC
+        ORDER BY (status = 'callback') DESC,
+                 CASE WHEN ${shuffle} THEN random() END,
+                 (last_dialed_at IS NULL) DESC, last_dialed_at ASC, id ASC
         LIMIT ${limit}`) as any[];
     } else {
       // Deliberate retry of a segment (e.g. voicemails): no cooldown, oldest
