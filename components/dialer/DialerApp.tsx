@@ -314,22 +314,37 @@ export default function DialerApp() {
   }, [guard, notify, loadQueue]);
 
   // Manual dial — punch in any number from the header. The call is tracked
-  // like every other (a lead row is created/reused server-side).
+  // like every other (a lead row is created/reused server-side). With no
+  // session running, one is auto-started (your saved web/phone mode) and the
+  // number fires the moment audio connects; auto-dial is switched off so the
+  // queue doesn't start calling behind your one-off call.
   const [manualPhone, setManualPhone] = useState("");
-  const dialManual = async () => {
-    const raw = manualPhone.trim();
-    if (!raw) return;
-    if (!refs.current.session?.active) { notify("Start a session first — then I can place calls"); return; }
-    if (refs.current.dialing || refs.current.session?.waveActive) { notify("A call is already in progress"); return; }
+  const pendingManualRef = useRef("");
+  const placeManualCall = async (phone: string) => {
     setDialing(true);
     try {
-      await api("dial", { method: "POST", body: JSON.stringify({ phone: raw }) });
+      await api("dial", { method: "POST", body: JSON.stringify({ phone }) });
       setManualPhone("");
       setTab("dial");
     } catch (err) { guard(err); } finally {
       setDialing(false);
       loadQueue();
     }
+  };
+  const dialManual = async () => {
+    const raw = manualPhone.trim();
+    if (!raw) return;
+    if (refs.current.dialing || refs.current.session?.waveActive) { notify("A call is already in progress"); return; }
+    if (!refs.current.session?.active) {
+      pendingManualRef.current = raw;
+      setAutoDial(false);
+      setTab("dial");
+      notify(callMode === "browser" ? "Connecting your session — the call fires as soon as audio is up" : "Starting a session — answer your phone, then the call fires");
+      const ok = await startSession();
+      if (!ok) pendingManualRef.current = "";
+      return;
+    }
+    await placeManualCall(raw);
   };
 
   // Poll session; auto-advance when a wave ends.
@@ -367,14 +382,25 @@ export default function DialerApp() {
     return () => { stop = true; clearInterval(iv); };
   }, [authed, fireWave]);
 
-  // Auto-dial the first wave as soon as the agent picks up their phone.
+  // Auto-dial the first wave as soon as the agent picks up their phone. A
+  // pending manual number (dialed before the session existed) takes priority
+  // and suppresses the queue kick.
   const kickedRef = useRef(false);
   useEffect(() => {
     if (!session.active) { kickedRef.current = false; return; }
-    if (session.agentAnswered && !session.waveActive && !session.winnerLead && !kickedRef.current && autoDial) {
+    if (!session.agentAnswered || session.waveActive || session.winnerLead || kickedRef.current) return;
+    if (pendingManualRef.current) {
+      const ph = pendingManualRef.current;
+      pendingManualRef.current = "";
+      kickedRef.current = true;
+      if (!refs.current.dialing) placeManualCall(ph);
+      return;
+    }
+    if (autoDial) {
       kickedRef.current = true;
       fireWave();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.active, session.agentAnswered, session.waveActive, session.winnerLead, autoDial, fireWave]);
 
   // Browser calling: the Voice SDK device lives for the session's lifetime.
@@ -478,10 +504,12 @@ export default function DialerApp() {
         await api("session", { method: "POST", body: JSON.stringify({ action: "start", mode: "phone" }) });
         notify("Answer your phone — dialing starts automatically");
       }
-    } catch (err) { guard(err); } finally { setBusy(false); }
+      return true;
+    } catch (err) { guard(err); return false; } finally { setBusy(false); }
   };
   const stopSession = async () => {
     setBusy(true);
+    pendingManualRef.current = "";
     try {
       stopRingback();
       destroyDevice();
@@ -587,24 +615,22 @@ export default function DialerApp() {
       loadLeads(); loadQueue();
     } catch (err) { guard(err); }
   };
-  const renameList = async () => {
-    if (!leadListFilter) return;
-    const to = prompt(`Rename list "${leadListFilter}" to:`, leadListFilter);
-    if (!to?.trim() || to.trim() === leadListFilter) return;
+  const renameList = async (name: string) => {
+    const to = prompt(`Rename list "${name}" to:`, name);
+    if (!to?.trim() || to.trim() === name) return;
     try {
-      const res = await api("lists", { method: "PATCH", body: JSON.stringify({ from: leadListFilter, to: to.trim() }) });
+      const res = await api("lists", { method: "PATCH", body: JSON.stringify({ from: name, to: to.trim() }) });
       notify(`List renamed (${res.renamed} leads)`);
-      setLeadListFilter(to.trim());
-      loadLeads();
+      if (leadListFilter === name) setLeadListFilter(to.trim());
+      loadLeads(); loadQueue();
     } catch (err) { guard(err); }
   };
-  const deleteList = async () => {
-    if (!leadListFilter) return;
-    if (!confirm(`Delete the entire "${leadListFilter}" list AND all its leads? This can't be undone.`)) return;
+  const deleteList = async (name: string) => {
+    if (!confirm(`Delete the entire "${name}" list AND all its leads? DNC records are kept. This can't be undone.`)) return;
     try {
-      const res = await api("lists", { method: "DELETE", body: JSON.stringify({ name: leadListFilter }) });
-      notify(`Deleted ${res.deleted} leads`);
-      setLeadListFilter("");
+      const res = await api("lists", { method: "DELETE", body: JSON.stringify({ name }) });
+      notify(`Deleted ${res.deleted} leads${res.keptDnc ? ` · kept ${res.keptDnc} DNC` : ""}`);
+      if (leadListFilter === name) setLeadListFilter("");
       loadLeads(); loadQueue();
     } catch (err) { guard(err); }
   };
@@ -747,7 +773,7 @@ export default function DialerApp() {
             <form
               onSubmit={(e) => { e.preventDefault(); dialManual(); }}
               style={{ display: "flex", gap: 6 }}
-              title={session.active ? "Dial any number through the live session" : "Start a session first, then dial any number from here"}
+              title={session.active ? "Dial any number through the live session" : "Dial any number — a session starts automatically"}
             >
               <input
                 value={manualPhone}
@@ -1277,13 +1303,22 @@ export default function DialerApp() {
                 {leadFilter && leadFilter !== "new" && leadFilter !== "dnc" && (
                   <button onClick={requeueSegment} className="dlr-btn" title="Reset this segment to New so they re-enter the dial queue" style={{ padding: "8px 12px" }}>↻ Reset to New</button>
                 )}
-                {leadListFilter && (
-                  <span style={{ display: "flex", gap: 6 }}>
-                    <button onClick={renameList} className="dlr-btn" style={{ padding: "8px 12px" }}>Rename list</button>
-                    <button onClick={deleteList} className="dlr-btn danger" style={{ padding: "8px 12px" }}>Delete list</button>
-                  </span>
-                )}
               </div>
+              {listOptions.length > 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <label className="dlr-label" style={{ display: "block", marginBottom: 6 }}>Your lists</label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                    {listOptions.map((l) => (
+                      <span key={l.list_name} style={{ display: "inline-flex", alignItems: "center", gap: 4, border: "1px solid var(--line-2)", borderRadius: 7, padding: "4px 4px 4px 11px", fontSize: 12.5 }}>
+                        <span style={{ color: "var(--paper)", fontWeight: 600 }}>{l.list_name}</span>
+                        <span className="dlr-mono" style={{ color: "var(--smoke-d)", fontSize: 11 }}>· {l.n}</span>
+                        <button onClick={() => renameList(l.list_name)} className="dlr-btn" style={{ padding: "4px 7px", border: 0 }} title={`Rename "${l.list_name}"`} aria-label={`Rename list ${l.list_name}`}><Icon name="edit" size={12} /></button>
+                        <button onClick={() => deleteList(l.list_name)} className="dlr-btn danger" style={{ padding: "4px 7px", border: 0 }} title={`Delete "${l.list_name}" and its leads (DNC kept)`} aria-label={`Delete list ${l.list_name}`}><Icon name="trash" size={12} /></button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               <ul style={{ marginTop: 16, display: "grid", gap: 7 }}>
                 {leads.map((l) => (
                   <li key={l.id} className="dlr-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
