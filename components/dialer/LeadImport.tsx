@@ -105,6 +105,9 @@ export default function LeadImport({
     try {
       const buf = await file.arrayBuffer();
       const p = parseWorkbook(buf, file.name);
+      // Every upload gets a list name by default (the file's name) so it's
+      // always manageable — rename/delete as a whole — from the Leads tab.
+      setListName((cur) => cur || file.name.replace(/\.[^.]+$/, "").slice(0, 80));
       if (!p.rows.length) {
         setError("That file has no rows we can read.");
         return;

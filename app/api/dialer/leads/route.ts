@@ -102,7 +102,9 @@ export async function GET(request: NextRequest) {
     SELECT list_name, count(*)::int AS n FROM dialer_leads WHERE list_name <> '' GROUP BY list_name ORDER BY list_name`) as any[];
   const industries = (await q`
     SELECT industry, count(*)::int AS n FROM dialer_leads WHERE industry <> '' GROUP BY industry ORDER BY industry`) as any[];
-  return NextResponse.json({ leads: rows, counts, states, lists, industries });
+  const unlistedRows = (await q`
+    SELECT count(*)::int AS n FROM dialer_leads WHERE list_name = ''`) as any[];
+  return NextResponse.json({ leads: rows, counts, states, lists, industries, unlisted: unlistedRows[0]?.n || 0 });
 }
 
 // POST — bulk upsert { rows: [{name, business, phone, industry?}], listName? }.

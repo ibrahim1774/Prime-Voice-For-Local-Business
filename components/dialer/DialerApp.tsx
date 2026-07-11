@@ -191,6 +191,7 @@ export default function DialerApp() {
   const [stateOptions, setStateOptions] = useState<{ state: string; n: number }[]>([]);
   const [listOptions, setListOptions] = useState<{ list_name: string; n: number }[]>([]);
   const [industryOptions, setIndustryOptions] = useState<{ industry: string; n: number }[]>([]);
+  const [unlistedCount, setUnlistedCount] = useState(0);
   const saveCallMode = async (m: "phone" | "browser") => {
     setCallMode(m);
     try { await api("settings", { method: "POST", body: JSON.stringify({ callMode: m }) }); }
@@ -282,6 +283,7 @@ export default function DialerApp() {
       if (data.states) setStateOptions(data.states);
       if (data.lists) setListOptions(data.lists);
       if (data.industries) setIndustryOptions(data.industries);
+      if (data.unlisted !== undefined) setUnlistedCount(data.unlisted);
     } catch (err) { guard(err); }
   }, [guard]);
   useEffect(() => { if (authed) loadQueue(); }, [authed, loadQueue]);
@@ -603,6 +605,7 @@ export default function DialerApp() {
       if (data.states) setStateOptions(data.states);
       if (data.lists) setListOptions(data.lists);
       if (data.industries) setIndustryOptions(data.industries);
+      if (data.unlisted !== undefined) setUnlistedCount(data.unlisted);
     } catch (err) { guard(err); }
   }, [leadFilter, leadStateFilter, leadListFilter, leadIndustryFilter, leadSearch, guard]);
   const requeueSegment = async () => {
@@ -616,19 +619,20 @@ export default function DialerApp() {
     } catch (err) { guard(err); }
   };
   const renameList = async (name: string) => {
-    const to = prompt(`Rename list "${name}" to:`, name);
+    const to = prompt(name ? `Rename list "${name}" to:` : "Give these unlisted leads a list name:", name);
     if (!to?.trim() || to.trim() === name) return;
     try {
-      const res = await api("lists", { method: "PATCH", body: JSON.stringify({ from: name, to: to.trim() }) });
+      const res = await api("lists", { method: "PATCH", body: JSON.stringify({ from: name, to: to.trim(), unlisted: !name }) });
       notify(`List renamed (${res.renamed} leads)`);
       if (leadListFilter === name) setLeadListFilter(to.trim());
       loadLeads(); loadQueue();
     } catch (err) { guard(err); }
   };
   const deleteList = async (name: string) => {
-    if (!confirm(`Delete the entire "${name}" list AND all its leads? DNC records are kept. This can't be undone.`)) return;
+    const label = name ? `the entire "${name}" list` : "ALL leads that aren't in any list";
+    if (!confirm(`Delete ${label} AND all its leads? DNC records are kept. This can't be undone.`)) return;
     try {
-      const res = await api("lists", { method: "DELETE", body: JSON.stringify({ name }) });
+      const res = await api("lists", { method: "DELETE", body: JSON.stringify({ name, unlisted: !name }) });
       notify(`Deleted ${res.deleted} leads${res.keptDnc ? ` · kept ${res.keptDnc} DNC` : ""}`);
       if (leadListFilter === name) setLeadListFilter("");
       loadLeads(); loadQueue();
@@ -1304,10 +1308,18 @@ export default function DialerApp() {
                   <button onClick={requeueSegment} className="dlr-btn" title="Reset this segment to New so they re-enter the dial queue" style={{ padding: "8px 12px" }}>↻ Reset to New</button>
                 )}
               </div>
-              {listOptions.length > 0 && (
+              {(listOptions.length > 0 || unlistedCount > 0) && (
                 <div style={{ marginTop: 14 }}>
                   <label className="dlr-label" style={{ display: "block", marginBottom: 6 }}>Your lists</label>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                    {unlistedCount > 0 && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, border: "1px dashed var(--line-2)", borderRadius: 7, padding: "4px 4px 4px 11px", fontSize: 12.5 }}>
+                        <span style={{ color: "var(--smoke)", fontWeight: 600 }}>No list</span>
+                        <span className="dlr-mono" style={{ color: "var(--smoke-d)", fontSize: 11 }}>· {unlistedCount}</span>
+                        <button onClick={() => renameList("")} className="dlr-btn" style={{ padding: "4px 7px", border: 0 }} title="Give these leads a list name" aria-label="Name the unlisted leads"><Icon name="edit" size={12} /></button>
+                        <button onClick={() => deleteList("")} className="dlr-btn danger" style={{ padding: "4px 7px", border: 0 }} title="Delete all unlisted leads (DNC kept)" aria-label="Delete unlisted leads"><Icon name="trash" size={12} /></button>
+                      </span>
+                    )}
                     {listOptions.map((l) => (
                       <span key={l.list_name} style={{ display: "inline-flex", alignItems: "center", gap: 4, border: "1px solid var(--line-2)", borderRadius: 7, padding: "4px 4px 4px 11px", fontSize: 12.5 }}>
                         <span style={{ color: "var(--paper)", fontWeight: 600 }}>{l.list_name}</span>
