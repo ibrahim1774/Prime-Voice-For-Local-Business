@@ -164,7 +164,7 @@ export default function LeadImport({
           if (f) loadFile(f);
         }}
         className="dlr-drop"
-        style={{ borderColor: dragOver ? "rgba(201,151,63,0.6)" : undefined, background: dragOver ? "rgba(237,231,218,0.05)" : undefined }}
+        style={{ borderColor: dragOver ? "rgba(246,246,244,0.5)" : undefined, background: dragOver ? "rgba(246,246,244,0.05)" : undefined }}
         role="button"
         tabIndex={0}
         onClick={() => fileRef.current?.click()}

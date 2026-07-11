@@ -13,22 +13,21 @@ import { Icon } from "./icons";
 
 const TAB_LABELS = { dial: "Dial", leads: "Leads", texts: "Texts", calls: "Calls" } as const;
 
-// Status colors read as lamp glass — desaturated and warm, not neon.
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  new: { label: "New", color: "#9b9283" },
-  interested: { label: "Interested", color: "#97b76a" },
-  demo_interested: { label: "Demo interested", color: "#7fb59a" },
-  text_interested: { label: "SMS interested", color: "#87a5c4" },
-  email_interested: { label: "Email interested", color: "#c49bb4" },
-  demo: { label: "Demo set", color: "#7fb5b0" },
-  closed: { label: "Closed / Won", color: "#a8c47f" },
-  callback: { label: "Callback", color: "#c9973f" },
-  voicemail: { label: "Voicemail", color: "#b08fc0" },
-  no_answer: { label: "No answer", color: "#8b8577" },
-  sms_sent: { label: "SMS sent", color: "#9fa8c4" },
-  not_interested: { label: "Not interested", color: "#d0705a" },
-  wrong_number: { label: "Wrong number", color: "#c98a5a" },
-  dnc: { label: "DNC", color: "#c25b49" },
+  new: { label: "New", color: "#8a8a92" },
+  interested: { label: "Interested", color: "#34d399" },
+  demo_interested: { label: "Demo interested", color: "#2dd4bf" },
+  text_interested: { label: "SMS interested", color: "#60a5fa" },
+  email_interested: { label: "Email interested", color: "#f0abfc" },
+  demo: { label: "Demo set", color: "#22d3ee" },
+  closed: { label: "Closed / Won", color: "#4ade80" },
+  callback: { label: "Callback", color: "#fbbf24" },
+  voicemail: { label: "Voicemail", color: "#a78bfa" },
+  no_answer: { label: "No answer", color: "#94a3b8" },
+  sms_sent: { label: "SMS sent", color: "#c4b5fd" },
+  not_interested: { label: "Not interested", color: "#f87171" },
+  wrong_number: { label: "Wrong number", color: "#fb923c" },
+  dnc: { label: "DNC", color: "#ef4444" },
 };
 const DISPOSITIONS = [
   "demo_interested",
@@ -740,8 +739,8 @@ export default function DialerApp() {
                   { k: "Connection rate", n: `${pct(s.connected || 0, s.dials || 0)}%`, sub: `${s.connected || 0} talked to`, color: "var(--live)" },
                   { k: "Avg call", n: s.avgTalkSeconds ? mmss(s.avgTalkSeconds) : "0:00", sub: `${Math.round((s.talkSeconds || 0) / 60)} min total`, color: "var(--paper)" },
                   { k: "Interested", n: s.interested || 0, sub: `${pct(s.interested || 0, s.totalLeads || 0)}% of leads`, color: "var(--live)" },
-                  { k: "Demos set", n: s.demo || 0, sub: `${pct(s.demo || 0, s.interested || 0)}% of interested`, color: "#7fb5b0" },
-                  { k: "Closed / Won", n: s.closed || 0, sub: `${pct(s.closed || 0, s.demo || 0)}% of demos`, color: "#a8c47f" },
+                  { k: "Demos set", n: s.demo || 0, sub: `${pct(s.demo || 0, s.interested || 0)}% of interested`, color: "#22d3ee" },
+                  { k: "Closed / Won", n: s.closed || 0, sub: `${pct(s.closed || 0, s.demo || 0)}% of demos`, color: "#4ade80" },
                   { k: "Not interested", n: s.notInterested || 0, sub: `${pct(s.notInterested || 0, s.totalLeads || 0)}% of leads`, color: "var(--danger)" },
                   { k: "Texts sent", n: s.textsSent || 0, sub: "outbound SMS", color: "var(--paper)" },
                 ];
@@ -779,8 +778,8 @@ export default function DialerApp() {
                     })}
                   </div>
                   <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
-                    <span className="dlr-sub" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: "rgba(237,231,218,0.2)" }} /> Dials</span>
-                    <span className="dlr-sub" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--brass)" }} /> Connected</span>
+                    <span className="dlr-sub" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: "rgba(246,246,244,0.2)" }} /> Dials</span>
+                    <span className="dlr-sub" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: "var(--live)" }} /> Connected</span>
                   </div>
                 </div>
               );
@@ -910,7 +909,7 @@ export default function DialerApp() {
                       {session.agentAnswered ? "Session live" : callMode === "browser" ? "Connecting your browser…" : "Ringing your phone…"}
                     </h2>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <span className="dlr-eyebrow" style={{ color: connected ? "var(--live)" : ringing || dialing ? "var(--brass-lit)" : "var(--smoke-d)" }}>
+                      <span className="dlr-eyebrow" style={{ color: connected ? "var(--live)" : ringing || dialing ? "var(--paper)" : "var(--smoke-d)" }}>
                         Line 01 · {connected ? "Live" : ringing || dialing ? "Ringing" : "Standby"}
                       </span>
                       <button onClick={stopSession} disabled={busy} className="dlr-btn danger">End</button>
@@ -1017,7 +1016,7 @@ export default function DialerApp() {
                                 “{mergeTemplate(templates[selectedTemplate] || "", pending)}”
                               </p>
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 8 }}>
-                                <button onClick={() => mark("text_interested", templates[selectedTemplate])} className="dlr-btn" style={{ borderColor: "rgba(135,165,196,0.5)", color: "#87a5c4" }}>
+                                <button onClick={() => mark("text_interested", templates[selectedTemplate])} className="dlr-btn" style={{ borderColor: "rgba(96,165,250,0.5)", color: "#60a5fa" }}>
                                   <Icon name="check" /> SMS interested + send
                                 </button>
                                 <button onClick={() => quickText(templates[selectedTemplate])} className="dlr-btn">
@@ -1036,7 +1035,7 @@ export default function DialerApp() {
                             <p className="dlr-sub" style={{ marginTop: 0 }}>Placing {lines > 1 ? `${lines} calls` : "the call"}…</p>
                           )}
                           {(session.waveLeads || []).map((l: any) => (
-                            <div key={l.callSid} style={{ borderLeft: "2px solid rgba(201,151,63,0.55)", paddingLeft: 12 }}>
+                            <div key={l.callSid} style={{ borderLeft: "2px solid rgba(52,211,153,0.5)", paddingLeft: 12 }}>
                               <p className="dlr-name" style={{ fontSize: 17 }}>{l.name || "Unknown"}</p>
                               {l.business && <p className="dlr-company" style={{ color: "var(--smoke)" }}>{l.business}</p>}
                               <p className="dlr-phone" style={{ marginTop: 2 }}>{fmtPhone(l.phone)}</p>
@@ -1271,13 +1270,13 @@ export default function DialerApp() {
               <ul className="dlr-scroll" style={{ marginTop: 12, display: "grid", gap: 6, maxHeight: 460 }}>
                 {threads.map((t) => (
                   <li key={t.phone} className="dlr-thread-row" style={{ position: "relative" }}>
-                    <button onClick={() => openThread(t.phone, t)} className="dlr-row" style={{ width: "100%", textAlign: "left", cursor: "pointer", background: openPhone === t.phone ? "rgba(237,231,218,0.05)" : "transparent", borderColor: openPhone === t.phone ? "var(--line-2)" : "var(--line)" }}>
+                    <button onClick={() => openThread(t.phone, t)} className="dlr-row" style={{ width: "100%", textAlign: "left", cursor: "pointer", background: openPhone === t.phone ? "rgba(246,246,244,0.05)" : "transparent", borderColor: openPhone === t.phone ? "var(--line-2)" : "var(--line)" }}>
                       <span style={{ minWidth: 0, flex: 1 }}>
                         <span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                           <span className="dlr-name" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {t.name || t.business || fmtPhone(t.phone)}
                           </span>
-                          {t.unread > 0 && <span className="dlr-pill" style={{ background: "var(--brass)", color: "#1b1204", borderColor: "var(--brass)" }}>{t.unread}</span>}
+                          {t.unread > 0 && <span className="dlr-pill" style={{ background: "var(--live)", color: "#04160f", borderColor: "var(--live)" }}>{t.unread}</span>}
                         </span>
                         <span style={{ display: "block", fontSize: 11.5, color: "var(--smoke-d)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 22 }}>
                           {t.direction === "in" ? "↩ " : ""}{t.body}
