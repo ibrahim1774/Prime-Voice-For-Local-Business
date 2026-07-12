@@ -9,12 +9,15 @@ export const maxDuration = 30;
 export async function GET(request: NextRequest) {
   if (!isAuthed(request)) return unauthorized();
   await ensureSchema();
-  // ?product=montivaro|primebarber scopes the log to one demo line; no param
-  // returns everything.
-  const product = request.nextUrl.searchParams.get("product") || "";
-  const rows = (product
+  // ?product= scopes the log to one or more demo lines (comma-separated,
+  // e.g. montivaro,dentist,contractors); no param returns everything.
+  const products = (request.nextUrl.searchParams.get("product") || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const rows = (products.length
     ? await sql()`
-        SELECT * FROM catchall_calls WHERE product = ${product}
+        SELECT * FROM catchall_calls WHERE product = ANY(${products})
         ORDER BY created_at DESC LIMIT 200`
     : await sql()`
         SELECT * FROM catchall_calls ORDER BY created_at DESC LIMIT 200`) as any[];
