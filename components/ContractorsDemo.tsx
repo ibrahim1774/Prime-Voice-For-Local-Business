@@ -49,16 +49,14 @@ export default function ContractorsDemo() {
     <div className="mv2 mv2-catchall">
       <div className="mv2-catchall-shell">
         <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.1s" }}>
-          <span className="mv2-catchall-h-muted">Every Missed Call Is a Missed Job &mdash;</span>{" "}
-          <span>A 24/7 AI Receptionist for Home-Service Pros</span>
+          <span className="mv2-catchall-h-muted">Contractors:</span>{" "}
+          <span>Stop Losing Jobs to Your Voicemail.</span>
         </h1>
 
         <p className="mv2-catchall-sub mv2-ca-in" style={{ animationDelay: "0.24s" }}>
-          Call the demo line like one of your customers would &mdash; burst
-          pipe, no heat, quote request &mdash; and hear how it answers, books
-          the job, and texts you the lead before the caller even hangs up.
-          Plumbing, HVAC, electrical, roofing, remodeling &mdash; it's built
-          around your trade.
+          Plumbing, HVAC, electrical, roofing &mdash; your phone answered
+          24/7, jobs booked, and every lead texted to you before the caller
+          hangs up. Call the demo line like a customer would.
         </p>
 
         <a

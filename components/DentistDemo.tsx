@@ -172,13 +172,14 @@ export default function DentistDemo() {
             Montivaro · Dental
           </p>
           <h1 className="dnt-h1">
-            <span className="dnt-in" style={{ animationDelay: "0.14s" }}>The front desk that</span>{" "}
-            <span className="dnt-h1-accent dnt-in" style={{ animationDelay: "0.26s" }}>never misses a patient.</span>
+            <span className="dnt-in" style={{ animationDelay: "0.14s" }}>Dentists:</span>{" "}
+            <span className="dnt-h1-accent dnt-in" style={{ animationDelay: "0.26s" }}>Don&apos;t Lose Another Patient to Voicemail.</span>
           </h1>
           <p className="dnt-sub dnt-in" style={{ animationDelay: "0.4s" }}>
-            This is a live demo line. Call it the way a patient would — chipped
-            tooth, new-patient question, insurance — and hear exactly how an AI
-            receptionist answers for your practice. Every hour, every call.
+            A 24/7 voice agent answers every patient call and books straight
+            into your schedule — built by a Brooklyn, NYC team that comes to
+            your office to set it up. Call the live line like a patient and
+            hear it yourself.
           </p>
           <div className="dnt-cta dnt-in" style={{ animationDelay: "0.54s" }}>
             <a href={CALL_TEL} onClick={trackLead} className="dnt-call">
