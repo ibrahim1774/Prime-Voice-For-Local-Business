@@ -47,11 +47,36 @@ export default function PrimeBarberDemo() {
       .catch(() => {});
   }, []);
 
+  // Same dual Lead as CallCTAButton: browser pixel + server CAPI, deduped by
+  // eventID. content_name tags it primebarber so it's filterable on the
+  // shared pixel in Ads Manager.
+  function trackLead() {
+    const eventId = `lead_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const fbq = (window as any).fbq;
+    if (typeof fbq === "function") {
+      fbq(
+        "track",
+        "Lead",
+        {
+          content_name: "/primebarber tap-to-call",
+          content_category: "tap-to-call",
+        },
+        { eventID: eventId }
+      );
+    }
+    fetch("/api/meta-lead-conversion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phoneNumber: number, eventId }),
+      keepalive: true,
+    }).catch(() => {});
+  }
+
   // Until the line is provisioned, the call CTAs fall back to the booker —
   // a visible primary button must never be a dead tap.
   const tel = number ? `tel:${number}` : undefined;
   const callProps = tel
-    ? { href: tel }
+    ? { href: tel, onClick: trackLead }
     : ({ role: "button", tabIndex: 0, onClick: () => setIsBookingOpen(true) } as const);
 
   return (
@@ -60,7 +85,7 @@ export default function PrimeBarberDemo() {
         {/* Headline */}
         <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.1s" }}>
           <span className="mv2-catchall-h-muted">Own Your Chair, Own Your Business &mdash;</span>{" "}
-          <span>Your Own Branded Barbershop Site, Booking, Store &amp; App</span>
+          <span>Your Own Branded Barbershop Site, Booking, Store &amp; App &mdash; $97/month</span>
         </h1>
 
         {/* Subheadline */}
@@ -110,6 +135,7 @@ export default function PrimeBarberDemo() {
           <>
             <a
               href={tel}
+              onClick={trackLead}
               className="mv2-mono mv2-catchall-number mv2-ca-in"
               style={{ animationDelay: "0.6s" }}
             >

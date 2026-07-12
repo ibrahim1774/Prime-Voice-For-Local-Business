@@ -17,26 +17,8 @@ import { after } from "next/server";
 export const maxDuration = 90;
 
 const CATCHALL_ASSISTANT_ID = "52081d54-3e98-4213-88cc-b618985a1d9b";
+const PRIMEBARBER_ASSISTANT_ID = "52d9dbcd-a215-4794-8bd7-fe2bd982fd35";
 const SMS_DELAY_MS = 30_000;
-
-// The Prime Barber assistant is provisioned at runtime by /api/vapi/
-// sync-primebarber and its id lives in app_config; cache it briefly so every
-// webhook doesn't hit the database for a value that never changes. An empty
-// result is NOT cached: right after provisioning, a stale "" would make this
-// route silently ignore real Prime Barber calls for the cache window.
-let pbCache: { id: string; at: number } = { id: "", at: 0 };
-async function primebarberAssistantId(): Promise<string> {
-  if (pbCache.id && Date.now() - pbCache.at < 60_000) return pbCache.id;
-  try {
-    await ensureSchema();
-    const rows = (await sql()`
-      SELECT value FROM app_config WHERE key = 'primebarber_assistant_id'`) as any[];
-    pbCache = { id: rows[0]?.value || "", at: Date.now() };
-  } catch {
-    // keep whatever we had; an empty cache just means "treat as catch-all"
-  }
-  return pbCache.id;
-}
 
 function env(name: string): string | undefined {
   const v = process.env[name];
@@ -155,9 +137,8 @@ export async function POST(request: NextRequest) {
   after(async () => {
     const assistantId: string | undefined =
       message?.assistant?.id || message?.call?.assistantId;
-    const pbAssistantId = await primebarberAssistantId();
     const product: "montivaro" | "primebarber" | null =
-      assistantId && pbAssistantId && assistantId === pbAssistantId
+      assistantId === PRIMEBARBER_ASSISTANT_ID
         ? "primebarber"
         : !assistantId || assistantId === CATCHALL_ASSISTANT_ID
           ? "montivaro"

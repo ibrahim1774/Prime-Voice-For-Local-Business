@@ -1,115 +1,77 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureSchema, sql } from "@/lib/dialer/core";
 
-// One-shot provisioning + config sync for the Prime Barber demo assistant.
+// One-shot wiring + number provisioning for the Prime Barber demo assistant.
 //
-// Like /api/vapi/sync-config, but this one CREATES what it needs: the Vapi
-// private key only exists in the Vercel env, so POST here (shared secret in
-// x-vapi-secret) and it will
-//   1. create the "Prime Barber" assistant if it doesn't exist, else update it
-//      in place — voice + transcriber are copied from the live catch-all demo
-//      assistant so both lines sound identical,
-//   2. provision a free Vapi phone number pointed at it (once — the number is
-//      remembered in app_config and reused forever),
-//   3. store assistant id + number in app_config, where /api/vapi/call-report
-//      and /api/vapi/primebarber-config read them.
-// Idempotent — safe to re-run after any prompt/config change.
+// The assistant itself (prompt, voice, model, first message) is owned in the
+// Vapi dashboard — this endpoint never touches those. Like /api/vapi/
+// sync-config, the Vapi private key only exists in the Vercel env, so POST
+// here (shared secret in x-vapi-secret) and it will
+//   1. point the assistant's server URL at /api/vapi/call-report, subscribe
+//      it to end-of-call reports, turn on recording, install the barber
+//      summary + structured-data analysis plan (powers the SMS qualified
+//      gate and the dialer's Custom Demo Calls page), and set fast
+//      turn-taking so the assistant doesn't pause long before answering,
+//   2. provision a free dedicated Vapi phone number pointed at it (once —
+//      the number is remembered in app_config and reused forever, and
+//      re-bound if it ever drifts to a stale assistant),
+//   3. store the number in app_config, where /api/vapi/primebarber-config
+//      serves it to the /primebarber page.
+// Idempotent — safe to re-run after any config change.
 
 export const maxDuration = 60;
 
-const CATCHALL_ASSISTANT_ID = "52081d54-3e98-4213-88cc-b618985a1d9b";
+// Created by the user in the Vapi dashboard (prompt + voice configured there).
+const PRIMEBARBER_ASSISTANT_ID = "52d9dbcd-a215-4794-8bd7-fe2bd982fd35";
 const CALL_REPORT_URL = "https://www.montivaro.com/api/vapi/call-report";
 
-const SYSTEM_PROMPT = `You are Sky, answering the phone for Prime Barber — a $97/month all-in-one system that gives barbers their own branded website with online booking, a product store, payments, and a dedicated app. The barber owns everything.
-
-HOW YOU TALK
-- Short, natural spoken sentences. One to three per turn. Never read a list out loud.
-- Answer the question asked, then ask one small question back.
-- If the caller interrupts, stop and listen.
-- Plain language. No jargon, no filler like "great question".
-
-WHAT YOU KNOW
-- Branded website: built from barbershop templates and customized to their shop and their brand. The account is theirs — they can swap images and edit text anytime.
-- Booking: clients book appointments right on their site. Every booking sends a notification to their app.
-- Product store: they can sell their own products — hair products, clippers, anything. They add products, images, and prices themselves, or we help set it up.
-- Payments: they get paid through Stripe, PayPal, or Square, and manual payment methods work too.
-- App: a dedicated app that notifies them whenever someone books or buys.
-- Customer messaging: they can contact customers by email and other channels straight from their account.
-- Ownership: unlike Booksy, they own the domain, the client list, and the whole system. No commission is ever taken.
-- Price: ninety-seven dollars a month, all-inclusive.
-- Next step: book a free setup call at montivaro dot com slash bookcall. Offer to text them the link — if they want it, tell them the text arrives shortly after the call ends.
-
-CAPTURE (naturally over the conversation, never as a form)
-- Their first name, their barbershop's name, and the city they cut in.
-
-RULES
-- If they ask something you don't know (setup fees, contracts, exact timelines), say the setup call covers that — never make anything up.
-- If the caller clearly isn't a barber or shop owner, stay friendly, answer briefly, and wrap up politely.
-- Keep the call focused on whether Prime Barber fits their shop and on booking the setup call.`;
-
-function assistantBody(voice: any, transcriber: any, secret: string) {
-  const body: any = {
-    name: "Prime Barber",
-    firstMessage: "Prime Barber, this is Sky — how can I help you today?",
-    model: {
-      provider: "openai",
-      model: "gpt-4o-mini",
-      temperature: 0.6,
-      maxTokens: 150,
-      messages: [{ role: "system", content: SYSTEM_PROMPT }],
+const PATCH_BODY = {
+  // Latency: respond fast, don't wait long after the caller stops talking.
+  startSpeakingPlan: {
+    waitSeconds: 0.4,
+    smartEndpointingPlan: { provider: "livekit" },
+  },
+  serverMessages: ["end-of-call-report"],
+  artifactPlan: { recordingEnabled: true },
+  analysisPlan: {
+    summaryPlan: {
+      enabled: true,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Summarize this call in 2-3 short sentences: who called, their barbershop, and what they asked about Prime Barber. Plain text, no preamble.",
+        },
+        { role: "user", content: "{{transcript}}" },
+      ],
     },
-    // Latency: respond fast, don't wait long after the caller stops talking.
-    startSpeakingPlan: {
-      waitSeconds: 0.4,
-      smartEndpointingPlan: { provider: "livekit" },
-    },
-    maxDurationSeconds: 900,
-    server: { url: CALL_REPORT_URL, secret },
-    serverMessages: ["end-of-call-report"],
-    artifactPlan: { recordingEnabled: true },
-    analysisPlan: {
-      summaryPlan: {
-        enabled: true,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Summarize this call in 2-3 short sentences: who called, their barbershop, and what they asked about Prime Barber. Plain text, no preamble.",
+    structuredDataPlan: {
+      enabled: true,
+      schema: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "The caller's name, if they gave one",
           },
-          { role: "user", content: "{{transcript}}" },
-        ],
-      },
-      structuredDataPlan: {
-        enabled: true,
-        schema: {
-          type: "object",
-          properties: {
-            name: {
-              type: "string",
-              description: "The caller's name, if they gave one",
-            },
-            shopName: {
-              type: "string",
-              description: "The caller's barbershop name, if mentioned",
-            },
-            city: {
-              type: "string",
-              description: "The city or area they cut in, if mentioned",
-            },
-            qualified: {
-              type: "boolean",
-              description:
-                "true ONLY if the caller is a barber or shop owner who actually engaged — shared their name, shop, city, or asked real questions about Prime Barber. false for silence, wrong numbers, or callers who shared nothing.",
-            },
+          shopName: {
+            type: "string",
+            description: "The caller's barbershop name, if mentioned",
+          },
+          city: {
+            type: "string",
+            description: "The city or area they cut in, if mentioned",
+          },
+          qualified: {
+            type: "boolean",
+            description:
+              "true ONLY if the caller is a barber or shop owner who actually engaged — shared their name, shop, city, or asked real questions about Prime Barber. false for silence, wrong numbers, or callers who shared nothing.",
           },
         },
       },
     },
-  };
-  if (voice) body.voice = voice;
-  if (transcriber) body.transcriber = transcriber;
-  return body;
-}
+  },
+};
 
 async function getConfig(key: string): Promise<string> {
   const rows = (await sql()`SELECT value FROM app_config WHERE key = ${key}`) as any[];
@@ -139,90 +101,33 @@ export async function POST(request: NextRequest) {
   const json = { ...auth, "Content-Type": "application/json" };
   await ensureSchema();
 
-  // Same voice as the current demo: copy voice + transcriber verbatim from
-  // the live catch-all assistant.
-  const catchallResp = await fetch(
-    `https://api.vapi.ai/assistant/${CATCHALL_ASSISTANT_ID}`,
-    { headers: auth }
+  const patch = await fetch(
+    `https://api.vapi.ai/assistant/${PRIMEBARBER_ASSISTANT_ID}`,
+    {
+      method: "PATCH",
+      headers: json,
+      body: JSON.stringify({ ...PATCH_BODY, server: { url: CALL_REPORT_URL, secret } }),
+    }
   );
-  if (!catchallResp.ok) {
+  const patched: any = await patch.json().catch(() => ({}));
+  if (!patch.ok) {
     return NextResponse.json(
-      { error: `Vapi GET catch-all assistant failed (${catchallResp.status})` },
+      { error: `Vapi PATCH failed (${patch.status})`, detail: patched?.message || null },
       { status: 502 }
     );
   }
-  const catchall: any = await catchallResp.json();
-  const body = assistantBody(catchall?.voice, catchall?.transcriber, secret);
-
-  // Assistant: update in place if we made one before (and it still exists).
-  // If the stored id is gone or was never written (e.g. a previous run died
-  // between the Vapi create and the config write), adopt an existing
-  // "Prime Barber" assistant by name before ever creating a second one.
-  let assistantId = await getConfig("primebarber_assistant_id");
-  let createdAssistant = false;
-  if (assistantId) {
-    const check = await fetch(`https://api.vapi.ai/assistant/${assistantId}`, {
-      headers: auth,
-    });
-    if (check.status === 404) assistantId = "";
-  }
-  if (!assistantId) {
-    const listResp = await fetch("https://api.vapi.ai/assistant?limit=1000", {
-      headers: auth,
-    });
-    const list: any[] = listResp.ok ? await listResp.json().catch(() => []) : [];
-    const existing = Array.isArray(list)
-      ? list.find((a) => a?.name === "Prime Barber" && a?.id)
-      : null;
-    if (existing) assistantId = existing.id;
-  }
-  if (assistantId) {
-    const patch = await fetch(`https://api.vapi.ai/assistant/${assistantId}`, {
-      method: "PATCH",
-      headers: json,
-      body: JSON.stringify(body),
-    });
-    const patched: any = await patch.json().catch(() => ({}));
-    if (!patch.ok) {
-      return NextResponse.json(
-        { error: `Vapi PATCH failed (${patch.status})`, detail: patched?.message || null },
-        { status: 502 }
-      );
-    }
-  } else {
-    const create = await fetch("https://api.vapi.ai/assistant", {
-      method: "POST",
-      headers: json,
-      body: JSON.stringify(body),
-    });
-    const created: any = await create.json().catch(() => ({}));
-    if (!create.ok || !created?.id) {
-      return NextResponse.json(
-        { error: `Vapi create failed (${create.status})`, detail: created?.message || null },
-        { status: 502 }
-      );
-    }
-    assistantId = created.id;
-    createdAssistant = true;
-  }
-  await setConfig("primebarber_assistant_id", assistantId);
 
   // Phone number: find the line we already own (by remembered number, by
-  // assistant, or by name), re-bind it if it points at a stale assistant —
-  // an assistant recreation must never leave the live number ringing into a
-  // deleted one — and only provision a brand-new free number if none exists.
-  // The list call must succeed before any purchase decision: buying blind
-  // could stack up duplicate numbers.
+  // assistant, or by name), re-bind it if it points elsewhere, and only
+  // provision a brand-new free number if none exists. The list call must
+  // succeed before any purchase decision: buying blind could stack up
+  // duplicate numbers.
   const numbersResp = await fetch("https://api.vapi.ai/phone-number?limit=1000", {
     headers: auth,
   });
   if (!numbersResp.ok) {
     return NextResponse.json(
-      {
-        ok: false,
-        assistantId,
-        error: `Vapi list phone numbers failed (${numbersResp.status})`,
-      },
+      { ok: false, error: `Vapi list phone numbers failed (${numbersResp.status})` },
       { status: 502 }
     );
   }
@@ -230,7 +135,7 @@ export async function POST(request: NextRequest) {
   const savedNumber = await getConfig("primebarber_number");
   let entry =
     (savedNumber && numbers.find((p) => p?.number === savedNumber)) ||
-    numbers.find((p) => p?.assistantId === assistantId && p?.number) ||
+    numbers.find((p) => p?.assistantId === PRIMEBARBER_ASSISTANT_ID && p?.number) ||
     numbers.find((p) => p?.name === "Prime Barber" && p?.number) ||
     null;
   let createdNumber = false;
@@ -240,7 +145,7 @@ export async function POST(request: NextRequest) {
       headers: json,
       body: JSON.stringify({
         provider: "vapi",
-        assistantId,
+        assistantId: PRIMEBARBER_ASSISTANT_ID,
         name: "Prime Barber",
       }),
     });
@@ -249,7 +154,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
-          assistantId,
           error: `Vapi number provisioning failed (${buy.status})`,
           detail: bought?.message || null,
         },
@@ -258,17 +162,16 @@ export async function POST(request: NextRequest) {
     }
     entry = bought;
     createdNumber = true;
-  } else if (entry.assistantId !== assistantId && entry.id) {
+  } else if (entry.assistantId !== PRIMEBARBER_ASSISTANT_ID && entry.id) {
     const bind = await fetch(`https://api.vapi.ai/phone-number/${entry.id}`, {
       method: "PATCH",
       headers: json,
-      body: JSON.stringify({ assistantId }),
+      body: JSON.stringify({ assistantId: PRIMEBARBER_ASSISTANT_ID }),
     });
     if (!bind.ok) {
       return NextResponse.json(
         {
           ok: false,
-          assistantId,
           number: entry.number,
           error: `Vapi number re-bind failed (${bind.status})`,
         },
@@ -281,9 +184,11 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    assistantId,
+    assistantId: PRIMEBARBER_ASSISTANT_ID,
     number,
-    createdAssistant,
     createdNumber,
+    // Visibility only — confirms which model/voice the dashboard assistant runs.
+    model: patched?.model?.model || null,
+    voice: patched?.voice?.voiceId || null,
   });
 }
