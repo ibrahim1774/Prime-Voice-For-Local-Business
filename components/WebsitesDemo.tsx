@@ -6,9 +6,6 @@
 // Duplicates the Prime Barber page layout (mv2 Call Sheet skin); qualified
 // callers get the follow-up SMS with the details.
 
-import { useState } from "react";
-import BookingModal from "./BookingModal";
-
 const CALL_NUMBER_DISPLAY = "(984) 299-2378";
 const CALL_NUMBER_TEL = "tel:+19842992378";
 
@@ -48,8 +45,6 @@ function MiniWave() {
 }
 
 export default function WebsitesDemo() {
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
-
   return (
     <div className="mv2 mv2-catchall">
       <div className="mv2-catchall-shell">
@@ -58,12 +53,25 @@ export default function WebsitesDemo() {
           <span>A 20+ Page Website, Live in 24&ndash;48 Hours &mdash; $97/month</span>
         </h1>
 
-        <p className="mv2-catchall-sub mv2-ca-in" style={{ animationDelay: "0.24s" }}>
-          Custom-built for your business with on-page SEO on every page &mdash;
-          and it&apos;s your account, so you edit the text and swap the images
-          anytime. Hosting included, $97/month flat. Tap to call and ask
-          anything.
-        </p>
+        {/* Subheadline: concise bold bullets */}
+        <ul
+          className="mv2-catchall-sub mv2-ca-in"
+          style={{
+            animationDelay: "0.24s",
+            listStyle: "none",
+            padding: 0,
+            display: "inline-grid",
+            gap: 7,
+            textAlign: "left",
+            color: "#fff",
+            fontWeight: 800,
+          }}
+        >
+          <li>✓ A 20+ page custom website</li>
+          <li>✓ Live within 24&ndash;48 hours</li>
+          <li>✓ On-page SEO included</li>
+          <li>✓ Your own account &mdash; edit text &amp; images anytime</li>
+        </ul>
 
         <a
           href={CALL_NUMBER_TEL}
@@ -72,7 +80,7 @@ export default function WebsitesDemo() {
           style={{ animationDelay: "0.36s", marginTop: "30px" }}
         >
           <span className="mv2-catchall-test-dot" aria-hidden="true" />
-          Ask anything about the $97 website
+          Ask us about the $97 website
         </a>
 
         <div className="mv2-ca-in" style={{ animationDelay: "0.46s" }}>
@@ -84,7 +92,8 @@ export default function WebsitesDemo() {
           className="mv2-ca-in"
           style={{ animationDelay: "0.5s", color: "#fff", fontWeight: 800, fontSize: 15, marginBottom: 12 }}
         >
-          Call our team &mdash; ready to answer any questions you have, 24/7.
+          Talk to our team &mdash; we&apos;ll get you set up with the $97/month
+          website design system.
         </p>
 
         <a href={CALL_NUMBER_TEL} onClick={trackLead} className="mv2-btn mv2-btn-light mv2-catchall-call">
@@ -118,25 +127,7 @@ export default function WebsitesDemo() {
         <p className="mv2-catchall-hint mv2-ca-in" style={{ animationDelay: "0.68s" }}>
           Tap the number to call from your phone
         </p>
-
-        <div className="mv2-catchall-book mv2-ca-in" style={{ animationDelay: "0.8s" }}>
-          <p className="mv2-catchall-book-h">
-            Ready to get your site built?
-          </p>
-          <p className="mv2-catchall-book-sub">
-            20+ pages, on-page SEO, your own editing account &mdash; live
-            within 24&ndash;48 hours.
-          </p>
-          <button
-            onClick={() => setIsBookingOpen(true)}
-            className="mv2-btn mv2-btn-ghost mv2-btn-lg mv2-catchall-book-btn"
-          >
-            Book a call with the team
-          </button>
-        </div>
       </div>
-
-      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
     </div>
   );
 }
