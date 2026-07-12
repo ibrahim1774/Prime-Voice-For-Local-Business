@@ -20,25 +20,31 @@ const CATCHALL_ASSISTANT_ID = "52081d54-3e98-4213-88cc-b618985a1d9b";
 const PRIMEBARBER_ASSISTANT_ID = "52d9dbcd-a215-4794-8bd7-fe2bd982fd35";
 const SMS_DELAY_MS = 20_000;
 
-type Product = "montivaro" | "primebarber" | "dentist" | "contractors";
+type Product = "montivaro" | "primebarber" | "dentist" | "contractors" | "website";
 
-// The dentist/contractors assistants live in the Vapi dashboard and their
-// ids land in app_config via /api/vapi/sync-verticals. Cached briefly; an
-// empty result is never cached, so a call right after provisioning can't be
-// misattributed for the cache window. Runs inside after(), so this lookup
-// never delays the webhook response.
+const VERTICAL_KEYS: Record<string, Product> = {
+  dentist_assistant_id: "dentist",
+  contractors_assistant_id: "contractors",
+  website_assistant_id: "website",
+};
+
+// The vertical assistants (dentist, contractors, $97 website) live in the
+// Vapi dashboard and their ids land in app_config via /api/vapi/
+// sync-verticals. Cached briefly; an empty result is never cached, so a call
+// right after provisioning can't be misattributed for the cache window. Runs
+// inside after(), so this lookup never delays the webhook response.
 let vertCache: { map: Record<string, Product>; at: number } = { map: {}, at: 0 };
 async function verticalAssistants(): Promise<Record<string, Product>> {
   const filled = Object.keys(vertCache.map).length > 0;
   if (filled && Date.now() - vertCache.at < 60_000) return vertCache.map;
   try {
     await ensureSchema();
+    const keys = Object.keys(VERTICAL_KEYS);
     const rows = (await sql()`
-      SELECT key, value FROM app_config
-      WHERE key IN ('dentist_assistant_id', 'contractors_assistant_id')`) as any[];
+      SELECT key, value FROM app_config WHERE key = ANY(${keys})`) as any[];
     const map: Record<string, Product> = {};
     for (const r of rows) {
-      if (r.value) map[r.value] = r.key === "dentist_assistant_id" ? "dentist" : "contractors";
+      if (r.value && VERTICAL_KEYS[r.key]) map[r.value] = VERTICAL_KEYS[r.key];
     }
     vertCache = { map, at: Date.now() };
   } catch {
@@ -147,6 +153,24 @@ function buildDentistSmsBody(lead: {
     "$199–$997/month — usage minutes included.",
     "We're based in Brooklyn — we'll even come to your office and set it up with you.",
     "📅 Pick the best time for us to call you:\nmontivaro.com/bookcall",
+  ].join("\n\n");
+}
+
+// $97 Website line: a direct pitch recap (this line answers questions about
+// the program, so the text is the offer, not a sample alert).
+function buildWebsiteSmsBody(lead: { name?: string }): string {
+  const hi = lead.name ? `, ${lead.name}` : "";
+  return [
+    `🌐 Thanks for calling about the $97/month Website System${hi}!`,
+    [
+      "What you get:",
+      "• 20+ page custom website for your business",
+      "• Live within 24–48 hours",
+      "• Your own account — edit text & images anytime",
+      "• On-page SEO included on every page",
+      "• Hosting included — $97/month flat",
+    ].join("\n"),
+    "📅 Ready to get started? Pick a time and we'll handle everything:\nmontivaro.com/bookcall",
   ].join("\n\n");
 }
 
@@ -331,9 +355,11 @@ export async function POST(request: NextRequest) {
       const body =
         product === "primebarber"
           ? buildPrimeBarberSmsBody(lead)
-          : product === "dentist"
-            ? buildDentistSmsBody(lead)
-            : buildSmsBody(lead);
+          : product === "website"
+            ? buildWebsiteSmsBody(lead)
+            : product === "dentist"
+              ? buildDentistSmsBody(lead)
+              : buildSmsBody(lead);
       const sid = await sendSms(lead.callerNumber, body);
       console.log(`call-report: lead SMS sent to ${lead.callerNumber} (${sid})`);
     } catch (err) {

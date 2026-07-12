@@ -12,7 +12,7 @@ import LeadImport from "./LeadImport";
 import { Icon } from "./icons";
 
 const TAB_LABELS = { dial: "Dial", leads: "Leads", texts: "Texts", calls: "Calls" } as const;
-type Tab = "dial" | "leads" | "catchall" | "primebarber" | "texts" | "calls";
+type Tab = "dial" | "leads" | "catchall" | "primebarber" | "website" | "texts" | "calls";
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   new: { label: "New", color: "#8a8a92" },
@@ -735,12 +735,16 @@ export default function DialerApp() {
   };
 
   // ── demo-line calls (Custom Demo = montivaro catch-all + dentist +
-  // contractors verticals; Prime Barber has its own page) ──
+  // contractors verticals; Prime Barber and the $97 Website line get their
+  // own pages) ──
   const [catchallCalls, setCatchallCalls] = useState<any[]>([]);
   useEffect(() => {
-    if (!(authed && (tab === "catchall" || tab === "primebarber"))) return;
+    if (!(authed && (tab === "catchall" || tab === "primebarber" || tab === "website"))) return;
     setCatchallCalls([]);
-    const product = tab === "primebarber" ? "primebarber" : "montivaro,dentist,contractors";
+    const product =
+      tab === "primebarber" ? "primebarber"
+      : tab === "website" ? "website"
+      : "montivaro,dentist,contractors";
     api(`catchall?product=${product}`).then((d) => setCatchallCalls(d.calls || [])).catch(guard);
   }, [authed, tab, guard]);
   const deleteCatchall = async (id: number, label: string) => {
@@ -817,15 +821,16 @@ export default function DialerApp() {
                   <span key={t} className="dlr-tabwrap">
                     <button
                       onClick={() => setTab("leads")}
-                      className={`dlr-tab${tab === "leads" || tab === "catchall" || tab === "primebarber" ? " active" : ""}`}
+                      className={`dlr-tab${tab === "leads" || tab === "catchall" || tab === "primebarber" || tab === "website" ? " active" : ""}`}
                       aria-haspopup="menu"
                     >
-                      {tab === "catchall" ? "Custom Demo" : tab === "primebarber" ? "Prime Barber" : "Leads"} ▾
+                      {tab === "catchall" ? "Custom Demo" : tab === "primebarber" ? "Prime Barber" : tab === "website" ? "$97 Website" : "Leads"} ▾
                     </button>
                     <span className="dlr-tabmenu" role="menu">
                       <button role="menuitem" onClick={() => setTab("leads")} className={tab === "leads" ? "on" : ""}>All leads</button>
                       <button role="menuitem" onClick={() => setTab("catchall")} className={tab === "catchall" ? "on" : ""}>Custom Demo Calls</button>
                       <button role="menuitem" onClick={() => setTab("primebarber")} className={tab === "primebarber" ? "on" : ""}>Prime Barber Calls</button>
+                      <button role="menuitem" onClick={() => setTab("website")} className={tab === "website" ? "on" : ""}>$97 Website Calls</button>
                     </span>
                   </span>
                 ) : (
@@ -1432,12 +1437,14 @@ export default function DialerApp() {
 
         {/* ══ TEXTS ══ */}
         {/* ══ CATCH-ALL CALLS ══ */}
-        {(tab === "catchall" || tab === "primebarber") && (
+        {(tab === "catchall" || tab === "primebarber" || tab === "website") && (
           <section className="dlr-panel dlr-panel-p">
-            <h2 className="dlr-h dlr-display">{tab === "primebarber" ? "Prime Barber Calls" : "Custom Demo Calls"}</h2>
+            <h2 className="dlr-h dlr-display">{tab === "primebarber" ? "Prime Barber Calls" : tab === "website" ? "$97 Website Calls" : "Custom Demo Calls"}</h2>
             <p className="dlr-sub">{tab === "primebarber"
               ? "Every call the Prime Barber line takes lands here automatically — number, summary, full conversation, and the recording."
-              : "Every call your Montivaro demo assistant takes lands here automatically — number, summary, full conversation, and the recording."}</p>
+              : tab === "website"
+                ? "Every call the $97/month Website System line takes lands here automatically — number, summary, full conversation, and the recording."
+                : "Every call your Montivaro demo assistant takes lands here automatically — number, summary, full conversation, and the recording."}</p>
             <ul style={{ marginTop: 16, display: "grid", gap: 10 }}>
               {catchallCalls.map((c) => (
                 <li key={c.id} className="dlr-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
@@ -1476,7 +1483,9 @@ export default function DialerApp() {
               ))}
               {!catchallCalls.length && <li className="dlr-sub">{tab === "primebarber"
                 ? "No Prime Barber calls yet — they appear here the moment a barber calls the line."
-                : "No demo calls yet — they appear here the moment someone calls your demo assistant."}</li>}
+                : tab === "website"
+                  ? "No $97 Website calls yet — they appear here the moment a business owner calls the line."
+                  : "No demo calls yet — they appear here the moment someone calls your demo assistant."}</li>}
             </ul>
           </section>
         )}
