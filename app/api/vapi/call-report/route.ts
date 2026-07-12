@@ -170,7 +170,7 @@ function buildWebsiteSmsBody(lead: { name?: string }): string {
       "• On-page SEO included on every page",
       "• Hosting included — $97/month flat",
     ].join("\n"),
-    "📅 Ready to get started? Pick a time and we'll handle everything:\nmontivaro.com/bookcall",
+    "✅ Here's the best part: one of our team members will reach out with your finished website — you check it out before you ever pay.",
   ].join("\n\n");
 }
 
