@@ -101,8 +101,7 @@ function buildPrimeBarberSmsBody(lead: { name?: string }): string {
       "• Get paid: Stripe, PayPal, or Square",
       "• Your domain, your clients — zero commission",
     ].join("\n"),
-    "🎥 Watch the inside overview:\nhttps://herers868.wistia.com/s/v8c3d0qn90zoxvf",
-    "🚀 Get started — $97/month:\nhttps://buy.stripe.com/9B64gycug8yG7V86Qe3cc0e",
+    "🎥 Watch the inside overview:\nmontivaro.com/primebarber/video",
   ].join("\n\n");
 }
 
