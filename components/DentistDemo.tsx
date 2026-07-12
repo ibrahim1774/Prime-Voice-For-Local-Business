@@ -50,12 +50,6 @@ const SCENARIOS: Scenario[] = [
   },
 ];
 
-const TRY_PROMPTS = [
-  { say: "“I chipped a tooth and it really hurts.”", hear: "Triage questions, then the earliest same-day slot." },
-  { say: "“Are you taking new patients?”", hear: "A warm welcome and a held appointment time." },
-  { say: "“Do you take my insurance?”", hear: "PPO handling with your carrier noted for the office." },
-];
-
 function trackLead() {
   const eventId = `lead_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   const fbq = (window as any).fbq;
@@ -172,20 +166,6 @@ function VitalsDivider() {
 export default function DentistDemo() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
 
-  // Scroll reveals
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      document.querySelectorAll(".dnt-reveal").forEach((el) => el.classList.add("in"));
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && e.target.classList.add("in")),
-      { threshold: 0.2 }
-    );
-    document.querySelectorAll(".dnt-reveal").forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
-
   return (
     <div className="dnt">
       {/* Hero */}
@@ -221,68 +201,16 @@ export default function DentistDemo() {
 
       <VitalsDivider />
 
-      {/* Try it like a patient */}
-      <section className="dnt-shell dnt-section">
-        <h2 className="dnt-h2 dnt-reveal">Try it like a patient would</h2>
-        <p className="dnt-lede dnt-reveal">
-          There's no script on our side — say whatever your patients say.
+      {/* One-line close: Brooklyn + booking, nothing else */}
+      <section className="dnt-shell dnt-strip dnt-in" style={{ animationDelay: "0.7s" }}>
+        <p className="dnt-badge">Based in Brooklyn, NY</p>
+        <p className="dnt-strip-copy">
+          We come to your office and set it up with you — $199–$997/month,
+          usage minutes included.
         </p>
-        <div className="dnt-grid dnt-reveal">
-          {TRY_PROMPTS.map((p) => (
-            <a key={p.say} href={CALL_TEL} onClick={trackLead} className="dnt-try">
-              <span className="dnt-try-say">{p.say}</span>
-              <span className="dnt-try-hear">{p.hear}</span>
-              <span className="dnt-try-go">Say it on the line →</span>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      <VitalsDivider />
-
-      {/* The owner side */}
-      <section className="dnt-shell dnt-section dnt-owner">
-        <div className="dnt-owner-copy dnt-reveal">
-          <h2 className="dnt-h2">Then check your pocket</h2>
-          <p className="dnt-lede">
-            Moments after you hang up, the demo texts you the exact lead alert
-            your team would get — who called, what they needed, their number.
-            No voicemail. No missed patient.
-          </p>
-          <ul className="dnt-list">
-            <li>Custom-built to your practice — greeting, services, scheduling rules</li>
-            <li>24/7 or after-hours only, your choice</li>
-            <li>Instant SMS + email alerts, CRM integration</li>
-          </ul>
-        </div>
-        <div className="dnt-sms dnt-reveal" aria-label="Sample lead alert text">
-          <p className="dnt-sms-meta">SMS · just now</p>
-          <div className="dnt-sms-bubble">
-            🔔 New lead — Dana from Maple Dental just called.
-            <br />
-            Chipped molar, in pain, booked the 2:40 same-day slot.
-            <br />
-            📞 (917) 555-0164
-          </div>
-        </div>
-      </section>
-
-      <VitalsDivider />
-
-      {/* Brooklyn + pricing close */}
-      <section className="dnt-shell dnt-section dnt-close">
-        <p className="dnt-badge dnt-reveal">Based in Brooklyn, NY</p>
-        <h2 className="dnt-h2 dnt-reveal">We come to your office and set it up with you.</h2>
-        <p className="dnt-lede dnt-reveal">
-          Plans run $199–$997/month depending on what your practice needs —
-          usage minutes included. Pick the best time for us to call you.
-        </p>
-        <div className="dnt-cta dnt-reveal" style={{ justifyContent: "center" }}>
-          <button onClick={() => setIsBookingOpen(true)} className="dnt-call dnt-book">
-            Choose a time for your call
-          </button>
-          <a href={CALL_TEL} onClick={trackLead} className="dnt-number">or demo it: {CALL_DISPLAY}</a>
-        </div>
+        <button onClick={() => setIsBookingOpen(true)} className="dnt-call dnt-book">
+          Choose a time for your call
+        </button>
       </section>
 
       <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />

@@ -52,8 +52,8 @@
   grid-template-columns: 1.05fr 0.95fr;
   gap: 48px;
   align-items: center;
-  padding-top: 92px;
-  padding-bottom: 72px;
+  padding-top: 56px;
+  padding-bottom: 56px;
 }
 .dnt-eyebrow {
   font-family: var(--dnt-mono), monospace;
@@ -268,117 +268,15 @@
 }
 @keyframes dntTrace { to { stroke-dashoffset: 0; } }
 
-/* ── sections ── */
-.dnt-section { padding: 64px 22px 72px; }
-.dnt-h2 {
-  font-family: var(--dnt-display), serif;
-  font-weight: 600;
-  font-size: clamp(26px, 3.2vw, 36px);
-  letter-spacing: -0.01em;
-  line-height: 1.12;
-}
-.dnt-lede {
-  margin-top: 12px;
-  font-size: 15.5px;
-  line-height: 1.65;
-  color: var(--ink-soft);
-  max-width: 54ch;
-}
-.dnt-grid {
-  margin-top: 32px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-.dnt-try {
+/* ── closing strip: Brooklyn + booking, one line ── */
+.dnt-strip {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background: var(--enamel);
-  border: 1px solid var(--mint-line);
-  border-radius: 16px;
-  padding: 22px 20px;
-  text-decoration: none;
-  color: var(--ink);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-}
-.dnt-try:hover {
-  transform: translateY(-3px);
-  border-color: var(--surgical);
-  box-shadow: 0 16px 36px rgba(12, 38, 36, 0.1);
-}
-.dnt-try-say {
-  font-family: var(--dnt-display), serif;
-  font-weight: 600;
-  font-size: 17.5px;
-  line-height: 1.3;
-}
-.dnt-try-hear {
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: var(--ink-soft);
-}
-.dnt-try-go {
-  margin-top: auto;
-  font-family: var(--dnt-mono), monospace;
-  font-size: 11.5px;
-  letter-spacing: 0.06em;
-  color: var(--surgical-deep);
-}
-
-/* ── owner section ── */
-.dnt-owner {
-  display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 48px;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding-top: 10px;
+  padding-bottom: 84px;
 }
-.dnt-list {
-  margin-top: 18px;
-  display: grid;
-  gap: 10px;
-  list-style: none;
-  padding: 0;
-}
-.dnt-list li {
-  position: relative;
-  padding-left: 26px;
-  font-size: 14.5px;
-  line-height: 1.55;
-  color: var(--ink-soft);
-}
-.dnt-list li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 5px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--mint);
-  border: 1.5px solid var(--surgical);
-}
-.dnt-sms { justify-self: center; width: min(340px, 100%); }
-.dnt-sms-meta {
-  font-family: var(--dnt-mono), monospace;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  margin-bottom: 8px;
-}
-.dnt-sms-bubble {
-  background: var(--ink);
-  color: #eef7f4;
-  font-size: 13.5px;
-  line-height: 1.6;
-  border-radius: 18px 18px 18px 5px;
-  padding: 16px 18px;
-  box-shadow: 0 20px 46px rgba(12, 38, 36, 0.22);
-}
-
-/* ── close ── */
-.dnt-close { text-align: center; padding-bottom: 110px; }
 .dnt-badge {
   display: inline-block;
   font-family: var(--dnt-mono), monospace;
@@ -389,24 +287,28 @@
   background: var(--mint);
   border-radius: 999px;
   padding: 7px 15px;
-  margin-bottom: 18px;
+  white-space: nowrap;
 }
-.dnt-close .dnt-lede { margin-left: auto; margin-right: auto; }
-.dnt-close .dnt-cta { margin-top: 30px; }
-.dnt-book { font-size: 15.5px; }
+.dnt-strip-copy {
+  flex: 1;
+  min-width: 260px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.dnt-book { font-size: 15px; }
 
 /* ── responsive ── */
 @media (max-width: 860px) {
-  .dnt-hero { grid-template-columns: 1fr; gap: 36px; padding-top: 64px; }
-  .dnt-grid { grid-template-columns: 1fr; }
-  .dnt-owner { grid-template-columns: 1fr; gap: 32px; }
+  .dnt-hero { grid-template-columns: 1fr; gap: 36px; padding-top: 56px; padding-bottom: 48px; }
+  .dnt-strip { padding-bottom: 64px; }
 }
 
 /* ── reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
-  .dnt-in, .dnt-reveal { opacity: 1; transform: none; animation: none; transition: none; }
+  .dnt-in { opacity: 1; transform: none; animation: none; transition: none; }
   .dnt-live, .dnt-card-dot, .dnt-dots i { animation: none; }
   .dnt-vitals-path { animation: none; stroke-dashoffset: 0; }
   .dnt-msg, .dnt-stamp { animation: none; opacity: 1; }
-  .dnt-call, .dnt-try { transition: none; }
+  .dnt-call { transition: none; }
 }
