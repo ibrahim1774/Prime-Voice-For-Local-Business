@@ -259,17 +259,10 @@ export async function POST(request: NextRequest) {
       callerNumber: callerNumber || "",
     };
 
-    // Only text real leads: the analysis marks the call qualified when the
-    // caller actually described their business/shop. A hangup, wrong number,
-    // or "hello?...click" gets no pitch.
-    const businessType =
-      typeof structured.businessType === "string"
-        ? structured.businessType.trim()
-        : "";
-    const qualified =
-      structured.qualified === true ||
-      Boolean(lead.business) ||
-      Boolean(businessType);
+    // Only text real leads: a lead is a caller we got BOTH the name and the
+    // business/shop name from. A hangup, wrong number, or a caller who never
+    // introduced themselves gets no pitch and counts as nothing.
+    const qualified = Boolean(lead.name) && Boolean(lead.business);
 
     // Persist EVERY demo call (qualified or not, web calls included) so the
     // dialer's "Custom Demo Calls" page can show number, summary, full
@@ -330,25 +323,10 @@ export async function POST(request: NextRequest) {
     }
     if (!qualified) {
       console.log(
-        `call-report: caller ${lead.callerNumber} gave no business details — no SMS sent`
+        `call-report: caller ${lead.callerNumber} didn't give both a name and a business — no SMS, no lead`
       );
       return;
     }
-
-    // Meta ads optimization signal: a QualifiedLead is a caller who actually
-    // described their business — far stronger than the click-to-call Lead the
-    // site fires. Server-side with the caller's phone as the match key;
-    // event_id = Vapi call id so webhook retries can't double-count.
-    await sendMetaEvent({
-      eventName: "QualifiedLead",
-      phone: lead.callerNumber,
-      eventId: message?.call?.id || undefined,
-      actionSource: "phone_call",
-      customData: {
-        lead_type:
-          product === "montivaro" ? "qualified_demo_call" : `${product}_demo_call`,
-      },
-    });
 
     await new Promise((resolve) => setTimeout(resolve, SMS_DELAY_MS));
     try {
@@ -362,8 +340,22 @@ export async function POST(request: NextRequest) {
               : buildSmsBody(lead);
       const sid = await sendSms(lead.callerNumber, body);
       console.log(`call-report: lead SMS sent to ${lead.callerNumber} (${sid})`);
+
+      // Meta ads optimization signal — fired ONLY after the SMS actually went
+      // out: a delivered text is what counts as a lead. Phone as the match
+      // key; event_id = Vapi call id so webhook retries can't double-count.
+      await sendMetaEvent({
+        eventName: "QualifiedLead",
+        phone: lead.callerNumber,
+        eventId: message?.call?.id || undefined,
+        actionSource: "phone_call",
+        customData: {
+          lead_type:
+            product === "montivaro" ? "qualified_demo_call" : `${product}_demo_call`,
+        },
+      });
     } catch (err) {
-      console.error("call-report: SMS failed", err);
+      console.error("call-report: SMS failed — no lead event fired", err);
     }
   });
 
