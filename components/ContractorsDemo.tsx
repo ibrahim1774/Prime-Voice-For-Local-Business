@@ -5,8 +5,6 @@
 // a customer would and hear how the AI receptionist books the job; qualified
 // callers get the sample owner lead-alert SMS afterward. mv2 Call Sheet skin.
 
-import { useState } from "react";
-import BookingModal from "./BookingModal";
 
 const CALL_NUMBER_DISPLAY = "(840) 688-2671";
 const CALL_NUMBER_TEL = "tel:+18406882671";
@@ -47,8 +45,6 @@ function MiniWave() {
 }
 
 export default function ContractorsDemo() {
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
-
   return (
     <div className="mv2 mv2-catchall">
       <div className="mv2-catchall-shell">
@@ -119,16 +115,8 @@ export default function ContractorsDemo() {
             Custom-built to your trade, service area, and dispatch flow &mdash;
             $199&ndash;$997/month, usage minutes included.
           </p>
-          <button
-            onClick={() => setIsBookingOpen(true)}
-            className="mv2-btn mv2-btn-ghost mv2-btn-lg mv2-catchall-book-btn"
-          >
-            Book a call with the team
-          </button>
         </div>
       </div>
-
-      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
     </div>
   );
 }

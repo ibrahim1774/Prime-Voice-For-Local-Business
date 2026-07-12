@@ -6,7 +6,6 @@
 // a mint "Booked" chip, exactly what a caller is about to experience live.
 
 import { useEffect, useRef, useState } from "react";
-import BookingModal from "./BookingModal";
 
 const CALL_DISPLAY = "(657) 246-4071";
 const CALL_TEL = "tel:+16572464071";
@@ -164,8 +163,6 @@ function VitalsDivider() {
 }
 
 export default function DentistDemo() {
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
-
   return (
     <div className="dnt">
       {/* Hero */}
@@ -201,19 +198,14 @@ export default function DentistDemo() {
 
       <VitalsDivider />
 
-      {/* One-line close: Brooklyn + booking, nothing else */}
+      {/* One-line close: Brooklyn, nothing else */}
       <section className="dnt-shell dnt-strip dnt-in" style={{ animationDelay: "0.7s" }}>
         <p className="dnt-badge">Based in Brooklyn, NY</p>
         <p className="dnt-strip-copy">
           We come to your office and set it up with you — $199–$997/month,
           usage minutes included.
         </p>
-        <button onClick={() => setIsBookingOpen(true)} className="dnt-call dnt-book">
-          Choose a time for your call
-        </button>
       </section>
-
-      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
     </div>
   );
 }
