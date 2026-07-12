@@ -310,7 +310,7 @@ export default function StickyCartBar() {
     pathname !== "/custom" &&
     pathname !== "/99" &&
     pathname !== "/catch-all" &&
-    pathname !== "/primebarber" &&
+    !pathname.startsWith("/primebarber") &&
     pathname !== "/bookcall" &&
     !pathname.startsWith("/dialer") &&
     !pathname.startsWith("/call") &&
