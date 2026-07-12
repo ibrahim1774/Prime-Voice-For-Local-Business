@@ -9,7 +9,7 @@ export const metadata = {
 };
 
 const STRIPE_URL = "https://buy.stripe.com/9B64gycug8yG7V86Qe3cc0e";
-const WISTIA_EMBED = "https://fast.wistia.net/embed/iframe/v8c3d0qn90zoxvf?videoFoam=true";
+const WISTIA_EMBED = "https://fast.wistia.net/embed/iframe/3i6d9t0ehw?videoFoam=true";
 
 export default function PrimeBarberVideoPage() {
   return (
