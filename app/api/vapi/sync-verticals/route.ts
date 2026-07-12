@@ -22,6 +22,7 @@ const CALL_REPORT_URL = "https://www.montivaro.com/api/vapi/call-report";
 const VERTICALS = [
   { key: "dentist", number: "+16572464071" },
   { key: "contractors", number: "+18406882671" },
+  { key: "website", number: "+19842992378" },
 ] as const;
 
 const PATCH_BODY = {
