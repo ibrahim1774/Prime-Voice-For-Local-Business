@@ -9,8 +9,15 @@ export const maxDuration = 30;
 export async function GET(request: NextRequest) {
   if (!isAuthed(request)) return unauthorized();
   await ensureSchema();
-  const rows = (await sql()`
-    SELECT * FROM catchall_calls ORDER BY created_at DESC LIMIT 200`) as any[];
+  // ?product=montivaro|primebarber scopes the log to one demo line; no param
+  // returns everything.
+  const product = request.nextUrl.searchParams.get("product") || "";
+  const rows = (product
+    ? await sql()`
+        SELECT * FROM catchall_calls WHERE product = ${product}
+        ORDER BY created_at DESC LIMIT 200`
+    : await sql()`
+        SELECT * FROM catchall_calls ORDER BY created_at DESC LIMIT 200`) as any[];
   return NextResponse.json({ calls: rows });
 }
 
