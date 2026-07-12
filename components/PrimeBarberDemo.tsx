@@ -110,6 +110,14 @@ export default function PrimeBarberDemo() {
           <MiniWave />
         </div>
 
+        {/* One-liner above the call button */}
+        <p
+          className="mv2-ca-in"
+          style={{ animationDelay: "0.5s", color: "#fff", fontWeight: 800, fontSize: 15, marginBottom: 12 }}
+        >
+          Call our team &mdash; ready to answer any questions you have, 24/7.
+        </p>
+
         {/* Call button */}
         <a {...callProps} className="mv2-btn mv2-btn-light mv2-catchall-call">
           <svg
