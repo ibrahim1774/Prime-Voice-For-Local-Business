@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sendMetaEvent } from "@/lib/metaCapi";
 import { after } from "next/server";
 
 // Vapi end-of-call-report webhook for the catch-all demo assistant.
@@ -62,7 +63,7 @@ function buildSmsBody(lead: {
       : lead.name || lead.business || "A caller";
 
   const header = [`🔔 New lead — ${who} just called.`];
-  if (lead.summary) header.push(truncate(lead.summary, 120));
+  if (lead.summary) header.push(truncate(lead.summary, 240));
   header.push(`📞 ${lead.callerNumber}`);
 
   const pitch = [
@@ -168,6 +169,18 @@ export async function POST(request: NextRequest) {
       );
       return;
     }
+
+    // Meta ads optimization signal: a QualifiedLead is a caller who actually
+    // described their business — far stronger than the click-to-call Lead the
+    // site fires. Server-side with the caller's phone as the match key;
+    // event_id = Vapi call id so webhook retries can't double-count.
+    await sendMetaEvent({
+      eventName: "QualifiedLead",
+      phone: lead.callerNumber,
+      eventId: message?.call?.id || undefined,
+      actionSource: "phone_call",
+      customData: { lead_type: "qualified_demo_call" },
+    });
 
     await new Promise((resolve) => setTimeout(resolve, SMS_DELAY_MS));
     try {
