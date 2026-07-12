@@ -1,0 +1,412 @@
+/* ── Porcelain Clinic — /dentist ─────────────────────────────────────────
+   The one light page in a dark site. Porcelain ground, deep teal ink,
+   surgical-mint accents. Bricolage Grotesque display / Instrument Sans body /
+   Plex Mono stamps. All motion respects prefers-reduced-motion. */
+
+.dnt {
+  --porcelain: #f6faf8;
+  --enamel: #ffffff;
+  --ink: #0c2624;
+  --ink-soft: #40615d;
+  --mint: #dcf1ea;
+  --mint-line: #bfe3d8;
+  --surgical: #0e8c7c;
+  --surgical-deep: #0a6e62;
+  --pulse: #23b893;
+
+  font-family: var(--dnt-body), system-ui, sans-serif;
+  background:
+    radial-gradient(1100px 520px at 85% -8%, #e7f4ee 0%, transparent 60%),
+    radial-gradient(900px 480px at -12% 30%, #eef7f3 0%, transparent 55%),
+    var(--porcelain);
+  color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.dnt-shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 22px;
+}
+
+/* ── entrances ── */
+@keyframes dntUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.dnt-in {
+  opacity: 0;
+  animation: dntUp 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+.dnt-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1), transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.dnt-reveal.in { opacity: 1; transform: translateY(0); }
+
+/* ── hero ── */
+.dnt-hero {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 48px;
+  align-items: center;
+  padding-top: 92px;
+  padding-bottom: 72px;
+}
+.dnt-eyebrow {
+  font-family: var(--dnt-mono), monospace;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--surgical);
+}
+.dnt-h1 {
+  font-family: var(--dnt-display), serif;
+  font-weight: 600;
+  font-size: clamp(34px, 4.6vw, 54px);
+  line-height: 1.06;
+  letter-spacing: -0.015em;
+  margin-top: 18px;
+}
+.dnt-h1 > span { display: inline; }
+.dnt-h1-accent { color: var(--surgical-deep); }
+.dnt-sub {
+  margin-top: 20px;
+  font-size: 16.5px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  max-width: 46ch;
+}
+.dnt-cta {
+  margin-top: 30px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+.dnt-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--surgical);
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  padding: 16px 28px;
+  border-radius: 999px;
+  border: 0;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 10px 26px rgba(14, 140, 124, 0.28);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.dnt-call:hover {
+  background: var(--surgical-deep);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(14, 140, 124, 0.34);
+}
+.dnt-call:focus-visible,
+.dnt-number:focus-visible,
+.dnt-try:focus-visible {
+  outline: 3px solid var(--pulse);
+  outline-offset: 3px;
+}
+@keyframes dntPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55); }
+  55% { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0); }
+}
+.dnt-live {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  animation: dntPulse 1.9s ease-out infinite;
+}
+.dnt-number {
+  font-family: var(--dnt-mono), monospace;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--surgical-deep);
+  text-decoration: none;
+  border-bottom: 1.5px solid var(--mint-line);
+  padding-bottom: 2px;
+  transition: border-color 0.15s ease;
+}
+.dnt-number:hover { border-color: var(--surgical); }
+.dnt-hint {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* ── transcript card ── */
+.dnt-card {
+  background: var(--enamel);
+  border: 1px solid var(--mint-line);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(12, 38, 36, 0.1);
+  overflow: hidden;
+}
+.dnt-card-top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--mint);
+}
+.dnt-card-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pulse);
+  animation: dntPulse 1.9s ease-out infinite;
+}
+.dnt-card-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.dnt-card-clock {
+  margin-left: auto;
+  font-family: var(--dnt-mono), monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  letter-spacing: 0.08em;
+}
+.dnt-card-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px 18px 0;
+}
+.dnt-card-tab {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+.dnt-card-tab.on { background: var(--mint); color: var(--surgical-deep); }
+.dnt-card-body {
+  padding: 14px 18px 18px;
+  min-height: 248px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.dnt-msg {
+  max-width: 88%;
+  font-size: 13.5px;
+  line-height: 1.5;
+  padding: 9px 13px;
+  border-radius: 13px;
+  animation: dntUp 0.4s ease forwards;
+}
+.dnt-msg-who {
+  display: block;
+  font-family: var(--dnt-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+  opacity: 0.6;
+}
+.dnt-msg.patient {
+  align-self: flex-start;
+  background: #f0f4f3;
+  border-bottom-left-radius: 4px;
+}
+.dnt-msg.desk {
+  align-self: flex-end;
+  background: var(--mint);
+  color: var(--ink);
+  border-bottom-right-radius: 4px;
+}
+.dnt-dots { display: inline-flex; gap: 4px; padding: 3px 2px 1px; }
+.dnt-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--surgical);
+  opacity: 0.4;
+  animation: dntBlink 1s infinite;
+}
+.dnt-dots i:nth-child(2) { animation-delay: 0.18s; }
+.dnt-dots i:nth-child(3) { animation-delay: 0.36s; }
+@keyframes dntBlink { 50% { opacity: 1; } }
+.dnt-stamp {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 5px;
+  font-family: var(--dnt-mono), monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--surgical-deep);
+  background: var(--mint);
+  border: 1px dashed var(--surgical);
+  border-radius: 999px;
+  padding: 7px 14px;
+  animation: dntStamp 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+@keyframes dntStamp {
+  from { opacity: 0; transform: scale(0.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── vitals divider ── */
+.dnt-vitals { max-width: 1080px; margin: 0 auto; padding: 8px 22px; }
+.dnt-vitals svg { width: 100%; height: 40px; display: block; }
+.dnt-vitals-path {
+  stroke: var(--mint-line);
+  stroke-dasharray: 640;
+  stroke-dashoffset: 640;
+  animation: dntTrace 3.2s ease-out forwards;
+}
+@keyframes dntTrace { to { stroke-dashoffset: 0; } }
+
+/* ── sections ── */
+.dnt-section { padding: 64px 22px 72px; }
+.dnt-h2 {
+  font-family: var(--dnt-display), serif;
+  font-weight: 600;
+  font-size: clamp(26px, 3.2vw, 36px);
+  letter-spacing: -0.01em;
+  line-height: 1.12;
+}
+.dnt-lede {
+  margin-top: 12px;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  max-width: 54ch;
+}
+.dnt-grid {
+  margin-top: 32px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.dnt-try {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--enamel);
+  border: 1px solid var(--mint-line);
+  border-radius: 16px;
+  padding: 22px 20px;
+  text-decoration: none;
+  color: var(--ink);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.dnt-try:hover {
+  transform: translateY(-3px);
+  border-color: var(--surgical);
+  box-shadow: 0 16px 36px rgba(12, 38, 36, 0.1);
+}
+.dnt-try-say {
+  font-family: var(--dnt-display), serif;
+  font-weight: 600;
+  font-size: 17.5px;
+  line-height: 1.3;
+}
+.dnt-try-hear {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.dnt-try-go {
+  margin-top: auto;
+  font-family: var(--dnt-mono), monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--surgical-deep);
+}
+
+/* ── owner section ── */
+.dnt-owner {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 48px;
+  align-items: center;
+}
+.dnt-list {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+}
+.dnt-list li {
+  position: relative;
+  padding-left: 26px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.dnt-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--mint);
+  border: 1.5px solid var(--surgical);
+}
+.dnt-sms { justify-self: center; width: min(340px, 100%); }
+.dnt-sms-meta {
+  font-family: var(--dnt-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+.dnt-sms-bubble {
+  background: var(--ink);
+  color: #eef7f4;
+  font-size: 13.5px;
+  line-height: 1.6;
+  border-radius: 18px 18px 18px 5px;
+  padding: 16px 18px;
+  box-shadow: 0 20px 46px rgba(12, 38, 36, 0.22);
+}
+
+/* ── close ── */
+.dnt-close { text-align: center; padding-bottom: 110px; }
+.dnt-badge {
+  display: inline-block;
+  font-family: var(--dnt-mono), monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--surgical-deep);
+  background: var(--mint);
+  border-radius: 999px;
+  padding: 7px 15px;
+  margin-bottom: 18px;
+}
+.dnt-close .dnt-lede { margin-left: auto; margin-right: auto; }
+.dnt-close .dnt-cta { margin-top: 30px; }
+.dnt-book { font-size: 15.5px; }
+
+/* ── responsive ── */
+@media (max-width: 860px) {
+  .dnt-hero { grid-template-columns: 1fr; gap: 36px; padding-top: 64px; }
+  .dnt-grid { grid-template-columns: 1fr; }
+  .dnt-owner { grid-template-columns: 1fr; gap: 32px; }
+}
+
+/* ── reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .dnt-in, .dnt-reveal { opacity: 1; transform: none; animation: none; transition: none; }
+  .dnt-live, .dnt-card-dot, .dnt-dots i { animation: none; }
+  .dnt-vitals-path { animation: none; stroke-dashoffset: 0; }
+  .dnt-msg, .dnt-stamp { animation: none; opacity: 1; }
+  .dnt-call, .dnt-try { transition: none; }
+}

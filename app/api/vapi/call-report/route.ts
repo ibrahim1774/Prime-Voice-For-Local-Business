@@ -5,11 +5,11 @@ import { after } from "next/server";
 
 // Vapi end-of-call-report webhook for the demo assistants.
 //
-// Two lines report here: the catch-all Montivaro demo (a prospect calls, the
-// assistant asks about their business, and 30 seconds after hangup THEY
-// receive the exact lead-alert SMS a Montivaro owner would get) and the
-// Prime Barber line (a barber asks about the $97/month program and gets the
-// Prime Barber pitch text with the booking link).
+// Four lines report here: the catch-all Montivaro demo, the dentist and
+// contractors vertical demos (all three: the caller experiences the
+// receptionist, then 30 seconds after hangup THEY receive the lead-alert SMS
+// an owner would get), and the Prime Barber line (a barber asks about the
+// $97/month program and gets the Prime Barber pitch text).
 //
 // Auth: Vapi sends the assistant's server secret in x-vapi-secret; anything
 // else is rejected, so nobody can trigger SMS sends to arbitrary numbers.
@@ -19,6 +19,33 @@ export const maxDuration = 90;
 const CATCHALL_ASSISTANT_ID = "52081d54-3e98-4213-88cc-b618985a1d9b";
 const PRIMEBARBER_ASSISTANT_ID = "52d9dbcd-a215-4794-8bd7-fe2bd982fd35";
 const SMS_DELAY_MS = 30_000;
+
+type Product = "montivaro" | "primebarber" | "dentist" | "contractors";
+
+// The dentist/contractors assistants live in the Vapi dashboard and their
+// ids land in app_config via /api/vapi/sync-verticals. Cached briefly; an
+// empty result is never cached, so a call right after provisioning can't be
+// misattributed for the cache window. Runs inside after(), so this lookup
+// never delays the webhook response.
+let vertCache: { map: Record<string, Product>; at: number } = { map: {}, at: 0 };
+async function verticalAssistants(): Promise<Record<string, Product>> {
+  const filled = Object.keys(vertCache.map).length > 0;
+  if (filled && Date.now() - vertCache.at < 60_000) return vertCache.map;
+  try {
+    await ensureSchema();
+    const rows = (await sql()`
+      SELECT key, value FROM app_config
+      WHERE key IN ('dentist_assistant_id', 'contractors_assistant_id')`) as any[];
+    const map: Record<string, Product> = {};
+    for (const r of rows) {
+      if (r.value) map[r.value] = r.key === "dentist_assistant_id" ? "dentist" : "contractors";
+    }
+    vertCache = { map, at: Date.now() };
+  } catch {
+    // keep whatever we had
+  }
+  return vertCache.map;
+}
 
 function env(name: string): string | undefined {
   const v = process.env[name];
@@ -89,6 +116,40 @@ function buildSmsBody(lead: {
   ].join("\n\n");
 }
 
+// Dentist variant of the sample alert: same alert header, tighter pitch,
+// plus the Brooklyn in-office setup line.
+function buildDentistSmsBody(lead: {
+  name?: string;
+  business?: string;
+  summary?: string;
+  callerNumber: string;
+}): string {
+  const who =
+    lead.name && lead.business
+      ? `${lead.name} from ${lead.business}`
+      : lead.name || lead.business || "A caller";
+
+  const header = [`🔔 New lead — ${who} just called.`];
+  if (lead.summary) header.push(truncate(lead.summary, 240));
+  header.push(`📞 ${lead.callerNumber}`);
+
+  return [
+    header.join("\n"),
+    [
+      "Sample AI Receptionist Call Alert.",
+      "",
+      "Custom-built for your practice:",
+      "• 24/7 or after-hours",
+      "• Custom call flow",
+      "• SMS/email alerts",
+      "• CRM integration",
+    ].join("\n"),
+    "$199–$997/month — usage minutes included.",
+    "We're based in Brooklyn — we'll even come to your office and set it up with you.",
+    "📅 Pick the best time for us to call you:\nmontivaro.com/bookcall",
+  ].join("\n\n");
+}
+
 function buildPrimeBarberSmsBody(lead: { name?: string }): string {
   const hi = lead.name ? `, ${lead.name}` : "";
   return [
@@ -136,12 +197,15 @@ export async function POST(request: NextRequest) {
   after(async () => {
     const assistantId: string | undefined =
       message?.assistant?.id || message?.call?.assistantId;
-    const product: "montivaro" | "primebarber" | null =
+    const verticals = assistantId ? await verticalAssistants() : {};
+    const product: Product | null =
       assistantId === PRIMEBARBER_ASSISTANT_ID
         ? "primebarber"
-        : !assistantId || assistantId === CATCHALL_ASSISTANT_ID
-          ? "montivaro"
-          : null;
+        : assistantId && verticals[assistantId]
+          ? verticals[assistantId]
+          : !assistantId || assistantId === CATCHALL_ASSISTANT_ID
+            ? "montivaro"
+            : null;
     if (!product) {
       console.log(`call-report: ignored report from assistant ${assistantId}`);
       return;
@@ -258,9 +322,7 @@ export async function POST(request: NextRequest) {
       actionSource: "phone_call",
       customData: {
         lead_type:
-          product === "primebarber"
-            ? "primebarber_demo_call"
-            : "qualified_demo_call",
+          product === "montivaro" ? "qualified_demo_call" : `${product}_demo_call`,
       },
     });
 
@@ -269,7 +331,9 @@ export async function POST(request: NextRequest) {
       const body =
         product === "primebarber"
           ? buildPrimeBarberSmsBody(lead)
-          : buildSmsBody(lead);
+          : product === "dentist"
+            ? buildDentistSmsBody(lead)
+            : buildSmsBody(lead);
       const sid = await sendSms(lead.callerNumber, body);
       console.log(`call-report: lead SMS sent to ${lead.callerNumber} (${sid})`);
     } catch (err) {

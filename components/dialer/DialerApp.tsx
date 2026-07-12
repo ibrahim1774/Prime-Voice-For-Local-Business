@@ -734,12 +734,13 @@ export default function DialerApp() {
     } catch (err) { guard(err); }
   };
 
-  // ── demo-line calls (Custom Demo = montivaro catch-all, Prime Barber) ──
+  // ── demo-line calls (Custom Demo = montivaro catch-all + dentist +
+  // contractors verticals; Prime Barber has its own page) ──
   const [catchallCalls, setCatchallCalls] = useState<any[]>([]);
   useEffect(() => {
     if (!(authed && (tab === "catchall" || tab === "primebarber"))) return;
     setCatchallCalls([]);
-    const product = tab === "primebarber" ? "primebarber" : "montivaro";
+    const product = tab === "primebarber" ? "primebarber" : "montivaro,dentist,contractors";
     api(`catchall?product=${product}`).then((d) => setCatchallCalls(d.calls || [])).catch(guard);
   }, [authed, tab, guard]);
   const deleteCatchall = async (id: number, label: string) => {
@@ -1448,6 +1449,7 @@ export default function DialerApp() {
                       <span className="dlr-mono" style={{ display: "block", marginTop: 3, fontSize: 11.5, color: "var(--smoke-d)" }}>
                         {timeAgo(c.created_at)}{c.duration_seconds ? ` · ${mmss(c.duration_seconds)}` : ""}
                         {c.qualified ? " · qualified ✓" : ""}
+                        {c.product === "dentist" ? " · Dentist" : c.product === "contractors" ? " · Contractors" : ""}
                       </span>
                     </span>
                     <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
