@@ -6,7 +6,7 @@ import { createHash } from "crypto";
 // every event MUST carry custom_data.product = "montivaro" so Custom
 // Conversions can filter per product (the Ariyalab purchase over-count came
 // from missing exactly this).
-const PIXEL_ID = "26490568997297314";
+const PIXEL_ID = "1287427660086229";
 
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");

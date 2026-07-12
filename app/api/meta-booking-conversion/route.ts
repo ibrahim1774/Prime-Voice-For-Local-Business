@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PIXEL_ID = "26490568997297314";
+const PIXEL_ID = "1287427660086229";
 
 export async function POST(request: NextRequest) {
   const accessToken = process.env.META_ACCESS_TOKEN;
