@@ -817,11 +817,11 @@ export default function DialerApp() {
                       className={`dlr-tab${tab === "leads" || tab === "catchall" ? " active" : ""}`}
                       aria-haspopup="menu"
                     >
-                      {tab === "catchall" ? "Catch-all" : "Leads"} ▾
+                      {tab === "catchall" ? "Custom demo" : "Leads"} ▾
                     </button>
                     <span className="dlr-tabmenu" role="menu">
                       <button role="menuitem" onClick={() => setTab("leads")} className={tab === "leads" ? "on" : ""}>All leads</button>
-                      <button role="menuitem" onClick={() => setTab("catchall")} className={tab === "catchall" ? "on" : ""}>Catch-all calls</button>
+                      <button role="menuitem" onClick={() => setTab("catchall")} className={tab === "catchall" ? "on" : ""}>Custom demo calls</button>
                     </span>
                   </span>
                 ) : (
@@ -1430,7 +1430,7 @@ export default function DialerApp() {
         {/* ══ CATCH-ALL CALLS ══ */}
         {tab === "catchall" && (
           <section className="dlr-panel dlr-panel-p">
-            <h2 className="dlr-h dlr-display">Catch-all calls</h2>
+            <h2 className="dlr-h dlr-display">Custom demo calls</h2>
             <p className="dlr-sub">Every call your AI demo assistant takes lands here automatically — number, summary, full conversation, and the recording.</p>
             <ul style={{ marginTop: 16, display: "grid", gap: 10 }}>
               {catchallCalls.map((c) => (
@@ -1467,7 +1467,7 @@ export default function DialerApp() {
                   )}
                 </li>
               ))}
-              {!catchallCalls.length && <li className="dlr-sub">No catch-all calls yet — they appear here the moment someone calls your demo assistant.</li>}
+              {!catchallCalls.length && <li className="dlr-sub">No demo calls yet — they appear here the moment someone calls your demo assistant.</li>}
             </ul>
           </section>
         )}
