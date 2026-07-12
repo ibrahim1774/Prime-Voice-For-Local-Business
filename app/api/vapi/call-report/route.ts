@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendMetaEvent } from "@/lib/metaCapi";
+import { ensureSchema, sql } from "@/lib/dialer/core";
 import { after } from "next/server";
 
 // Vapi end-of-call-report webhook for the catch-all demo assistant.
@@ -147,6 +148,39 @@ export async function POST(request: NextRequest) {
   // Respond to Vapi immediately (it retries slow webhooks, which would
   // duplicate the SMS); the delayed send runs after the response.
   after(async () => {
+    // Persist EVERY catch-all call (qualified or not, web calls included) so
+    // the dialer's "Catch-all calls" page can show number, summary, full
+    // transcript, recording, and duration. vapi_call_id dedupes retries.
+    try {
+      await ensureSchema();
+      const startedAtMs = Date.parse(message?.startedAt || "") || 0;
+      const endedAtMs = Date.parse(message?.endedAt || "") || 0;
+      const duration = Math.round(
+        Number(message?.durationSeconds) ||
+          (endedAtMs > startedAtMs ? (endedAtMs - startedAtMs) / 1000 : 0)
+      );
+      const transcript: string =
+        (typeof message?.artifact?.transcript === "string" && message.artifact.transcript) ||
+        (typeof message?.transcript === "string" && message.transcript) ||
+        "";
+      const recordingUrl: string =
+        (typeof message?.artifact?.recordingUrl === "string" && message.artifact.recordingUrl) ||
+        (typeof message?.recordingUrl === "string" && message.recordingUrl) ||
+        (typeof message?.stereoRecordingUrl === "string" && message.stereoRecordingUrl) ||
+        "";
+      const vapiCallId: string | null = message?.call?.id || null;
+      await sql()`
+        INSERT INTO catchall_calls
+          (vapi_call_id, phone, name, business, summary, transcript, recording_url, duration_seconds, qualified)
+        VALUES
+          (${vapiCallId}, ${lead.callerNumber}, ${lead.name}, ${lead.business},
+           ${lead.summary}, ${transcript.slice(0, 20000)}, ${recordingUrl},
+           ${duration}, ${qualified})
+        ON CONFLICT (vapi_call_id) DO NOTHING`;
+    } catch (err) {
+      console.error("call-report: failed to persist catch-all call", err);
+    }
+
     if (forwardUrl) {
       try {
         await fetch(forwardUrl, {

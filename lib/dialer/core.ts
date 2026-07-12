@@ -80,6 +80,21 @@ export async function ensureSchema() {
   // Wave losers get a short apology message, not a conversation — flagged so
   // the Calls tab can show only real prospect calls.
   await q`ALTER TABLE dialer_calls ADD COLUMN IF NOT EXISTS wave_lost boolean NOT NULL DEFAULT false`;
+  // Every catch-all demo call (the Vapi assistant), persisted by the
+  // call-report webhook for the dialer's "Catch-all calls" page.
+  await q`CREATE TABLE IF NOT EXISTS catchall_calls (
+    id serial PRIMARY KEY,
+    vapi_call_id text UNIQUE,
+    phone text NOT NULL DEFAULT '',
+    name text NOT NULL DEFAULT '',
+    business text NOT NULL DEFAULT '',
+    summary text NOT NULL DEFAULT '',
+    transcript text NOT NULL DEFAULT '',
+    recording_url text NOT NULL DEFAULT '',
+    duration_seconds int NOT NULL DEFAULT 0,
+    qualified boolean NOT NULL DEFAULT false,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`;
   await q`CREATE INDEX IF NOT EXISTS dialer_leads_status_state_idx ON dialer_leads (status, state)`;
   await q`CREATE INDEX IF NOT EXISTS dialer_leads_list_idx ON dialer_leads (list_name)`;
   // area_code is UNIQUE: the reservation row is what makes "buy a number for
