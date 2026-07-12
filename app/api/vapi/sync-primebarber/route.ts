@@ -155,6 +155,9 @@ export async function POST(request: NextRequest) {
   const body = assistantBody(catchall?.voice, catchall?.transcriber, secret);
 
   // Assistant: update in place if we made one before (and it still exists).
+  // If the stored id is gone or was never written (e.g. a previous run died
+  // between the Vapi create and the config write), adopt an existing
+  // "Prime Barber" assistant by name before ever creating a second one.
   let assistantId = await getConfig("primebarber_assistant_id");
   let createdAssistant = false;
   if (assistantId) {
@@ -162,6 +165,16 @@ export async function POST(request: NextRequest) {
       headers: auth,
     });
     if (check.status === 404) assistantId = "";
+  }
+  if (!assistantId) {
+    const listResp = await fetch("https://api.vapi.ai/assistant?limit=1000", {
+      headers: auth,
+    });
+    const list: any[] = listResp.ok ? await listResp.json().catch(() => []) : [];
+    const existing = Array.isArray(list)
+      ? list.find((a) => a?.name === "Prime Barber" && a?.id)
+      : null;
+    if (existing) assistantId = existing.id;
   }
   if (assistantId) {
     const patch = await fetch(`https://api.vapi.ai/assistant/${assistantId}`, {
@@ -191,48 +204,80 @@ export async function POST(request: NextRequest) {
     }
     assistantId = created.id;
     createdAssistant = true;
-    await setConfig("primebarber_assistant_id", assistantId);
   }
+  await setConfig("primebarber_assistant_id", assistantId);
 
-  // Phone number: reuse the remembered one, else adopt an existing Vapi
-  // number already pointed at this assistant, else provision a free one.
-  let number = await getConfig("primebarber_number");
-  let createdNumber = false;
-  if (!number) {
-    const listResp = await fetch("https://api.vapi.ai/phone-number", { headers: auth });
-    const list: any[] = listResp.ok ? await listResp.json().catch(() => []) : [];
-    const existing = Array.isArray(list)
-      ? list.find((p) => p?.assistantId === assistantId && p?.number)
-      : null;
-    if (existing) {
-      number = existing.number;
-    } else {
-      const buy = await fetch("https://api.vapi.ai/phone-number", {
-        method: "POST",
-        headers: json,
-        body: JSON.stringify({
-          provider: "vapi",
-          assistantId,
-          name: "Prime Barber",
-        }),
-      });
-      const bought: any = await buy.json().catch(() => ({}));
-      if (!buy.ok || !bought?.number) {
-        return NextResponse.json(
-          {
-            ok: false,
-            assistantId,
-            error: `Vapi number provisioning failed (${buy.status})`,
-            detail: bought?.message || null,
-          },
-          { status: 502 }
-        );
-      }
-      number = bought.number;
-      createdNumber = true;
-    }
-    await setConfig("primebarber_number", number);
+  // Phone number: find the line we already own (by remembered number, by
+  // assistant, or by name), re-bind it if it points at a stale assistant —
+  // an assistant recreation must never leave the live number ringing into a
+  // deleted one — and only provision a brand-new free number if none exists.
+  // The list call must succeed before any purchase decision: buying blind
+  // could stack up duplicate numbers.
+  const numbersResp = await fetch("https://api.vapi.ai/phone-number?limit=1000", {
+    headers: auth,
+  });
+  if (!numbersResp.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        assistantId,
+        error: `Vapi list phone numbers failed (${numbersResp.status})`,
+      },
+      { status: 502 }
+    );
   }
+  const numbers: any[] = (await numbersResp.json().catch(() => [])) || [];
+  const savedNumber = await getConfig("primebarber_number");
+  let entry =
+    (savedNumber && numbers.find((p) => p?.number === savedNumber)) ||
+    numbers.find((p) => p?.assistantId === assistantId && p?.number) ||
+    numbers.find((p) => p?.name === "Prime Barber" && p?.number) ||
+    null;
+  let createdNumber = false;
+  if (!entry) {
+    const buy = await fetch("https://api.vapi.ai/phone-number", {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({
+        provider: "vapi",
+        assistantId,
+        name: "Prime Barber",
+      }),
+    });
+    const bought: any = await buy.json().catch(() => ({}));
+    if (!buy.ok || !bought?.number) {
+      return NextResponse.json(
+        {
+          ok: false,
+          assistantId,
+          error: `Vapi number provisioning failed (${buy.status})`,
+          detail: bought?.message || null,
+        },
+        { status: 502 }
+      );
+    }
+    entry = bought;
+    createdNumber = true;
+  } else if (entry.assistantId !== assistantId && entry.id) {
+    const bind = await fetch(`https://api.vapi.ai/phone-number/${entry.id}`, {
+      method: "PATCH",
+      headers: json,
+      body: JSON.stringify({ assistantId }),
+    });
+    if (!bind.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          assistantId,
+          number: entry.number,
+          error: `Vapi number re-bind failed (${bind.status})`,
+        },
+        { status: 502 }
+      );
+    }
+  }
+  const number = entry.number;
+  await setConfig("primebarber_number", number);
 
   return NextResponse.json({
     ok: true,

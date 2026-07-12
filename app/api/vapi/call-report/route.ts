@@ -3,11 +3,13 @@ import { sendMetaEvent } from "@/lib/metaCapi";
 import { ensureSchema, sql } from "@/lib/dialer/core";
 import { after } from "next/server";
 
-// Vapi end-of-call-report webhook for the catch-all demo assistant.
+// Vapi end-of-call-report webhook for the demo assistants.
 //
-// Demo loop: a prospect calls the demo line, the assistant asks about their
-// business, and 30 seconds after hangup THEY receive the exact lead-alert SMS
-// a Montivaro owner would get — summary, their own number, and the recording.
+// Two lines report here: the catch-all Montivaro demo (a prospect calls, the
+// assistant asks about their business, and 30 seconds after hangup THEY
+// receive the exact lead-alert SMS a Montivaro owner would get) and the
+// Prime Barber line (a barber asks about the $97/month program and gets the
+// Prime Barber pitch text with the booking link).
 //
 // Auth: Vapi sends the assistant's server secret in x-vapi-secret; anything
 // else is rejected, so nobody can trigger SMS sends to arbitrary numbers.
@@ -19,10 +21,12 @@ const SMS_DELAY_MS = 30_000;
 
 // The Prime Barber assistant is provisioned at runtime by /api/vapi/
 // sync-primebarber and its id lives in app_config; cache it briefly so every
-// webhook doesn't hit the database for a value that never changes.
+// webhook doesn't hit the database for a value that never changes. An empty
+// result is NOT cached: right after provisioning, a stale "" would make this
+// route silently ignore real Prime Barber calls for the cache window.
 let pbCache: { id: string; at: number } = { id: "", at: 0 };
 async function primebarberAssistantId(): Promise<string> {
-  if (Date.now() - pbCache.at < 60_000) return pbCache.id;
+  if (pbCache.id && Date.now() - pbCache.at < 60_000) return pbCache.id;
   try {
     await ensureSchema();
     const rows = (await sql()`
@@ -141,63 +145,69 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, ignored: message?.type || "unknown" });
   }
 
-  const assistantId: string | undefined =
-    message?.assistant?.id || message?.call?.assistantId;
-  const pbAssistantId = await primebarberAssistantId();
-  const product: "montivaro" | "primebarber" | null =
-    assistantId && pbAssistantId && assistantId === pbAssistantId
-      ? "primebarber"
-      : !assistantId || assistantId === CATCHALL_ASSISTANT_ID
-        ? "montivaro"
-        : null;
-  if (!product) {
-    return NextResponse.json({ ok: true, ignored: "other-assistant" });
-  }
-
-  // Web click-to-call sessions have no phone number — nothing to text.
-  const callerNumber: string | undefined =
-    message?.customer?.number || message?.call?.customer?.number;
-
-  const structured: any = message?.analysis?.structuredData || {};
-  const lead = {
-    name: typeof structured.name === "string" ? structured.name.trim() : "",
-    // Prime Barber's analysis captures the barbershop; the catch-all captures
-    // a generic business name. Both land in the same column.
-    business:
-      product === "primebarber"
-        ? typeof structured.shopName === "string"
-          ? structured.shopName.trim()
-          : ""
-        : typeof structured.businessName === "string"
-          ? structured.businessName.trim()
-          : "",
-    summary:
-      typeof message?.analysis?.summary === "string"
-        ? message.analysis.summary
-        : "",
-    callerNumber: callerNumber || "",
-  };
-
-  // Only text real leads: the analysis marks the call qualified when the
-  // caller actually described their business/shop. A hangup, wrong number, or
-  // "hello?...click" gets no pitch.
-  const businessType =
-    typeof structured.businessType === "string"
-      ? structured.businessType.trim()
-      : "";
-  const qualified =
-    structured.qualified === true || Boolean(lead.business) || Boolean(businessType);
-
   // Keep the Make lead flow (or any other consumer) alive: forward the raw
   // report when FORWARD_WEBHOOK_URL is set. Fire-and-forget, fail-soft.
   const forwardUrl = env("FORWARD_WEBHOOK_URL");
 
-  // Respond to Vapi immediately (it retries slow webhooks, which would
-  // duplicate the SMS); the delayed send runs after the response.
+  // Respond to Vapi immediately — it retries slow webhooks, which would
+  // duplicate the SMS — so EVERYTHING that can touch the network or the
+  // database (assistant attribution included) runs after the response.
   after(async () => {
-    // Persist EVERY catch-all call (qualified or not, web calls included) so
-    // the dialer's "Catch-all calls" page can show number, summary, full
-    // transcript, recording, and duration. vapi_call_id dedupes retries.
+    const assistantId: string | undefined =
+      message?.assistant?.id || message?.call?.assistantId;
+    const pbAssistantId = await primebarberAssistantId();
+    const product: "montivaro" | "primebarber" | null =
+      assistantId && pbAssistantId && assistantId === pbAssistantId
+        ? "primebarber"
+        : !assistantId || assistantId === CATCHALL_ASSISTANT_ID
+          ? "montivaro"
+          : null;
+    if (!product) {
+      console.log(`call-report: ignored report from assistant ${assistantId}`);
+      return;
+    }
+
+    // Web click-to-call sessions have no phone number — nothing to text.
+    const callerNumber: string | undefined =
+      message?.customer?.number || message?.call?.customer?.number;
+
+    const structured: any = message?.analysis?.structuredData || {};
+    const lead = {
+      name: typeof structured.name === "string" ? structured.name.trim() : "",
+      // Prime Barber's analysis captures the barbershop; the catch-all
+      // captures a generic business name. Both land in the same column.
+      business:
+        product === "primebarber"
+          ? typeof structured.shopName === "string"
+            ? structured.shopName.trim()
+            : ""
+          : typeof structured.businessName === "string"
+            ? structured.businessName.trim()
+            : "",
+      summary:
+        typeof message?.analysis?.summary === "string"
+          ? message.analysis.summary
+          : "",
+      callerNumber: callerNumber || "",
+    };
+
+    // Only text real leads: the analysis marks the call qualified when the
+    // caller actually described their business/shop. A hangup, wrong number,
+    // or "hello?...click" gets no pitch.
+    const businessType =
+      typeof structured.businessType === "string"
+        ? structured.businessType.trim()
+        : "";
+    const qualified =
+      structured.qualified === true ||
+      Boolean(lead.business) ||
+      Boolean(businessType);
+
+    // Persist EVERY demo call (qualified or not, web calls included) so the
+    // dialer's "Custom Demo Calls" page can show number, summary, full
+    // transcript, recording, and duration. vapi_call_id dedupes retries —
+    // and a conflict means Vapi delivered this report before, so the SMS,
+    // forward, and Meta event were already handled: stop here.
     try {
       await ensureSchema();
       const startedAtMs = Date.parse(message?.startedAt || "") || 0;
@@ -216,16 +226,22 @@ export async function POST(request: NextRequest) {
         (typeof message?.stereoRecordingUrl === "string" && message.stereoRecordingUrl) ||
         "";
       const vapiCallId: string | null = message?.call?.id || null;
-      await sql()`
+      const inserted = (await sql()`
         INSERT INTO catchall_calls
           (vapi_call_id, phone, name, business, summary, transcript, recording_url, duration_seconds, qualified, product)
         VALUES
           (${vapiCallId}, ${lead.callerNumber}, ${lead.name}, ${lead.business},
            ${lead.summary}, ${transcript.slice(0, 20000)}, ${recordingUrl},
            ${duration}, ${qualified}, ${product})
-        ON CONFLICT (vapi_call_id) DO NOTHING`;
+        ON CONFLICT (vapi_call_id) DO NOTHING
+        RETURNING id`) as any[];
+      if (vapiCallId && inserted.length === 0) {
+        console.log(`call-report: duplicate delivery for call ${vapiCallId} — skipping`);
+        return;
+      }
     } catch (err) {
-      console.error("call-report: failed to persist catch-all call", err);
+      // Fail-soft: a persistence blip must not cost the lead their SMS.
+      console.error("call-report: failed to persist demo call", err);
     }
 
     if (forwardUrl) {
@@ -281,12 +297,5 @@ export async function POST(request: NextRequest) {
     }
   });
 
-  return NextResponse.json({
-    ok: true,
-    sms: !lead.callerNumber
-      ? "skipped-no-number"
-      : !qualified
-        ? "skipped-not-qualified"
-        : "scheduled",
-  });
+  return NextResponse.json({ ok: true });
 }

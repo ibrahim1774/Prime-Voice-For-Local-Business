@@ -47,7 +47,12 @@ export default function PrimeBarberDemo() {
       .catch(() => {});
   }, []);
 
+  // Until the line is provisioned, the call CTAs fall back to the booker —
+  // a visible primary button must never be a dead tap.
   const tel = number ? `tel:${number}` : undefined;
+  const callProps = tel
+    ? { href: tel }
+    : ({ role: "button", tabIndex: 0, onClick: () => setIsBookingOpen(true) } as const);
 
   return (
     <div className="mv2 mv2-catchall">
@@ -68,7 +73,7 @@ export default function PrimeBarberDemo() {
 
         {/* Highlighted test-it-now pill — right above the live audio demo */}
         <a
-          href={tel}
+          {...callProps}
           className="mv2-catchall-test mv2-ca-in"
           style={{ animationDelay: "0.36s", marginTop: "30px" }}
         >
@@ -81,7 +86,7 @@ export default function PrimeBarberDemo() {
         </div>
 
         {/* Call button */}
-        <a href={tel} className="mv2-btn mv2-btn-light mv2-catchall-call">
+        <a {...callProps} className="mv2-btn mv2-btn-light mv2-catchall-call">
           <svg
             width="20"
             height="20"
