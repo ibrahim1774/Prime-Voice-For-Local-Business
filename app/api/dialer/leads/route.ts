@@ -155,3 +155,45 @@ export async function POST(request: NextRequest) {
   }
   return NextResponse.json({ ok: true, added, updated, skipped });
 }
+
+function parseIds(body: any): number[] {
+  return (Array.isArray(body?.ids) ? body.ids : [])
+    .map(Number)
+    .filter(Number.isInteger)
+    .slice(0, 2000);
+}
+
+// PATCH — bulk status change: { ids: number[], status }.
+export async function PATCH(request: NextRequest) {
+  if (!isAuthed(request)) return unauthorized();
+  await ensureSchema();
+  const body = await request.json().catch(() => ({}));
+  const ids = parseIds(body);
+  const status = String(body?.status || "");
+  if (!ids.length) return NextResponse.json({ error: "No ids" }, { status: 400 });
+  if (!(LEAD_STATUSES as readonly string[]).includes(status)) {
+    return NextResponse.json({ error: "Bad status" }, { status: 400 });
+  }
+  const rows = (await sql()`
+    UPDATE dialer_leads SET status = ${status}, updated_at = now()
+    WHERE id = ANY(${ids}) RETURNING id`) as any[];
+  return NextResponse.json({ ok: true, updated: rows.length });
+}
+
+// DELETE — bulk: { ids: number[] }. DNC leads are never deleted by a mass
+// operation — the do-not-call record has to survive so the number stays
+// undialable. (The single-lead delete on /leads/[id] is the deliberate path.)
+export async function DELETE(request: NextRequest) {
+  if (!isAuthed(request)) return unauthorized();
+  await ensureSchema();
+  const body = await request.json().catch(() => ({}));
+  const ids = parseIds(body);
+  if (!ids.length) return NextResponse.json({ error: "No ids" }, { status: 400 });
+  const q = sql();
+  const deleted = (await q`
+    DELETE FROM dialer_leads WHERE id = ANY(${ids}) AND status <> 'dnc'
+    RETURNING id`) as any[];
+  const kept = (await q`
+    SELECT count(*)::int AS n FROM dialer_leads WHERE id = ANY(${ids})`) as any[];
+  return NextResponse.json({ ok: true, deleted: deleted.length, keptDnc: kept[0]?.n || 0 });
+}

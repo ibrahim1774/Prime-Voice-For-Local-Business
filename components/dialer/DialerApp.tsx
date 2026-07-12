@@ -12,6 +12,7 @@ import LeadImport from "./LeadImport";
 import { Icon } from "./icons";
 
 const TAB_LABELS = { dial: "Dial", leads: "Leads", texts: "Texts", calls: "Calls" } as const;
+const LEADS_PER_PAGE = 25;
 type Tab = "dial" | "leads" | "catchall" | "primebarber" | "texts" | "calls";
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
@@ -599,6 +600,7 @@ export default function DialerApp() {
       if (leadListFilter) p.set("list", leadListFilter);
       if (leadIndustryFilter) p.set("industry", leadIndustryFilter);
       if (leadSearch.trim()) p.set("search", leadSearch.trim());
+      p.set("limit", "2000");
       const data = await api(`leads?${p}`);
       setLeads(data.leads || []);
       const c: Record<string, number> = {};
@@ -665,6 +667,40 @@ export default function DialerApp() {
     if (!confirm(`Delete ${label}? This removes the lead and its call history for good.`)) return;
     try { await api(`leads/${id}`, { method: "DELETE" }); notify("Lead deleted"); loadLeads(); loadQueue(); }
     catch (err) { guard(err); }
+  };
+
+  // ── leads pagination + bulk selection ──
+  const [leadPage, setLeadPage] = useState(0);
+  const [selectedLeads, setSelectedLeads] = useState<number[]>([]);
+  useEffect(() => { setLeadPage(0); setSelectedLeads([]); }, [leadFilter, leadStateFilter, leadListFilter, leadIndustryFilter, leadSearch]);
+  const leadPages = Math.max(1, Math.ceil(leads.length / LEADS_PER_PAGE));
+  useEffect(() => { if (leadPage > leadPages - 1) setLeadPage(leadPages - 1); }, [leadPage, leadPages]);
+  const pageLeads = leads.slice(leadPage * LEADS_PER_PAGE, (leadPage + 1) * LEADS_PER_PAGE);
+  const toggleLead = (id: number, on: boolean) =>
+    setSelectedLeads((s) => (on ? [...new Set([...s, id])] : s.filter((x) => x !== id)));
+  const togglePage = (on: boolean) =>
+    setSelectedLeads((s) => {
+      const pageIds = pageLeads.map((l) => l.id);
+      return on ? [...new Set([...s, ...pageIds])] : s.filter((x) => !pageIds.includes(x));
+    });
+  const bulkStatus = async (status: string) => {
+    const n = selectedLeads.length;
+    try {
+      await api("leads", { method: "PATCH", body: JSON.stringify({ ids: selectedLeads, status }) });
+      notify(`${n} lead${n === 1 ? "" : "s"} marked ${STATUS_META[status as keyof typeof STATUS_META]?.label || status}`);
+      setSelectedLeads([]);
+      loadLeads(); loadQueue();
+    } catch (err) { guard(err); }
+  };
+  const bulkDelete = async () => {
+    const n = selectedLeads.length;
+    if (!confirm(`Delete ${n} selected lead${n === 1 ? "" : "s"} and their call history? DNC records are kept. This can't be undone.`)) return;
+    try {
+      const res = await api("leads", { method: "DELETE", body: JSON.stringify({ ids: selectedLeads }) });
+      notify(`Deleted ${res.deleted} leads${res.keptDnc ? ` · kept ${res.keptDnc} DNC` : ""}`);
+      setSelectedLeads([]);
+      loadLeads(); loadQueue();
+    } catch (err) { guard(err); }
   };
 
   // ── texts ──
@@ -1366,11 +1402,46 @@ export default function DialerApp() {
                   </div>
                 </div>
               )}
-              <ul style={{ marginTop: 16, display: "grid", gap: 7 }}>
-                {leads.map((l) => (
+              <div style={{ marginTop: 16, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "var(--smoke)", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={pageLeads.length > 0 && pageLeads.every((l) => selectedLeads.includes(l.id))}
+                    onChange={(e) => togglePage(e.target.checked)}
+                    style={{ accentColor: "var(--paper)" }}
+                  />
+                  Select page
+                </label>
+                {selectedLeads.length > 0 && (
+                  <>
+                    <span className="dlr-mono" style={{ fontSize: 11.5, color: "var(--smoke-d)" }}>{selectedLeads.length} selected</span>
+                    {selectedLeads.length < leads.length && (
+                      <button onClick={() => setSelectedLeads(leads.map((l) => l.id))} className="dlr-btn" style={{ padding: "5px 9px", fontSize: 11.5 }}>Select all {leads.length}</button>
+                    )}
+                    <select value="" onChange={(e) => { if (e.target.value) bulkStatus(e.target.value); }} className="dlr-select" style={{ width: "auto", padding: "6px 9px", fontSize: 12 }} aria-label="Mark selected leads as">
+                      <option value="">Mark as…</option>
+                      {Object.entries(STATUS_META).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
+                    </select>
+                    <button onClick={bulkDelete} className="dlr-btn danger" style={{ padding: "6px 11px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="trash" size={13} /> Delete selected</button>
+                    <button onClick={() => setSelectedLeads([])} className="dlr-btn" style={{ padding: "6px 9px", fontSize: 11.5 }}>Clear</button>
+                  </>
+                )}
+                <span className="dlr-mono" style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--smoke-d)" }}>
+                  {leads.length} lead{leads.length === 1 ? "" : "s"}{leadPages > 1 ? ` · page ${leadPage + 1}/${leadPages}` : ""}
+                </span>
+              </div>
+              <ul style={{ marginTop: 12, display: "grid", gap: 7 }}>
+                {pageLeads.map((l) => (
                   <li key={l.id} className="dlr-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                      <span style={{ minWidth: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedLeads.includes(l.id)}
+                        onChange={(e) => toggleLead(l.id, e.target.checked)}
+                        style={{ accentColor: "var(--paper)", flexShrink: 0 }}
+                        aria-label={`Select ${l.name || l.business || fmtPhone(l.phone)}`}
+                      />
+                      <span style={{ minWidth: 0, flex: 1 }}>
                         <span style={{ display: "block" }}>
                           <span className="dlr-name">{l.name || "—"}</span>
                           {l.business && <span className="dlr-company" style={{ color: "var(--smoke)" }}> · {l.business}</span>}
@@ -1425,6 +1496,13 @@ export default function DialerApp() {
                 ))}
                 {!leads.length && <li className="dlr-sub">No leads yet.</li>}
               </ul>
+              {leadPages > 1 && (
+                <div style={{ marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+                  <button onClick={() => setLeadPage((p) => Math.max(0, p - 1))} disabled={leadPage === 0} className="dlr-btn" style={{ padding: "7px 13px" }}>‹ Prev</button>
+                  <span className="dlr-mono" style={{ fontSize: 12, color: "var(--smoke)" }}>Page {leadPage + 1} of {leadPages}</span>
+                  <button onClick={() => setLeadPage((p) => Math.min(leadPages - 1, p + 1))} disabled={leadPage >= leadPages - 1} className="dlr-btn" style={{ padding: "7px 13px" }}>Next ›</button>
+                </div>
+              )}
             </section>
           </div>
         )}
