@@ -12,6 +12,7 @@ import LeadImport from "./LeadImport";
 import { Icon } from "./icons";
 
 const TAB_LABELS = { dial: "Dial", leads: "Leads", texts: "Texts", calls: "Calls" } as const;
+type Tab = "dial" | "leads" | "catchall" | "texts" | "calls";
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   new: { label: "New", color: "#8a8a92" },
@@ -160,7 +161,7 @@ export default function DialerApp() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [tab, setTab] = useState<"dial" | "leads" | "texts" | "calls">("dial");
+  const [tab, setTab] = useState<Tab>("dial");
   const [toast, setToast] = useState("");
 
   const notify = useCallback((msg: string) => {
@@ -333,12 +334,11 @@ export default function DialerApp() {
       loadQueue();
     }
   };
-  const dialManual = async () => {
-    const raw = manualPhone.trim();
-    if (!raw) return;
+  const dialNumber = async (raw: string) => {
+    if (!raw.trim()) return;
     if (refs.current.dialing || refs.current.session?.waveActive) { notify("A call is already in progress"); return; }
     if (!refs.current.session?.active) {
-      pendingManualRef.current = raw;
+      pendingManualRef.current = raw.trim();
       setAutoDial(false);
       setTab("dial");
       notify(callMode === "browser" ? "Connecting your session — the call fires as soon as audio is up" : "Starting a session — answer your phone, then the call fires");
@@ -346,8 +346,10 @@ export default function DialerApp() {
       if (!ok) pendingManualRef.current = "";
       return;
     }
-    await placeManualCall(raw);
+    setTab("dial");
+    await placeManualCall(raw.trim());
   };
+  const dialManual = () => dialNumber(manualPhone);
 
   // Poll session; auto-advance when a wave ends.
   useEffect(() => {
@@ -732,6 +734,20 @@ export default function DialerApp() {
     } catch (err) { guard(err); }
   };
 
+  // ── catch-all demo calls ──
+  const [catchallCalls, setCatchallCalls] = useState<any[]>([]);
+  useEffect(() => {
+    if (!(authed && tab === "catchall")) return;
+    api("catchall").then((d) => setCatchallCalls(d.calls || [])).catch(guard);
+  }, [authed, tab, guard]);
+  const deleteCatchall = async (id: number, label: string) => {
+    if (!confirm(`Delete this call from ${label}? The SMS conversation (if any) stays in Texts.`)) return;
+    try {
+      await api("catchall", { method: "DELETE", body: JSON.stringify({ id }) });
+      setCatchallCalls((cs) => cs.filter((c) => c.id !== id));
+    } catch (err) { guard(err); }
+  };
+
   // ── calls ──
   const [callLog, setCallLog] = useState<any[]>([]);
   useEffect(() => {
@@ -793,12 +809,28 @@ export default function DialerApp() {
               </button>
             </form>
             <nav className="dlr-tabs">
-              {(["dial", "leads", "texts", "calls"] as const).map((t) => (
-                <button key={t} onClick={() => setTab(t)} className={`dlr-tab${tab === t ? " active" : ""}`}>
-                  {TAB_LABELS[t]}
-                  {t === "texts" && unread > 0 && <span className="badge">{unread}</span>}
-                </button>
-              ))}
+              {(["dial", "leads", "texts", "calls"] as const).map((t) =>
+                t === "leads" ? (
+                  <span key={t} className="dlr-tabwrap">
+                    <button
+                      onClick={() => setTab("leads")}
+                      className={`dlr-tab${tab === "leads" || tab === "catchall" ? " active" : ""}`}
+                      aria-haspopup="menu"
+                    >
+                      {tab === "catchall" ? "Catch-all" : "Leads"} ▾
+                    </button>
+                    <span className="dlr-tabmenu" role="menu">
+                      <button role="menuitem" onClick={() => setTab("leads")} className={tab === "leads" ? "on" : ""}>All leads</button>
+                      <button role="menuitem" onClick={() => setTab("catchall")} className={tab === "catchall" ? "on" : ""}>Catch-all calls</button>
+                    </span>
+                  </span>
+                ) : (
+                  <button key={t} onClick={() => setTab(t)} className={`dlr-tab${tab === t ? " active" : ""}`}>
+                    {TAB_LABELS[t]}
+                    {t === "texts" && unread > 0 && <span className="badge">{unread}</span>}
+                  </button>
+                )
+              )}
             </nav>
           </div>
         </header>
@@ -1395,6 +1427,51 @@ export default function DialerApp() {
         )}
 
         {/* ══ TEXTS ══ */}
+        {/* ══ CATCH-ALL CALLS ══ */}
+        {tab === "catchall" && (
+          <section className="dlr-panel dlr-panel-p">
+            <h2 className="dlr-h dlr-display">Catch-all calls</h2>
+            <p className="dlr-sub">Every call your AI demo assistant takes lands here automatically — number, summary, full conversation, and the recording.</p>
+            <ul style={{ marginTop: 16, display: "grid", gap: 10 }}>
+              {catchallCalls.map((c) => (
+                <li key={c.id} className="dlr-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <span style={{ minWidth: 0 }}>
+                      <span className="dlr-name">{c.name || c.business || (c.phone ? fmtPhone(c.phone) : "Web call")}</span>
+                      {c.business && c.name && <span className="dlr-company" style={{ marginLeft: 7 }}>· {c.business}</span>}
+                      {c.phone && (c.name || c.business) && <span className="dlr-phone" style={{ marginLeft: 8 }}>{fmtPhone(c.phone)}</span>}
+                      <span className="dlr-mono" style={{ display: "block", marginTop: 3, fontSize: 11.5, color: "var(--smoke-d)" }}>
+                        {timeAgo(c.created_at)}{c.duration_seconds ? ` · ${mmss(c.duration_seconds)}` : ""}
+                        {c.qualified ? " · qualified ✓" : ""}
+                      </span>
+                    </span>
+                    <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      {c.phone && (
+                        <>
+                          <button title="Text them" onClick={() => { setTab("texts"); openThread(c.phone, { name: c.name, business: c.business, phone: c.phone }); }} className="dlr-btn" style={{ padding: "7px 11px" }}><Icon name="chat" /></button>
+                          <button title="Call them" onClick={() => dialNumber(c.phone)} className="dlr-btn" style={{ padding: "7px 11px" }}><Icon name="phone" /></button>
+                        </>
+                      )}
+                      <button title="Delete" onClick={() => deleteCatchall(c.id, c.name || c.business || (c.phone ? fmtPhone(c.phone) : "this caller"))} className="dlr-btn danger" style={{ padding: "7px 11px" }}><Icon name="trash" /></button>
+                    </span>
+                  </div>
+                  {c.summary && <p className="dlr-sub" style={{ marginTop: 0 }}>{c.summary}</p>}
+                  {c.recording_url && (
+                    <audio controls preload="none" style={{ width: "100%", height: 34 }} src={c.recording_url} />
+                  )}
+                  {c.transcript && (
+                    <details>
+                      <summary className="dlr-sub" style={{ cursor: "pointer", marginTop: 0 }}>Full conversation</summary>
+                      <pre style={{ marginTop: 8, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 12.5, lineHeight: 1.6, color: "var(--smoke)", maxHeight: 300, overflowY: "auto" }} className="dlr-scroll">{c.transcript}</pre>
+                    </details>
+                  )}
+                </li>
+              ))}
+              {!catchallCalls.length && <li className="dlr-sub">No catch-all calls yet — they appear here the moment someone calls your demo assistant.</li>}
+            </ul>
+          </section>
+        )}
+
         {tab === "texts" && (
           <div className="dlr-grid split">
             <section className="dlr-panel dlr-panel-p">
