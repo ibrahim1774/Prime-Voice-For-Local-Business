@@ -21,7 +21,11 @@ export async function GET(request: NextRequest) {
       m.phone, m.body, m.direction, m.created_at,
       (SELECT count(*)::int FROM dialer_messages u
         WHERE u.phone = m.phone AND u.direction = 'in' AND NOT u.read) AS unread,
-      l.id AS lead_id, l.name, l.business, l.status AS lead_status
+      l.id AS lead_id, l.name, l.business, l.status AS lead_status,
+      -- Which demo line this number came through (newest call wins) — lets
+      -- the Texts tab filter conversations to match the lead subpages.
+      (SELECT c.product FROM catchall_calls c
+        WHERE c.phone = m.phone ORDER BY c.created_at DESC LIMIT 1) AS product
     FROM dialer_messages m
     LEFT JOIN dialer_leads l ON l.phone = m.phone
     ORDER BY m.phone, m.created_at DESC`) as any[];
