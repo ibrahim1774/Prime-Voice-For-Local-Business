@@ -95,6 +95,16 @@ export async function ensureSchema() {
     qualified boolean NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT now()
   )`;
+  // Which demo line took the call: 'montivaro' (general catch-all) or
+  // 'primebarber' (the Prime Barber product line).
+  await q`ALTER TABLE catchall_calls ADD COLUMN IF NOT EXISTS product text NOT NULL DEFAULT 'montivaro'`;
+  // Runtime config the app provisions for itself (e.g. the Prime Barber Vapi
+  // assistant id + phone number created by /api/vapi/sync-primebarber).
+  await q`CREATE TABLE IF NOT EXISTS app_config (
+    key text PRIMARY KEY,
+    value text NOT NULL DEFAULT '',
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`;
   await q`CREATE INDEX IF NOT EXISTS dialer_leads_status_state_idx ON dialer_leads (status, state)`;
   await q`CREATE INDEX IF NOT EXISTS dialer_leads_list_idx ON dialer_leads (list_name)`;
   // area_code is UNIQUE: the reservation row is what makes "buy a number for

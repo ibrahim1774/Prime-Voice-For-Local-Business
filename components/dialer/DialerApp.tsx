@@ -1431,7 +1431,7 @@ export default function DialerApp() {
         {tab === "catchall" && (
           <section className="dlr-panel dlr-panel-p">
             <h2 className="dlr-h dlr-display">Custom Demo Calls</h2>
-            <p className="dlr-sub">Every call your AI demo assistant takes lands here automatically — number, summary, full conversation, and the recording.</p>
+            <p className="dlr-sub">Every call your demo lines take — the Montivaro catch-all and Prime Barber — lands here automatically with number, summary, full conversation, and the recording.</p>
             <ul style={{ marginTop: 16, display: "grid", gap: 10 }}>
               {catchallCalls.map((c) => (
                 <li key={c.id} className="dlr-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
@@ -1443,6 +1443,7 @@ export default function DialerApp() {
                       <span className="dlr-mono" style={{ display: "block", marginTop: 3, fontSize: 11.5, color: "var(--smoke-d)" }}>
                         {timeAgo(c.created_at)}{c.duration_seconds ? ` · ${mmss(c.duration_seconds)}` : ""}
                         {c.qualified ? " · qualified ✓" : ""}
+                        {c.product === "primebarber" ? " · Prime Barber" : ""}
                       </span>
                     </span>
                     <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>

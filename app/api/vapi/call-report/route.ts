@@ -17,6 +17,23 @@ export const maxDuration = 90;
 const CATCHALL_ASSISTANT_ID = "52081d54-3e98-4213-88cc-b618985a1d9b";
 const SMS_DELAY_MS = 30_000;
 
+// The Prime Barber assistant is provisioned at runtime by /api/vapi/
+// sync-primebarber and its id lives in app_config; cache it briefly so every
+// webhook doesn't hit the database for a value that never changes.
+let pbCache: { id: string; at: number } = { id: "", at: 0 };
+async function primebarberAssistantId(): Promise<string> {
+  if (Date.now() - pbCache.at < 60_000) return pbCache.id;
+  try {
+    await ensureSchema();
+    const rows = (await sql()`
+      SELECT value FROM app_config WHERE key = 'primebarber_assistant_id'`) as any[];
+    pbCache = { id: rows[0]?.value || "", at: Date.now() };
+  } catch {
+    // keep whatever we had; an empty cache just means "treat as catch-all"
+  }
+  return pbCache.id;
+}
+
 function env(name: string): string | undefined {
   const v = process.env[name];
   return v && v.trim() ? v.trim() : undefined;
@@ -86,6 +103,23 @@ function buildSmsBody(lead: {
   ].join("\n\n");
 }
 
+function buildPrimeBarberSmsBody(lead: { name?: string }): string {
+  const hi = lead.name ? `, ${lead.name}` : "";
+  return [
+    `💈 Thanks for calling Prime Barber${hi}!`,
+    [
+      "Everything your shop needs — and you own all of it:",
+      "• Your own branded barbershop website",
+      "• Online booking + app notifications",
+      "• Sell your own products",
+      "• Get paid: Stripe, PayPal, or Square",
+      "• Your domain, your clients — zero commission",
+    ].join("\n"),
+    "$97/month, all-inclusive.",
+    "📅 Book your free setup call and we'll build it for you.\nmontivaro.com/bookcall",
+  ].join("\n\n");
+}
+
 export async function POST(request: NextRequest) {
   const secret = env("VAPI_WEBHOOK_SECRET");
   if (!secret) {
@@ -109,7 +143,14 @@ export async function POST(request: NextRequest) {
 
   const assistantId: string | undefined =
     message?.assistant?.id || message?.call?.assistantId;
-  if (assistantId && assistantId !== CATCHALL_ASSISTANT_ID) {
+  const pbAssistantId = await primebarberAssistantId();
+  const product: "montivaro" | "primebarber" | null =
+    assistantId && pbAssistantId && assistantId === pbAssistantId
+      ? "primebarber"
+      : !assistantId || assistantId === CATCHALL_ASSISTANT_ID
+        ? "montivaro"
+        : null;
+  if (!product) {
     return NextResponse.json({ ok: true, ignored: "other-assistant" });
   }
 
@@ -120,10 +161,16 @@ export async function POST(request: NextRequest) {
   const structured: any = message?.analysis?.structuredData || {};
   const lead = {
     name: typeof structured.name === "string" ? structured.name.trim() : "",
+    // Prime Barber's analysis captures the barbershop; the catch-all captures
+    // a generic business name. Both land in the same column.
     business:
-      typeof structured.businessName === "string"
-        ? structured.businessName.trim()
-        : "",
+      product === "primebarber"
+        ? typeof structured.shopName === "string"
+          ? structured.shopName.trim()
+          : ""
+        : typeof structured.businessName === "string"
+          ? structured.businessName.trim()
+          : "",
     summary:
       typeof message?.analysis?.summary === "string"
         ? message.analysis.summary
@@ -132,7 +179,7 @@ export async function POST(request: NextRequest) {
   };
 
   // Only text real leads: the analysis marks the call qualified when the
-  // caller actually described their business. A hangup, wrong number, or
+  // caller actually described their business/shop. A hangup, wrong number, or
   // "hello?...click" gets no pitch.
   const businessType =
     typeof structured.businessType === "string"
@@ -171,11 +218,11 @@ export async function POST(request: NextRequest) {
       const vapiCallId: string | null = message?.call?.id || null;
       await sql()`
         INSERT INTO catchall_calls
-          (vapi_call_id, phone, name, business, summary, transcript, recording_url, duration_seconds, qualified)
+          (vapi_call_id, phone, name, business, summary, transcript, recording_url, duration_seconds, qualified, product)
         VALUES
           (${vapiCallId}, ${lead.callerNumber}, ${lead.name}, ${lead.business},
            ${lead.summary}, ${transcript.slice(0, 20000)}, ${recordingUrl},
-           ${duration}, ${qualified})
+           ${duration}, ${qualified}, ${product})
         ON CONFLICT (vapi_call_id) DO NOTHING`;
     } catch (err) {
       console.error("call-report: failed to persist catch-all call", err);
@@ -213,12 +260,21 @@ export async function POST(request: NextRequest) {
       phone: lead.callerNumber,
       eventId: message?.call?.id || undefined,
       actionSource: "phone_call",
-      customData: { lead_type: "qualified_demo_call" },
+      customData: {
+        lead_type:
+          product === "primebarber"
+            ? "primebarber_demo_call"
+            : "qualified_demo_call",
+      },
     });
 
     await new Promise((resolve) => setTimeout(resolve, SMS_DELAY_MS));
     try {
-      const sid = await sendSms(lead.callerNumber, buildSmsBody(lead));
+      const body =
+        product === "primebarber"
+          ? buildPrimeBarberSmsBody(lead)
+          : buildSmsBody(lead);
+      const sid = await sendSms(lead.callerNumber, body);
       console.log(`call-report: lead SMS sent to ${lead.callerNumber} (${sid})`);
     } catch (err) {
       console.error("call-report: SMS failed", err);
