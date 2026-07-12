@@ -817,11 +817,11 @@ export default function DialerApp() {
                       className={`dlr-tab${tab === "leads" || tab === "catchall" ? " active" : ""}`}
                       aria-haspopup="menu"
                     >
-                      {tab === "catchall" ? "Custom demo" : "Leads"} ▾
+                      {tab === "catchall" ? "Custom Demo" : "Leads"} ▾
                     </button>
                     <span className="dlr-tabmenu" role="menu">
                       <button role="menuitem" onClick={() => setTab("leads")} className={tab === "leads" ? "on" : ""}>All leads</button>
-                      <button role="menuitem" onClick={() => setTab("catchall")} className={tab === "catchall" ? "on" : ""}>Custom demo calls</button>
+                      <button role="menuitem" onClick={() => setTab("catchall")} className={tab === "catchall" ? "on" : ""}>Custom Demo Calls</button>
                     </span>
                   </span>
                 ) : (
@@ -1430,7 +1430,7 @@ export default function DialerApp() {
         {/* ══ CATCH-ALL CALLS ══ */}
         {tab === "catchall" && (
           <section className="dlr-panel dlr-panel-p">
-            <h2 className="dlr-h dlr-display">Custom demo calls</h2>
+            <h2 className="dlr-h dlr-display">Custom Demo Calls</h2>
             <p className="dlr-sub">Every call your AI demo assistant takes lands here automatically — number, summary, full conversation, and the recording.</p>
             <ul style={{ marginTop: 16, display: "grid", gap: 10 }}>
               {catchallCalls.map((c) => (
