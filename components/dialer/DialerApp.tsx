@@ -547,6 +547,23 @@ export default function DialerApp() {
       if (action === "vmdrop") notify("Voicemail dropping…");
     } catch (err) { guard(err); }
   };
+  // Next lead → : ends the current wave (connected call hung up + auto-marked,
+  // or every ringing leg canceled) and dials the next batch right away. The
+  // manual escape hatch for voicemails the verdict missed and iPhone
+  // call-screening robots.
+  const [skipping, setSkipping] = useState(false);
+  const skipNext = async (context: "ringing" | "connected") => {
+    if (skipping) return;
+    setSkipping(true);
+    try {
+      await api("call-action", { method: "POST", body: JSON.stringify({ action: "skip", context }) });
+      setPending(null);
+      notify("Skipped — dialing next");
+      if (refs.current.autoDial && refs.current.session?.active) {
+        setTimeout(() => fireWave(), 500);
+      }
+    } catch (err) { guard(err); } finally { setSkipping(false); }
+  };
 
   const [callNote, setCallNote] = useState("");
   // A note typed for one lead must never land on the next one (hands-free
@@ -1170,7 +1187,12 @@ export default function DialerApp() {
                         <p className="dlr-eyebrow" style={{ color: connected ? "var(--live)" : "var(--smoke)" }}>
                           {connected ? "Connected" : pending ? "Call ended — mark it" : `Dialing ${session.waveLeads?.length || lines}…`}
                         </p>
-                        {(ringing || dialing) && <Wave />}
+                        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          {(ringing || dialing) && <Wave />}
+                          {ringing && !connected && (
+                            <button onClick={() => skipNext("ringing")} disabled={skipping} className="dlr-btn" style={{ padding: "6px 12px", fontSize: 12 }}>Next lead →</button>
+                          )}
+                        </span>
                       </div>
 
                       {pending ? (
@@ -1187,6 +1209,7 @@ export default function DialerApp() {
                             <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
                               <button onClick={() => callAction("vmdrop")} className="dlr-btn violet"><Icon name="tape" /> Drop voicemail</button>
                               <button onClick={() => callAction("hangup")} className="dlr-btn danger">Hang up</button>
+                              <button onClick={() => skipNext("connected")} disabled={skipping} className="dlr-btn" title="Hang up, auto-mark, and dial the next lead">Next lead →</button>
                             </div>
                           )}
 

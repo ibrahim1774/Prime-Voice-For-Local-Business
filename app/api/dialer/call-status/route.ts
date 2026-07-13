@@ -8,6 +8,7 @@ import {
   setSetting,
   sql,
   validTwilioRequest,
+  waveWinner,
 } from "@/lib/dialer/core";
 
 // Twilio status callback for both legs. Lead legs update the call log only
@@ -92,16 +93,23 @@ export async function POST(request: NextRequest) {
         if (outcome) {
           const session = await getSession();
           if (session?.active && (session.wave || []).some((w) => w.callSid === callSid)) {
-            await setSetting(
-              "last_auto_outcome",
-              JSON.stringify({
-                waveId: session.waveId,
-                leadId: r.lead_id,
-                name: r.name,
-                business: r.business,
-                outcome,
-              })
-            );
+            // Only the wave's actual winner (or a fully unanswered wave — no
+            // winner claimed) may write the outcome stamp: an answered LOSER
+            // finishing after the winner must never overwrite the winner's
+            // result, which desynced the auto-advance.
+            const winnerSid = session.waveId ? await waveWinner(session.waveId) : "";
+            if (!winnerSid || winnerSid === callSid) {
+              await setSetting(
+                "last_auto_outcome",
+                JSON.stringify({
+                  waveId: session.waveId,
+                  leadId: r.lead_id,
+                  name: r.name,
+                  business: r.business,
+                  outcome,
+                })
+              );
+            }
           }
         }
       }
