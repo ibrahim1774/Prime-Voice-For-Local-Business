@@ -35,14 +35,16 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
 
   // Belt and braces: also protect anything app_config points at, in case the
-  // hardcoded list ever drifts from what's actually wired.
+  // hardcoded list ever drifts from what's actually wired. Everything is
+  // lowercased so a case-variant id can't slip past the protected check.
   await ensureSchema();
   const cfgRows = (await sql()`
     SELECT value FROM app_config WHERE key LIKE '%_assistant_id'`) as any[];
-  const protectedIds = new Set([
-    ...PROTECTED_IDS,
-    ...cfgRows.map((r) => r.value).filter(Boolean),
-  ]);
+  const protectedIds = new Set(
+    [...PROTECTED_IDS, ...cfgRows.map((r) => r.value).filter(Boolean)].map((id) =>
+      String(id).trim().toLowerCase()
+    )
+  );
 
   if (body.action === "list") {
     const resp = await fetch("https://api.vapi.ai/assistant?limit=1000", { headers: auth });
@@ -56,15 +58,19 @@ export async function POST(request: NextRequest) {
         id: a.id,
         name: a.name || "(unnamed)",
         createdAt: a.createdAt || null,
-        protected: protectedIds.has(a.id),
+        protected: protectedIds.has(String(a.id || "").trim().toLowerCase()),
       })),
     });
   }
 
   if (body.action === "delete") {
+    // Strict UUIDs only, lowercased: anything else (path fragments, case
+    // variants trying to sidestep the protected set) is rejected outright, so
+    // the interpolated Vapi URL can only ever address an assistant id.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
     const ids: string[] = (Array.isArray(body.ids) ? body.ids : [])
-      .map(String)
-      .filter(Boolean)
+      .map((s: unknown) => String(s).trim().toLowerCase())
+      .filter((id: string) => UUID_RE.test(id))
       .slice(0, 200);
     if (!ids.length) return NextResponse.json({ error: "No ids" }, { status: 400 });
     const results: Record<string, string> = {};
