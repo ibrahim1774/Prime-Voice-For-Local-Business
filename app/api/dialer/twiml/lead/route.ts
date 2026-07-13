@@ -46,17 +46,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Lost the race after answering: identify ourselves briefly and re-queue.
-  after(async () => {
-    if (!callSid) return;
-    // Flag it so the Calls tab never lists the apology as a "conversation".
+  // Lost the race after answering: end the leg instantly (no message — user's
+  // call, matching Kixie's parallel-dial behavior) and flag it so the Calls
+  // tab never lists it as a conversation. The lead KEEPS its last_dialed_at:
+  // the retry gap must apply to lost races too, or they jump straight back to
+  // the front of the next wave and the dialer cycles the same numbers forever
+  // (the repeat-voicemail bug). wave_lost still keeps it from burning an
+  // attempt, so it re-queues fairly after the gap.
+  if (callSid) {
+    // Synchronous on purpose: if this flag were deferred and lost, the leg
+    // would burn an attempt and show up as a "conversation" in Calls.
     await sql()`UPDATE dialer_calls SET wave_lost = TRUE WHERE call_sid = ${callSid}`;
-    await sql()`
-      UPDATE dialer_leads SET last_dialed_at = NULL
-      WHERE id = (SELECT lead_id FROM dialer_calls WHERE call_sid = ${callSid})
-        AND status = ANY(${["new", "voicemail", "no_answer"] as unknown as string[]})`;
-  });
-  return twimlResponse(
-    `<Say voice="Polly.Matthew">Sorry, we just missed you — this is Ibrahim with Montivaro. We will try you again shortly. Thanks!</Say><Hangup/>`
-  );
+  }
+  return twimlResponse(`<Hangup/>`);
 }
