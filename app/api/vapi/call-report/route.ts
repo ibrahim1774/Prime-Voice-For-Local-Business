@@ -19,6 +19,9 @@ export const maxDuration = 90;
 const CATCHALL_ASSISTANT_ID = "52081d54-3e98-4213-88cc-b618985a1d9b";
 const PRIMEBARBER_ASSISTANT_ID = "52d9dbcd-a215-4794-8bd7-fe2bd982fd35";
 const SMS_DELAY_MS = 20_000;
+// Ibrahim's cell — gets the short owner ping when a Website Design call
+// qualifies as a lead.
+const OWNER_ALERT_NUMBER = "+13476131906";
 
 type Product = "montivaro" | "primebarber" | "dentist" | "contractors" | "website";
 
@@ -340,6 +343,20 @@ export async function POST(request: NextRequest) {
               : buildSmsBody(lead);
       const sid = await sendSms(lead.callerNumber, body);
       console.log(`call-report: lead SMS sent to ${lead.callerNumber} (${sid})`);
+
+      // Owner ping for the Website Design line: one short segment (≤160
+      // chars) to Ibrahim the moment a call qualifies — name, business,
+      // number. Fail-soft: a failed ping never blocks the lead event.
+      if (product === "website") {
+        try {
+          await sendSms(
+            OWNER_ALERT_NUMBER,
+            truncate(`🌐 New Website Design lead: ${lead.name} — ${lead.business} — ${lead.callerNumber}`, 160)
+          );
+        } catch (err) {
+          console.error("call-report: owner alert failed", err);
+        }
+      }
 
       // Meta ads optimization signal — fired ONLY after the SMS actually went
       // out: a delivered text is what counts as a lead. Phone as the match
