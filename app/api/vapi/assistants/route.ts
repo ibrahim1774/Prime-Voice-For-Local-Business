@@ -89,5 +89,49 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, deleted, results });
   }
 
+  // { action: "delete-calls", assistantId } — wipe an assistant's Vapi call
+  // logs (and their recordings) in batches. The assistant itself is untouched,
+  // protected or not: clearing logs on a live line is legitimate housekeeping.
+  // Deletes up to ~300 per invocation and reports whether more remain — just
+  // call it again for very large logs.
+  if (body.action === "delete-calls") {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+    const assistantId = String(body.assistantId || "").trim().toLowerCase();
+    if (!UUID_RE.test(assistantId)) {
+      return NextResponse.json({ error: "Bad assistantId" }, { status: 400 });
+    }
+    let deleted = 0;
+    let failed = 0;
+    let more = false;
+    for (let batch = 0; batch < 3; batch++) {
+      const listResp = await fetch(
+        `https://api.vapi.ai/call?assistantId=${assistantId}&limit=100`,
+        { headers: auth }
+      );
+      if (!listResp.ok) {
+        return NextResponse.json(
+          { error: `Vapi list calls failed (${listResp.status})`, deleted },
+          { status: 502 }
+        );
+      }
+      const calls: any[] = (await listResp.json().catch(() => [])) || [];
+      if (!calls.length) break;
+      for (const call of calls) {
+        if (!call?.id || !UUID_RE.test(String(call.id).toLowerCase())) continue;
+        const del = await fetch(`https://api.vapi.ai/call/${call.id}`, {
+          method: "DELETE",
+          headers: auth,
+        });
+        if (del.ok) deleted++;
+        else failed++;
+      }
+      // A failed delete would otherwise loop forever on the same page.
+      if (failed) break;
+      more = calls.length === 100;
+      if (!more) break;
+    }
+    return NextResponse.json({ ok: true, deleted, failed, more });
+  }
+
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 }
