@@ -196,6 +196,17 @@ function CallWindow() {
   );
 }
 
+const labelStyle: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+  color: "rgba(255,255,255,0.72)",
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+};
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "14px 16px",
@@ -204,6 +215,9 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 10,
   color: "#fff",
   fontSize: 16,
+  fontWeight: 400,
+  letterSpacing: "normal",
+  textTransform: "none",
   outline: "none",
 };
 
@@ -295,33 +309,39 @@ export default function LeadDemoIntake() {
               onSubmit={handleSubmit}
               style={{ display: "flex", flexDirection: "column", gap: 12 }}
             >
-              <input
-                style={inputStyle}
-                type="text"
-                placeholder={namePh}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
-                aria-label="Your name"
-              />
-              <input
-                style={inputStyle}
-                type="text"
-                placeholder={businessPh}
-                value={business}
-                onChange={(e) => setBusiness(e.target.value)}
-                autoComplete="organization"
-                aria-label="Business name"
-              />
-              <input
-                style={inputStyle}
-                type="tel"
-                placeholder={phonePh}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                autoComplete="tel"
-                aria-label="Mobile number"
-              />
+              <label style={labelStyle}>
+                Your Name
+                <input
+                  style={inputStyle}
+                  type="text"
+                  placeholder={namePh}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                />
+              </label>
+              <label style={labelStyle}>
+                Business Name
+                <input
+                  style={inputStyle}
+                  type="text"
+                  placeholder={businessPh}
+                  value={business}
+                  onChange={(e) => setBusiness(e.target.value)}
+                  autoComplete="organization"
+                />
+              </label>
+              <label style={labelStyle}>
+                Mobile Number
+                <input
+                  style={inputStyle}
+                  type="tel"
+                  placeholder={phonePh}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  autoComplete="tel"
+                />
+              </label>
               {error ? (
                 <p style={{ color: "#ffb4b4", fontSize: 13, margin: 0 }}>{error}</p>
               ) : null}
