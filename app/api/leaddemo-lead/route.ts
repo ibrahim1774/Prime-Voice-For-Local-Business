@@ -10,6 +10,11 @@ import { ensureSchema, hasDb, normalizePhone, sql } from "@/lib/dialer/core";
 
 const PIXEL_ID = "1287427660086229";
 
+// Same Make scenario the primevoiceai.org intake form posts to (the
+// Google-Sheet lead log). Fired server-side here so the row lands even if
+// the visitor closes the tab right after submitting.
+const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/1ijk41d5vdixvoedkr13qliymoyv2x2w";
+
 const sha256 = (v: string) => createHash("sha256").update(v).digest("hex");
 
 export async function POST(request: NextRequest) {
@@ -47,7 +52,25 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 2. Server half of the dual Lead event (same eventId as the browser fbq
+  // 2. Log the lead to the Make scenario / Google Sheet. Payload keys match
+  //    the primevoiceai.org intake-form post, plus name/source so the sheet
+  //    can tell the two funnels apart. Fail-soft.
+  try {
+    await fetch(MAKE_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        businessName: business,
+        phoneNumber: phone,
+        name,
+        source: "montivaro/leaddemo",
+      }),
+    });
+  } catch (err) {
+    console.error("[leaddemo-lead] Make webhook failed:", err);
+  }
+
+  // 3. Server half of the dual Lead event (same eventId as the browser fbq
   //    fire → Meta dedupes). Hashed phone + name = strong match quality.
   const accessToken = process.env.META_ACCESS_TOKEN;
   if (accessToken && eventId) {
