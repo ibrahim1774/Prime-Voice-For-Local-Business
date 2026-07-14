@@ -6,8 +6,12 @@
 // Lead event + dialer_leads row) even if they never dial. Submitting flips
 // the card to the call panel: the live-demo call button, the number, and the
 // schedule-appointment booker below it.
+//
+// The form placeholders type themselves in like the agent is filling them,
+// and the homepage's live call window (waveform + self-typing transcript)
+// sits beside the form — one compact viewport, no scroll story.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BookingModal from "./BookingModal";
 
 const CALL_NUMBER_DISPLAY = "(928) 968-9136";
@@ -25,6 +29,169 @@ function MiniWave() {
           }}
         />
       ))}
+    </div>
+  );
+}
+
+// ── animated example placeholders ────────────────────────────────────────────
+// Types the example into the placeholder, holds, wipes, retypes — staggered
+// per field so the form looks like it's being filled in live.
+function useTypedPlaceholder(example: string, startDelay: number): string {
+  const [text, setText] = useState("");
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      setText(example);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout>;
+    const run = () => {
+      let i = 0;
+      const type = () => {
+        i++;
+        setText(example.slice(0, i));
+        if (i < example.length) {
+          timer = setTimeout(type, 65);
+        } else {
+          // hold the finished example, then wipe and go again
+          timer = setTimeout(() => {
+            setText("");
+            timer = setTimeout(run, 700);
+          }, 2400);
+        }
+      };
+      type();
+    };
+    timer = setTimeout(run, startDelay);
+    return () => clearTimeout(timer);
+  }, [example, startDelay]);
+  return text;
+}
+
+// ── the homepage's live call window, compact ────────────────────────────────
+const TRANSCRIPT: { who: "caller" | "agent" | "status"; text: string }[] = [
+  { who: "caller", text: "Hey — do you guys handle water heater replacements?" },
+  { who: "agent", text: "We do, and I can get you booked right now. What's your name, and when works for a visit?" },
+  { who: "caller", text: "It's Marcus. Could someone come Saturday morning?" },
+  { who: "agent", text: "Saturday at 9:00 is open — you're on the schedule, Marcus. A confirmation text is on its way." },
+  { who: "status", text: "→ LEAD SENT TO OWNER · SMS + EMAIL · 00:01:31" },
+];
+
+function Waveform({ bars = 36 }: { bars?: number }) {
+  return (
+    <div className="mv2-wave" aria-hidden="true">
+      {Array.from({ length: bars }, (_, i) => (
+        <span
+          key={i}
+          style={{
+            animationDelay: `${(i % 9) * 0.11}s`,
+            animationDuration: `${0.9 + ((i * 7) % 5) * 0.13}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CallWindow() {
+  const [lines, setLines] = useState<{ who: string; text: string }[]>([]);
+  const [clock, setClock] = useState(0);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const started = useRef(false);
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      setLines(TRANSCRIPT.map((l) => ({ who: l.who, text: l.text })));
+      setClock(91);
+      return;
+    }
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let clockTimer: ReturnType<typeof setInterval> | null = null;
+
+    const run = () => {
+      let li = 0;
+      let ci = 0;
+      setLines([]);
+      setClock(0);
+      clockTimer = setInterval(() => setClock((c) => c + 1), 1000);
+
+      const tick = () => {
+        const line = TRANSCRIPT[li];
+        if (!line) {
+          if (clockTimer) clearInterval(clockTimer);
+          timer = setTimeout(run, 6000);
+          return;
+        }
+        ci++;
+        const partial = line.text.slice(0, ci);
+        setLines((prev) => {
+          const next = prev.slice(0, li);
+          next[li] = { who: line.who, text: partial };
+          return next;
+        });
+        if (ci >= line.text.length) {
+          li++;
+          ci = 0;
+          timer = setTimeout(tick, line.who === "status" ? 400 : 700);
+        } else {
+          timer = setTimeout(tick, line.who === "status" ? 8 : 22);
+        }
+      };
+      timer = setTimeout(tick, 900);
+    };
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !started.current) {
+          started.current = true;
+          run();
+          io.disconnect();
+        }
+      },
+      { threshold: 0.35 }
+    );
+    io.observe(el);
+
+    return () => {
+      io.disconnect();
+      if (timer) clearTimeout(timer);
+      if (clockTimer) clearInterval(clockTimer);
+    };
+  }, []);
+
+  const mm = String(Math.floor(clock / 60)).padStart(2, "0");
+  const ss = String(clock % 60).padStart(2, "0");
+
+  return (
+    <div ref={boxRef} className="mv2-callwin" role="img" aria-label="Example of Montivaro answering a customer call and booking the job">
+      <div className="mv2-callwin-head">
+        <span className="mv2-dot" aria-hidden="true" />
+        <span>INCOMING CALL — RIVERSIDE PLUMBING</span>
+        <span className="mv2-callwin-clock">00:{mm}:{ss}</span>
+      </div>
+      <div className="mv2-callwin-wave">
+        <Waveform />
+      </div>
+      <div className="mv2-callwin-body">
+        {lines.map((l, i) =>
+          l.who === "status" ? (
+            <p key={i} className="mv2-transcript-status">{l.text}</p>
+          ) : (
+            <p key={i} className="mv2-transcript-line">
+              <span className={l.who === "agent" ? "mv2-tag mv2-tag-agent" : "mv2-tag"}>
+                {l.who === "agent" ? "MONTIVARO" : "CALLER"}
+              </span>
+              <span>{l.text}</span>
+            </p>
+          )
+        )}
+        {lines.length === 0 && <p className="mv2-transcript-line mv2-transcript-idle">RINGING…</p>}
+      </div>
     </div>
   );
 }
@@ -48,6 +215,10 @@ export default function LeadDemoIntake() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+
+  const namePh = useTypedPlaceholder("Mike Johnson", 400);
+  const businessPh = useTypedPlaceholder("Johnson's Plumbing & Heating", 1300);
+  const phonePh = useTypedPlaceholder("(555) 234-8890", 2400);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,9 +259,12 @@ export default function LeadDemoIntake() {
 
   return (
     <div className="mv2 mv2-catchall">
-      <div className="mv2-catchall-shell">
+      <div className="mv2-catchall-shell" style={!submitted ? { maxWidth: 1060 } : undefined}>
         {/* Headline */}
-        <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.1s" }}>
+        <h1
+          className="mv2-catchall-h mv2-ca-in"
+          style={{ animationDelay: "0.1s", ...(!submitted ? { fontSize: "clamp(26px, 4.2vw, 44px)" } : {}) }}
+        >
           <span className="mv2-catchall-h-muted">Don&apos;t Miss Another Customer Call &mdash;</span>{" "}
           <span>A 24/7 Human-Like Answering Agent for Local Businesses</span>
         </h1>
@@ -103,50 +277,69 @@ export default function LeadDemoIntake() {
         </p>
 
         {!submitted ? (
-          <form
-            onSubmit={handleSubmit}
+          <div
             className="mv2-ca-in"
-            style={{ animationDelay: "0.4s", width: "100%", maxWidth: 420, margin: "34px auto 0", display: "flex", flexDirection: "column", gap: 12 }}
+            style={{
+              animationDelay: "0.4s",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gap: 26,
+              alignItems: "start",
+              width: "100%",
+              maxWidth: 980,
+              margin: "30px auto 0",
+              textAlign: "left",
+            }}
           >
-            <input
-              style={inputStyle}
-              type="text"
-              placeholder="Your name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoComplete="name"
-            />
-            <input
-              style={inputStyle}
-              type="text"
-              placeholder="Business name"
-              value={business}
-              onChange={(e) => setBusiness(e.target.value)}
-              autoComplete="organization"
-            />
-            <input
-              style={inputStyle}
-              type="tel"
-              placeholder="Mobile number"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              autoComplete="tel"
-            />
-            {error ? (
-              <p style={{ color: "#ffb4b4", fontSize: 13, margin: 0 }}>{error}</p>
-            ) : null}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="mv2-btn mv2-btn-light mv2-catchall-call"
-              style={{ width: "100%", opacity: submitting ? 0.7 : 1 }}
+            <form
+              onSubmit={handleSubmit}
+              style={{ display: "flex", flexDirection: "column", gap: 12 }}
             >
-              {submitting ? "One second…" : "Hear Your Free Live Demo in Seconds"}
-            </button>
-            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, margin: 0 }}>
-              By submitting, you agree to receive a call or text about your demo.
-            </p>
-          </form>
+              <input
+                style={inputStyle}
+                type="text"
+                placeholder={namePh}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoComplete="name"
+                aria-label="Your name"
+              />
+              <input
+                style={inputStyle}
+                type="text"
+                placeholder={businessPh}
+                value={business}
+                onChange={(e) => setBusiness(e.target.value)}
+                autoComplete="organization"
+                aria-label="Business name"
+              />
+              <input
+                style={inputStyle}
+                type="tel"
+                placeholder={phonePh}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                autoComplete="tel"
+                aria-label="Mobile number"
+              />
+              {error ? (
+                <p style={{ color: "#ffb4b4", fontSize: 13, margin: 0 }}>{error}</p>
+              ) : null}
+              <button
+                type="submit"
+                disabled={submitting}
+                className="mv2-btn mv2-btn-light mv2-catchall-call"
+                style={{ width: "100%", opacity: submitting ? 0.7 : 1 }}
+              >
+                {submitting ? "One second…" : "Hear Your Free Live Demo in Seconds"}
+              </button>
+              <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, margin: 0, textAlign: "center" }}>
+                By submitting, you agree to receive a call or text about your demo.
+              </p>
+            </form>
+
+            <CallWindow />
+          </div>
         ) : (
           <>
             <div className="mv2-ca-in" style={{ animationDelay: "0.05s" }}>
