@@ -7,11 +7,10 @@
 // the card to the call panel: the live-demo call button, the number, and the
 // schedule-appointment booker below it.
 //
-// The form placeholders type themselves in like the agent is filling them,
-// and the homepage's live call window (waveform + self-typing transcript)
-// sits beside the form — one compact viewport, no scroll story.
+// The form placeholders type themselves in like the agent is filling them —
+// one compact viewport, no scroll story.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import BookingModal from "./BookingModal";
 
 const CALL_NUMBER_DISPLAY = "(928) 968-9136";
@@ -66,141 +65,6 @@ function useTypedPlaceholder(example: string, startDelay: number): string {
     return () => clearTimeout(timer);
   }, [example, startDelay]);
   return text;
-}
-
-// ── the homepage's live call window, compact ────────────────────────────────
-const TRANSCRIPT: { who: "caller" | "agent" | "status"; text: string }[] = [
-  { who: "caller", text: "Do you guys handle water heater replacements?" },
-  { who: "agent", text: "We do — Saturday at 9:00 is open. You're on the schedule, Marcus." },
-  { who: "status", text: "→ LEAD SENT TO OWNER · SMS + EMAIL" },
-];
-
-function Waveform({ bars = 36 }: { bars?: number }) {
-  return (
-    <div className="mv2-wave" aria-hidden="true">
-      {Array.from({ length: bars }, (_, i) => (
-        <span
-          key={i}
-          style={{
-            animationDelay: `${(i % 9) * 0.11}s`,
-            animationDuration: `${0.9 + ((i * 7) % 5) * 0.13}s`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function CallWindow() {
-  const [lines, setLines] = useState<{ who: string; text: string }[]>([]);
-  const [clock, setClock] = useState(0);
-  const boxRef = useRef<HTMLDivElement | null>(null);
-  const started = useRef(false);
-
-  useEffect(() => {
-    const el = boxRef.current;
-    if (!el) return;
-
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) {
-      setLines(TRANSCRIPT.map((l) => ({ who: l.who, text: l.text })));
-      setClock(91);
-      return;
-    }
-
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let clockTimer: ReturnType<typeof setInterval> | null = null;
-
-    const run = () => {
-      let li = 0;
-      let ci = 0;
-      setLines([]);
-      setClock(0);
-      clockTimer = setInterval(() => setClock((c) => c + 1), 1000);
-
-      const tick = () => {
-        const line = TRANSCRIPT[li];
-        if (!line) {
-          if (clockTimer) clearInterval(clockTimer);
-          timer = setTimeout(run, 6000);
-          return;
-        }
-        ci++;
-        const partial = line.text.slice(0, ci);
-        setLines((prev) => {
-          const next = prev.slice(0, li);
-          next[li] = { who: line.who, text: partial };
-          return next;
-        });
-        if (ci >= line.text.length) {
-          li++;
-          ci = 0;
-          timer = setTimeout(tick, line.who === "status" ? 400 : 700);
-        } else {
-          timer = setTimeout(tick, line.who === "status" ? 8 : 22);
-        }
-      };
-      timer = setTimeout(tick, 900);
-    };
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && !started.current) {
-          started.current = true;
-          run();
-          io.disconnect();
-        }
-      },
-      { threshold: 0.35 }
-    );
-    io.observe(el);
-
-    return () => {
-      io.disconnect();
-      if (timer) clearTimeout(timer);
-      if (clockTimer) clearInterval(clockTimer);
-    };
-  }, []);
-
-  const mm = String(Math.floor(clock / 60)).padStart(2, "0");
-  const ss = String(clock % 60).padStart(2, "0");
-
-  return (
-    <div
-      ref={boxRef}
-      className="mv2-callwin"
-      role="img"
-      aria-label="Example of Montivaro answering a customer call and booking the job"
-      style={{ fontSize: 12 }}
-    >
-      <div className="mv2-callwin-head" style={{ padding: "6px 12px", fontSize: 10 }}>
-        <span className="mv2-dot" aria-hidden="true" />
-        <span>INCOMING CALL — RIVERSIDE PLUMBING</span>
-        <span className="mv2-callwin-clock">00:{mm}:{ss}</span>
-      </div>
-      <div
-        className="mv2-callwin-wave"
-        style={{ maxHeight: 26, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", padding: "2px 12px" }}
-      >
-        <Waveform bars={28} />
-      </div>
-      <div className="mv2-callwin-body" style={{ padding: "6px 12px 8px", minHeight: 70, maxHeight: 78, overflow: "hidden" }}>
-        {lines.map((l, i) =>
-          l.who === "status" ? (
-            <p key={i} className="mv2-transcript-status" style={{ margin: "4px 0 0" }}>{l.text}</p>
-          ) : (
-            <p key={i} className="mv2-transcript-line" style={{ margin: i === 0 ? 0 : "4px 0 0" }}>
-              <span className={l.who === "agent" ? "mv2-tag mv2-tag-agent" : "mv2-tag"}>
-                {l.who === "agent" ? "MONTIVARO" : "CALLER"}
-              </span>
-              <span>{l.text}</span>
-            </p>
-          )
-        )}
-        {lines.length === 0 && <p className="mv2-transcript-line mv2-transcript-idle" style={{ margin: 0 }}>RINGING…</p>}
-      </div>
-    </div>
-  );
 }
 
 const labelStyle: React.CSSProperties = {
@@ -280,7 +144,7 @@ export default function LeadDemoIntake() {
 
   return (
     <div className="mv2 mv2-catchall">
-      <div className="mv2-catchall-shell" style={!submitted ? { maxWidth: 1060, paddingTop: 26, paddingBottom: 34 } : undefined}>
+      <div className="mv2-catchall-shell" style={!submitted ? { paddingTop: 30, paddingBottom: 34 } : undefined}>
         {/* Headline */}
         <h1
           className="mv2-catchall-h mv2-ca-in"
@@ -313,20 +177,12 @@ export default function LeadDemoIntake() {
             className="mv2-ca-in"
             style={{
               animationDelay: "0.4s",
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: 12,
-              alignItems: "start",
               width: "100%",
-              maxWidth: 980,
-              margin: "12px auto 0",
+              maxWidth: 420,
+              margin: "16px auto 0",
               textAlign: "left",
             }}
           >
-            {/* Transcript box first — on mobile it stacks ABOVE the form,
-                compact enough that the fields + CTA stay in the first
-                viewport. */}
-            <CallWindow />
             <form
               onSubmit={handleSubmit}
               style={{ display: "flex", flexDirection: "column", gap: 10 }}
