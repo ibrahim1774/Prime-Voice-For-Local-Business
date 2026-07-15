@@ -13,7 +13,6 @@
 import { useEffect, useState } from "react";
 import BookingModal from "./BookingModal";
 
-const CALL_NUMBER_DISPLAY = "(928) 968-9136";
 const CALL_NUMBER_TEL = "tel:+19289689136";
 
 function MiniWave() {
@@ -170,7 +169,7 @@ export default function LeadDemoIntake() {
           className="mv2-catchall-h mv2-ca-in"
           style={{ animationDelay: "0.1s", ...(!submitted ? { fontSize: "clamp(19px, 3.2vw, 36px)", lineHeight: 1.22 } : {}) }}
         >
-          <span className="mv2-catchall-h-muted">A Missed Call Can Be Lost Money.</span>{" "}
+          <span className="mv2-catchall-h-muted">A Missed Call Can = Lost Money.</span>{" "}
           <span>The New 24/7 Human-Like Answering Agent for Local Businesses</span>
         </h1>
 
@@ -271,19 +270,6 @@ export default function LeadDemoIntake() {
               Call the Live Demo
             </a>
 
-            {/* Clickable number */}
-            <a
-              href={CALL_NUMBER_TEL}
-              onClick={trackCallTap}
-              className="mv2-mono mv2-catchall-number mv2-ca-in"
-              style={{ animationDelay: "0.2s" }}
-            >
-              {CALL_NUMBER_DISPLAY}
-            </a>
-
-            <p className="mv2-catchall-hint mv2-ca-in" style={{ animationDelay: "0.28s" }}>
-              Tap the number to call from your phone
-            </p>
 
             {/* Schedule-appointment calendar below the number */}
             <div className="mv2-catchall-book mv2-ca-in" style={{ animationDelay: "0.4s" }}>
