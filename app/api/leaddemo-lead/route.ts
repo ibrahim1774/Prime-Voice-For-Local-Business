@@ -52,18 +52,20 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 2. Log the lead to the Make scenario / Google Sheet. Payload keys match
-  //    the primevoiceai.org intake-form post, plus name/source so the sheet
-  //    can tell the two funnels apart. Fail-soft.
+  // 2. Log the lead to the Make scenario / Google Sheet. Keys mirror the
+  //    sheet's columns — Name / Business Name / Number / Industry — using
+  //    the same field names the primevoiceai.org intake form sends
+  //    (businessName/phoneNumber/industry); industry carries the funnel
+  //    source so the sheet shows where each lead came from. Fail-soft.
   try {
     await fetch(MAKE_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        name,
         businessName: business,
         phoneNumber: phone,
-        name,
-        source: "montivaro/leaddemo",
+        industry: "Montivaro Lead Demo",
       }),
     });
   } catch (err) {
