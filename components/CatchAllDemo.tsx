@@ -39,8 +39,8 @@ export default function CatchAllDemo() {
       <div className="mv2-catchall-shell">
         {/* Headline */}
         <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.1s" }}>
-          <span className="mv2-catchall-h-muted">Don&apos;t Miss Another Customer Call &mdash;</span>{" "}
-          <span>A 24/7 Human-Like Answering Agent for Local Businesses</span>
+          <span className="mv2-catchall-h-muted">A Missed Call = Lost Money.</span>{" "}
+          <span>The New 24/7 Human-Like Answering Agent for Local Businesses</span>
         </h1>
 
         {/* Subheadline */}
