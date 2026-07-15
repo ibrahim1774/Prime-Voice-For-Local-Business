@@ -236,6 +236,22 @@ export default function DemoExperience({
         </p>
       </div>
 
+      {/* What your real receptionist comes with — mirrors the lead-SMS pitch */}
+      <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mb-4 shrink-0 max-w-lg mx-auto">
+        {[
+          "Choose your own voice",
+          "CRM lead intake",
+          "SMS or email notifications",
+          "Live call transfer",
+          "24/7 or after-hours",
+        ].map((f) => (
+          <span key={f} className="inline-flex items-center gap-1.5 font-sans text-xs font-medium text-foreground/90">
+            <span className="text-gold">✓</span>
+            {f}
+          </span>
+        ))}
+      </div>
+
       {/* Call Controls */}
       <div className="flex justify-center gap-4 mb-4 shrink-0">
         {callStatus === "idle" && (
