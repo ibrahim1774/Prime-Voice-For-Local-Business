@@ -164,14 +164,6 @@ export default function LeadDemoIntake() {
           answer your calls, book your jobs, and capture your leads.
         </p>
 
-        {/* Price anchor */}
-        <p
-          className="mv2-mono mv2-ca-in"
-          style={{ animationDelay: "0.3s", color: "#fff", fontWeight: 700, fontSize: 12, letterSpacing: "0.06em", marginTop: 8 }}
-        >
-          Starting at $199/month
-        </p>
-
         {!submitted ? (
           <div
             className="mv2-ca-in"
