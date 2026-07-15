@@ -25,12 +25,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  // name is optional — the /leaddemo form only asks for business + mobile.
   const name = typeof body?.name === "string" ? body.name.trim().slice(0, 120) : "";
   const business = typeof body?.business === "string" ? body.business.trim().slice(0, 160) : "";
   const eventId = typeof body?.eventId === "string" ? body.eventId.slice(0, 80) : "";
   const phone = normalizePhone(typeof body?.phone === "string" ? body.phone : "");
-  if (!name || !business || !phone) {
-    return NextResponse.json({ error: "name, business, and a valid phone are required" }, { status: 400 });
+  if (!business || !phone) {
+    return NextResponse.json({ error: "business and a valid phone are required" }, { status: 400 });
   }
 
   // 1. Persist the lead so it shows up in the dialer even if they never call.
