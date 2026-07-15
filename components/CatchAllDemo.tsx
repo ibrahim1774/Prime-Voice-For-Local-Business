@@ -15,6 +15,29 @@ import BookingModal from "./BookingModal";
 const CALL_NUMBER_DISPLAY = "(928) 968-9136";
 const CALL_NUMBER_TEL = "tel:+19289689136";
 
+// Dual Lead on every tap-to-call: browser fbq + server CAPI sharing an
+// eventID so Meta dedupes the pair (same pattern as /contractors,
+// /websites). Fires when the visitor taps Call Now / the number and the
+// phone's call sheet opens.
+function trackLead() {
+  const eventId = `lead_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  const fbq = (window as any).fbq;
+  if (typeof fbq === "function") {
+    fbq(
+      "track",
+      "Lead",
+      { content_name: "/catch-all tap-to-call", content_category: "tap-to-call" },
+      { eventID: eventId }
+    );
+  }
+  fetch("/api/meta-lead-conversion", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phoneNumber: "+19289689136", eventId }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
 function MiniWave() {
   return (
     <div className="mv2-catchall-wave" aria-hidden="true">
@@ -39,7 +62,7 @@ export default function CatchAllDemo() {
       <div className="mv2-catchall-shell">
         {/* Headline */}
         <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.1s" }}>
-          <span className="mv2-catchall-h-muted">A Missed Call = Lost Money.</span>{" "}
+          <span className="mv2-catchall-h-muted">A Missed Call Can Be Lost Money.</span>{" "}
           <span>The New 24/7 Human-Like Answering Agent for Local Businesses</span>
         </h1>
 
@@ -53,6 +76,7 @@ export default function CatchAllDemo() {
         {/* Highlighted test-it-now pill — right above the live audio demo */}
         <a
           href={CALL_NUMBER_TEL}
+          onClick={trackLead}
           className="mv2-catchall-test mv2-ca-in"
           style={{ animationDelay: "0.36s", marginTop: "30px" }}
         >
@@ -67,6 +91,7 @@ export default function CatchAllDemo() {
         {/* Call button */}
         <a
           href={CALL_NUMBER_TEL}
+          onClick={trackLead}
           className="mv2-btn mv2-btn-light mv2-catchall-call"
         >
           <svg
@@ -90,6 +115,7 @@ export default function CatchAllDemo() {
         {/* Clickable number */}
         <a
           href={CALL_NUMBER_TEL}
+          onClick={trackLead}
           className="mv2-mono mv2-catchall-number mv2-ca-in"
           style={{ animationDelay: "0.6s" }}
         >
