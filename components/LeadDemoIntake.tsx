@@ -1,7 +1,7 @@
 "use client";
 
 // /leaddemo — the catch-all demo behind an intake form. Same mv2 Call Sheet
-// skin and copy as /catch-all, but the visitor gives name + business + mobile
+// skin and copy as /catch-all, but the visitor gives business + mobile
 // FIRST ("Hear Your Free Live Demo in Seconds"), which records a lead (Meta
 // Lead event + dialer_leads row) even if they never dial. Submitting flips
 // the card to the call panel: the live-demo call button, the number, and the
@@ -93,7 +93,6 @@ const inputStyle: React.CSSProperties = {
 };
 
 export default function LeadDemoIntake() {
-  const [name, setName] = useState("");
   const [business, setBusiness] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
@@ -101,15 +100,13 @@ export default function LeadDemoIntake() {
   const [submitted, setSubmitted] = useState(false);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
 
-  const namePh = useTypedPlaceholder("Mike Johnson", 400);
-  const businessPh = useTypedPlaceholder("Johnson's Plumbing & Heating", 1300);
-  const phonePh = useTypedPlaceholder("(555) 234-8890", 2400);
+  const businessPh = useTypedPlaceholder("Johnson's Plumbing & Heating", 400);
+  const phonePh = useTypedPlaceholder("(555) 234-8890", 1500);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
     const digits = phone.replace(/\D/g, "");
-    if (!name.trim()) return setError("Please enter your name.");
     if (!business.trim()) return setError("Please enter your business name.");
     if (digits.length < 10) return setError("Please enter a valid mobile number.");
     setError("");
@@ -131,7 +128,7 @@ export default function LeadDemoIntake() {
       await fetch("/api/leaddemo-lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), business: business.trim(), phone: digits, eventId }),
+        body: JSON.stringify({ business: business.trim(), phone: digits, eventId }),
         keepalive: true,
       });
     } catch {
@@ -179,17 +176,6 @@ export default function LeadDemoIntake() {
               onSubmit={handleSubmit}
               style={{ display: "flex", flexDirection: "column", gap: 10 }}
             >
-              <label style={labelStyle}>
-                Your Name
-                <input
-                  style={inputStyle}
-                  type="text"
-                  placeholder={namePh}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  autoComplete="name"
-                />
-              </label>
               <label style={labelStyle}>
                 Business Name
                 <input
