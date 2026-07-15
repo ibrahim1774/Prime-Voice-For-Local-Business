@@ -70,11 +70,9 @@ function useTypedPlaceholder(example: string, startDelay: number): string {
 
 // ── the homepage's live call window, compact ────────────────────────────────
 const TRANSCRIPT: { who: "caller" | "agent" | "status"; text: string }[] = [
-  { who: "caller", text: "Hey — do you guys handle water heater replacements?" },
-  { who: "agent", text: "We do, and I can get you booked right now. What's your name, and when works for a visit?" },
-  { who: "caller", text: "It's Marcus. Could someone come Saturday morning?" },
-  { who: "agent", text: "Saturday at 9:00 is open — you're on the schedule, Marcus. A confirmation text is on its way." },
-  { who: "status", text: "→ LEAD SENT TO OWNER · SMS + EMAIL · 00:01:31" },
+  { who: "caller", text: "Do you guys handle water heater replacements?" },
+  { who: "agent", text: "We do — Saturday at 9:00 is open. You're on the schedule, Marcus." },
+  { who: "status", text: "→ LEAD SENT TO OWNER · SMS + EMAIL" },
 ];
 
 function Waveform({ bars = 36 }: { bars?: number }) {
@@ -168,21 +166,30 @@ function CallWindow() {
   const ss = String(clock % 60).padStart(2, "0");
 
   return (
-    <div ref={boxRef} className="mv2-callwin" role="img" aria-label="Example of Montivaro answering a customer call and booking the job">
-      <div className="mv2-callwin-head">
+    <div
+      ref={boxRef}
+      className="mv2-callwin"
+      role="img"
+      aria-label="Example of Montivaro answering a customer call and booking the job"
+      style={{ fontSize: 12 }}
+    >
+      <div className="mv2-callwin-head" style={{ padding: "6px 12px", fontSize: 10 }}>
         <span className="mv2-dot" aria-hidden="true" />
         <span>INCOMING CALL — RIVERSIDE PLUMBING</span>
         <span className="mv2-callwin-clock">00:{mm}:{ss}</span>
       </div>
-      <div className="mv2-callwin-wave">
-        <Waveform />
+      <div
+        className="mv2-callwin-wave"
+        style={{ maxHeight: 26, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", padding: "2px 12px" }}
+      >
+        <Waveform bars={28} />
       </div>
-      <div className="mv2-callwin-body">
+      <div className="mv2-callwin-body" style={{ padding: "6px 12px 8px", minHeight: 70, maxHeight: 78, overflow: "hidden" }}>
         {lines.map((l, i) =>
           l.who === "status" ? (
-            <p key={i} className="mv2-transcript-status">{l.text}</p>
+            <p key={i} className="mv2-transcript-status" style={{ margin: "4px 0 0" }}>{l.text}</p>
           ) : (
-            <p key={i} className="mv2-transcript-line">
+            <p key={i} className="mv2-transcript-line" style={{ margin: i === 0 ? 0 : "4px 0 0" }}>
               <span className={l.who === "agent" ? "mv2-tag mv2-tag-agent" : "mv2-tag"}>
                 {l.who === "agent" ? "MONTIVARO" : "CALLER"}
               </span>
@@ -190,7 +197,7 @@ function CallWindow() {
             </p>
           )
         )}
-        {lines.length === 0 && <p className="mv2-transcript-line mv2-transcript-idle">RINGING…</p>}
+        {lines.length === 0 && <p className="mv2-transcript-line mv2-transcript-idle" style={{ margin: 0 }}>RINGING…</p>}
       </div>
     </div>
   );
@@ -199,9 +206,9 @@ function CallWindow() {
 const labelStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  gap: 6,
+  gap: 4,
   color: "rgba(255,255,255,0.72)",
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 700,
   letterSpacing: "0.08em",
   textTransform: "uppercase",
@@ -209,7 +216,7 @@ const labelStyle: React.CSSProperties = {
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "14px 16px",
+  padding: "11px 14px",
   background: "rgba(255,255,255,0.06)",
   border: "1px solid rgba(255,255,255,0.18)",
   borderRadius: 10,
@@ -273,18 +280,21 @@ export default function LeadDemoIntake() {
 
   return (
     <div className="mv2 mv2-catchall">
-      <div className="mv2-catchall-shell" style={!submitted ? { maxWidth: 1060 } : undefined}>
+      <div className="mv2-catchall-shell" style={!submitted ? { maxWidth: 1060, paddingTop: 26, paddingBottom: 34 } : undefined}>
         {/* Headline */}
         <h1
           className="mv2-catchall-h mv2-ca-in"
-          style={{ animationDelay: "0.1s", ...(!submitted ? { fontSize: "clamp(26px, 4.2vw, 44px)" } : {}) }}
+          style={{ animationDelay: "0.1s", ...(!submitted ? { fontSize: "clamp(19px, 3.2vw, 36px)", lineHeight: 1.22 } : {}) }}
         >
-          <span className="mv2-catchall-h-muted">Don&apos;t Miss Another Customer Call &mdash;</span>{" "}
-          <span>A 24/7 Human-Like Answering Agent for Local Businesses</span>
+          <span className="mv2-catchall-h-muted">A Missed Call = Lost Money.</span>{" "}
+          <span>The New 24/7 Human-Like Answering Agent for Local Businesses</span>
         </h1>
 
         {/* Subheadline */}
-        <p className="mv2-catchall-sub mv2-ca-in" style={{ animationDelay: "0.24s" }}>
+        <p
+          className="mv2-catchall-sub mv2-ca-in"
+          style={{ animationDelay: "0.24s", ...(!submitted ? { fontSize: "clamp(13px, 2.1vw, 15.5px)", marginTop: 8 } : {}) }}
+        >
           Talk to the live voice agent like a real customer would &mdash; tell it
           what your business does and it&apos;ll show you exactly how it&apos;d
           answer your calls, book your jobs, and capture your leads.
@@ -293,7 +303,7 @@ export default function LeadDemoIntake() {
         {/* Price anchor */}
         <p
           className="mv2-mono mv2-ca-in"
-          style={{ animationDelay: "0.3s", color: "#fff", fontWeight: 700, fontSize: 14, letterSpacing: "0.06em", marginTop: 14 }}
+          style={{ animationDelay: "0.3s", color: "#fff", fontWeight: 700, fontSize: 12, letterSpacing: "0.06em", marginTop: 8 }}
         >
           Starting at $199/month
         </p>
@@ -304,18 +314,22 @@ export default function LeadDemoIntake() {
             style={{
               animationDelay: "0.4s",
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-              gap: 26,
+              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+              gap: 12,
               alignItems: "start",
               width: "100%",
               maxWidth: 980,
-              margin: "30px auto 0",
+              margin: "12px auto 0",
               textAlign: "left",
             }}
           >
+            {/* Transcript box first — on mobile it stacks ABOVE the form,
+                compact enough that the fields + CTA stay in the first
+                viewport. */}
+            <CallWindow />
             <form
               onSubmit={handleSubmit}
-              style={{ display: "flex", flexDirection: "column", gap: 12 }}
+              style={{ display: "flex", flexDirection: "column", gap: 10 }}
             >
               <label style={labelStyle}>
                 Your Name
@@ -365,8 +379,6 @@ export default function LeadDemoIntake() {
                 By submitting, you agree to receive a call or text about your demo.
               </p>
             </form>
-
-            <CallWindow />
           </div>
         ) : (
           <>
