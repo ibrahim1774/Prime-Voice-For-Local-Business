@@ -1,19 +1,13 @@
-import HeroSection from "@/components/HeroSection";
+import CustomCallPricing from "@/components/CustomCallPricing";
+
+export const metadata = {
+  title: "Montivaro | 24/7 AI Answering Agent — Plans from $49/mo",
+};
 
 export default function PageCustom() {
   return (
     <main>
-      <HeroSection
-        headline={
-          <>
-            <span className="text-muted">Don&apos;t Miss Another Customer Call &mdash;</span>{" "}
-            <span className="font-bold text-foreground">
-              A 24/7 Human-Like Answering Agent for Local Businesses
-            </span>
-          </>
-        }
-        subtext="Generate Your Free Live Demo in 20 Seconds."
-      />
+      <CustomCallPricing />
     </main>
   );
 }
