@@ -310,27 +310,6 @@ export default function CustomCallPricing() {
                   transform: isPopular ? "translateY(-4px)" : "none",
                 }}
               >
-                {isPopular && (
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: -11,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      background: "#34d399",
-                      color: "#0b0b0c",
-                      borderRadius: 999,
-                      padding: "3px 12px",
-                      fontSize: 10.5,
-                      fontWeight: 800,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Most popular
-                  </span>
-                )}
                 <div style={{ fontSize: 14, fontWeight: 600, color: PAPER }}>{plan.name}</div>
                 <div style={{ marginTop: 4, display: "flex", alignItems: "baseline", gap: 5 }}>
                   <span style={{ fontSize: 27, fontWeight: 700, letterSpacing: "-0.03em", color: PAPER }}>
