@@ -6,7 +6,7 @@
 // the old post-generate pricing used. Styled on the monochrome .mv2 ink
 // system so the whole page reads as one premium surface.
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import BookingModal from "./BookingModal";
 import { SETUP_CALL_URL } from "@/lib/constants";
 
@@ -129,47 +129,6 @@ export default function CustomCallPricing() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  // Horizontal plan gallery — native scroll-snap (swipeable on mobile)
-  // driven by the arrows. Opens centered on the featured $97 plan.
-  const trackRef = useRef<HTMLDivElement>(null);
-  const [activePlan, setActivePlan] = useState(1);
-
-  const scrollToPlan = (i: number) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const card = track.children[i] as HTMLElement | undefined;
-    if (!card) return;
-    track.scrollTo({
-      left: card.offsetLeft - (track.clientWidth - card.clientWidth) / 2,
-      behavior: "smooth",
-    });
-  };
-
-  useEffect(() => {
-    // Center the $97 card on load, before paint settles.
-    const track = trackRef.current;
-    if (!track) return;
-    const card = track.children[1] as HTMLElement | undefined;
-    if (card) {
-      track.scrollLeft = card.offsetLeft - (track.clientWidth - card.clientWidth) / 2;
-    }
-  }, []);
-
-  const onTrackScroll = () => {
-    const track = trackRef.current;
-    if (!track) return;
-    const center = track.scrollLeft + track.clientWidth / 2;
-    let best = 0;
-    let bestDist = Infinity;
-    Array.from(track.children).forEach((el, i) => {
-      const c = el as HTMLElement;
-      const mid = c.offsetLeft + c.clientWidth / 2;
-      const d = Math.abs(mid - center);
-      if (d < bestDist) { bestDist = d; best = i; }
-    });
-    setActivePlan(best);
-  };
-
   async function checkout(plan: Plan) {
     if (loadingId) return;
     setLoadingId(plan.id);
@@ -202,7 +161,6 @@ export default function CustomCallPricing() {
 
   return (
     <div className="mv2 mv2-catchall" style={{ paddingBottom: 40 }}>
-      <style>{`.mv2-plans-track::-webkit-scrollbar{display:none}`}</style>
       <div
         className="mv2-catchall-shell"
         style={{ minHeight: "auto", padding: "34px 24px 0" }}
@@ -243,6 +201,7 @@ export default function CustomCallPricing() {
           href={CALL_NUMBER_TEL}
           onClick={trackLead}
           className="mv2-btn mv2-btn-light mv2-catchall-call"
+          style={{ maxWidth: 400, paddingLeft: 26, paddingRight: 26, fontSize: 16 }}
         >
           <svg
             width="20"
@@ -327,68 +286,7 @@ export default function CustomCallPricing() {
           </p>
         </div>
 
-        <div style={{ position: "relative" }}>
-          <button
-            type="button"
-            aria-label="Previous plan"
-            onClick={() => scrollToPlan(Math.max(0, activePlan - 1))}
-            disabled={activePlan === 0}
-            style={{
-              position: "absolute",
-              left: -6,
-              top: "50%",
-              transform: "translateY(-50%)",
-              zIndex: 2,
-              width: 40,
-              height: 40,
-              borderRadius: 999,
-              border: `1px solid ${LINE}`,
-              background: "rgba(11,11,12,0.85)",
-              color: PAPER,
-              fontSize: 17,
-              cursor: activePlan === 0 ? "default" : "pointer",
-              opacity: activePlan === 0 ? 0.3 : 1,
-            }}
-          >
-            ←
-          </button>
-          <button
-            type="button"
-            aria-label="Next plan"
-            onClick={() => scrollToPlan(Math.min(PLANS.length - 1, activePlan + 1))}
-            disabled={activePlan === PLANS.length - 1}
-            style={{
-              position: "absolute",
-              right: -6,
-              top: "50%",
-              transform: "translateY(-50%)",
-              zIndex: 2,
-              width: 40,
-              height: 40,
-              borderRadius: 999,
-              border: `1px solid ${LINE}`,
-              background: "rgba(11,11,12,0.85)",
-              color: PAPER,
-              fontSize: 17,
-              cursor: activePlan === PLANS.length - 1 ? "default" : "pointer",
-              opacity: activePlan === PLANS.length - 1 ? 0.3 : 1,
-            }}
-          >
-            →
-          </button>
-          <div
-            ref={trackRef}
-            onScroll={onTrackScroll}
-            className="mv2-plans-track"
-            style={{
-              display: "flex",
-              gap: 12,
-              overflowX: "auto",
-              scrollSnapType: "x mandatory",
-              padding: "10px calc(50% - 160px) 6px",
-              scrollbarWidth: "none",
-            }}
-          >
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 540, margin: "0 auto" }}>
           {PLANS.map((plan) => {
             const isPopular = !!plan.popular;
             return (
@@ -398,10 +296,6 @@ export default function CustomCallPricing() {
                   position: "relative",
                   display: "flex",
                   flexDirection: "column",
-                  flex: "0 0 320px",
-                  scrollSnapAlign: "center",
-                  transition: "opacity 0.25s ease, transform 0.25s ease",
-                  opacity: PLANS[activePlan]?.id === plan.id ? 1 : 0.45,
                   borderRadius: 14,
                   border: `1px solid ${isPopular ? "rgba(52,211,153,0.45)" : LINE}`,
                   background: isPopular ? "rgba(52,211,153,0.05)" : CARD_BG,
@@ -476,27 +370,6 @@ export default function CustomCallPricing() {
               </div>
             );
           })}
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", gap: 7, marginTop: 10 }}>
-            {PLANS.map((plan, i) => (
-              <button
-                key={plan.id}
-                type="button"
-                aria-label={`Go to ${plan.name}`}
-                onClick={() => scrollToPlan(i)}
-                style={{
-                  width: i === activePlan ? 18 : 7,
-                  height: 7,
-                  borderRadius: 999,
-                  border: "none",
-                  background: i === activePlan ? "#34d399" : "rgba(247,246,243,0.25)",
-                  cursor: "pointer",
-                  transition: "all 0.25s ease",
-                  padding: 0,
-                }}
-              />
-            ))}
-          </div>
         </div>
 
         <p style={{ marginTop: 10, textAlign: "center", fontSize: 11, color: SMOKE }}>
