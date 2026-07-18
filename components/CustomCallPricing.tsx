@@ -32,7 +32,8 @@ const PLANS: Plan[] = [
     minutesLabel: "50 minutes included / mo",
     summary: "Email notifications only.",
     bullets: [
-      "Every call answered 24/7 — sounds like a real person",
+      "Runs 24/7, after-hours only, or just overflow — your choice",
+      "Every call answered — sounds like a real person",
       "Every lead emailed to you: name, number, what they need",
       "It knows your services, prices, and hours",
       "Keep your current business number",
@@ -159,13 +160,16 @@ export default function CustomCallPricing() {
   }
 
   return (
-    <div className="mv2 mv2-catchall" style={{ paddingBottom: 80 }}>
+    <div className="mv2 mv2-catchall" style={{ paddingBottom: 40 }}>
       <div
         className="mv2-catchall-shell"
-        style={{ minHeight: "auto", paddingBottom: 0 }}
+        style={{ minHeight: "auto", padding: "34px 24px 0" }}
       >
         {/* Headline */}
-        <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.1s" }}>
+        <h1
+          className="mv2-catchall-h mv2-ca-in"
+          style={{ animationDelay: "0.1s", marginTop: 0, fontSize: "clamp(22px, 3.6vw, 34px)" }}
+        >
           <span className="mv2-catchall-h-muted">A Missed Call Can = Lost Money.</span>{" "}
           <span>The New 24/7 Human-Like Answering Agent for Local Businesses</span>
         </h1>
@@ -182,7 +186,7 @@ export default function CustomCallPricing() {
           href={CALL_NUMBER_TEL}
           onClick={trackLead}
           className="mv2-catchall-test mv2-ca-in"
-          style={{ animationDelay: "0.36s", marginTop: "30px" }}
+          style={{ animationDelay: "0.36s", marginTop: "16px" }}
         >
           <span className="mv2-catchall-test-dot" aria-hidden="true" />
           Test our live voice agent now
@@ -228,10 +232,10 @@ export default function CustomCallPricing() {
           animationDelay: "0.72s",
           maxWidth: 1020,
           margin: "0 auto",
-          padding: "56px 20px 0",
+          padding: "30px 20px 0",
         }}
       >
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
           <p
             className="mv2-mono"
             style={{
@@ -239,14 +243,14 @@ export default function CustomCallPricing() {
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               color: SMOKE,
-              marginBottom: 10,
+              marginBottom: 6,
             }}
           >
             Pricing
           </p>
           <h2
             style={{
-              fontSize: "clamp(24px, 4vw, 32px)",
+              fontSize: "clamp(21px, 3.2vw, 27px)",
               fontWeight: 700,
               letterSpacing: "-0.02em",
               lineHeight: 1.15,
@@ -260,8 +264,8 @@ export default function CustomCallPricing() {
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
-              marginTop: 14,
-              padding: "9px 18px",
+              marginTop: 10,
+              padding: "7px 15px",
               borderRadius: 999,
               border: "1px solid rgba(52,211,153,0.55)",
               background: "rgba(52,211,153,0.12)",
@@ -276,7 +280,7 @@ export default function CustomCallPricing() {
             />
             Try us for free &mdash; we&apos;ll get you set up within 24&ndash;48 hours
           </div>
-          <p style={{ marginTop: 10, fontSize: 13, color: SMOKE }}>
+          <p style={{ marginTop: 7, fontSize: 12.5, color: SMOKE }}>
             No setup fees. Cancel anytime.
           </p>
         </div>
@@ -284,7 +288,7 @@ export default function CustomCallPricing() {
         <div
           style={{
             display: "grid",
-            gap: 14,
+            gap: 10,
             gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
             alignItems: "stretch",
           }}
@@ -298,12 +302,12 @@ export default function CustomCallPricing() {
                   position: "relative",
                   display: "flex",
                   flexDirection: "column",
-                  borderRadius: 18,
+                  borderRadius: 14,
                   border: `1px solid ${isPopular ? "rgba(52,211,153,0.45)" : LINE}`,
                   background: isPopular ? "rgba(52,211,153,0.05)" : CARD_BG,
-                  padding: "24px 22px",
+                  padding: "16px 16px 14px",
                   boxShadow: isPopular ? "0 18px 44px rgba(0,0,0,0.45)" : "none",
-                  transform: isPopular ? "translateY(-6px)" : "none",
+                  transform: isPopular ? "translateY(-4px)" : "none",
                 }}
               >
                 {isPopular && (
@@ -328,8 +332,8 @@ export default function CustomCallPricing() {
                   </span>
                 )}
                 <div style={{ fontSize: 14, fontWeight: 600, color: PAPER }}>{plan.name}</div>
-                <div style={{ marginTop: 8, display: "flex", alignItems: "baseline", gap: 5 }}>
-                  <span style={{ fontSize: 34, fontWeight: 700, letterSpacing: "-0.03em", color: PAPER }}>
+                <div style={{ marginTop: 4, display: "flex", alignItems: "baseline", gap: 5 }}>
+                  <span style={{ fontSize: 27, fontWeight: 700, letterSpacing: "-0.03em", color: PAPER }}>
                     ${plan.price}
                   </span>
                   <span style={{ fontSize: 13, color: SMOKE }}>/month</span>
@@ -339,8 +343,8 @@ export default function CustomCallPricing() {
                 </div>
                 <div
                   style={{
-                    marginTop: 12,
-                    fontSize: 13.5,
+                    marginTop: 8,
+                    fontSize: 13,
                     fontWeight: 600,
                     color: isPopular ? "#34d399" : PAPER,
                   }}
@@ -348,19 +352,19 @@ export default function CustomCallPricing() {
                   {plan.summary}
                 </div>
                 {plan.inherit && (
-                  <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: SMOKE }}>
+                  <div style={{ marginTop: 7, fontSize: 11.5, fontWeight: 600, color: SMOKE }}>
                     {plan.inherit}
                   </div>
                 )}
-                <ul style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+                <ul style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5, flex: 1 }}>
                   {plan.bullets.map((b) => (
                     <li
                       key={b}
                       style={{
                         display: "flex",
                         gap: 8,
-                        fontSize: 13,
-                        lineHeight: 1.45,
+                        fontSize: 12.5,
+                        lineHeight: 1.4,
                         color: "rgba(247,246,243,0.85)",
                       }}
                     >
@@ -376,14 +380,14 @@ export default function CustomCallPricing() {
                   onClick={() => checkout(plan)}
                   disabled={!!loadingId}
                   style={{
-                    marginTop: 18,
+                    marginTop: 12,
                     width: "100%",
                     borderRadius: 999,
                     border: isPopular ? "none" : `1px solid ${LINE}`,
                     background: isPopular ? PAPER : "transparent",
                     color: isPopular ? "#0b0b0c" : PAPER,
-                    padding: "13px 16px",
-                    fontSize: 14,
+                    padding: "11px 14px",
+                    fontSize: 13,
                     fontWeight: 700,
                     cursor: "pointer",
                     opacity: loadingId && loadingId !== plan.id ? 0.6 : 1,
@@ -396,16 +400,16 @@ export default function CustomCallPricing() {
           })}
         </div>
 
-        <p style={{ marginTop: 16, textAlign: "center", fontSize: 11.5, color: SMOKE }}>
+        <p style={{ marginTop: 10, textAlign: "center", fontSize: 11, color: SMOKE }}>
           3-day free trial on every plan · $1/min after your included minutes · Cancel anytime
         </p>
 
         {/* Book-a-call fallback */}
-        <div style={{ marginTop: 34, textAlign: "center" }}>
+        <div style={{ marginTop: 20, textAlign: "center" }}>
           <p style={{ fontSize: 14, fontWeight: 600, color: PAPER }}>
             Want it custom-built for your business first?
           </p>
-          <div style={{ marginTop: 12, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+          <div style={{ marginTop: 8, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
             <button
               onClick={() => setIsBookingOpen(true)}
               className="mv2-btn mv2-btn-ghost"
