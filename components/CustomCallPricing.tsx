@@ -138,7 +138,7 @@ export default function CustomCallPricing() {
         body: JSON.stringify({
           businessName: `${plan.name} plan — /custom`,
           price: plan.price,
-          trialDays: 0,
+          trialDays: 3,
           interval: "month",
           embedded: false,
         }),
@@ -253,9 +253,30 @@ export default function CustomCallPricing() {
               color: PAPER,
             }}
           >
-            Pick your plan. Live in 24 hours.
+            Pick your plan. Start with a 3-day free trial.
           </h2>
-          <p style={{ marginTop: 8, fontSize: 14, color: SMOKE }}>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 14,
+              padding: "9px 18px",
+              borderRadius: 999,
+              border: "1px solid rgba(52,211,153,0.55)",
+              background: "rgba(52,211,153,0.12)",
+              color: "#34d399",
+              fontSize: 13.5,
+              fontWeight: 700,
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{ width: 7, height: 7, borderRadius: 999, background: "#34d399" }}
+            />
+            Try us for free &mdash; we&apos;ll get you set up within 24&ndash;48 hours
+          </div>
+          <p style={{ marginTop: 10, fontSize: 13, color: SMOKE }}>
             No setup fees. Cancel anytime.
           </p>
         </div>
@@ -368,7 +389,7 @@ export default function CustomCallPricing() {
                     opacity: loadingId && loadingId !== plan.id ? 0.6 : 1,
                   }}
                 >
-                  {loadingId === plan.id ? "Starting…" : `Get ${plan.name} — $${plan.price}/mo`}
+                  {loadingId === plan.id ? "Starting…" : `Start 3-Day Free Trial — then $${plan.price}/mo`}
                 </button>
               </div>
             );
@@ -376,7 +397,7 @@ export default function CustomCallPricing() {
         </div>
 
         <p style={{ marginTop: 16, textAlign: "center", fontSize: 11.5, color: SMOKE }}>
-          $1/min after your included minutes · Cancel anytime
+          3-day free trial on every plan · $1/min after your included minutes · Cancel anytime
         </p>
 
         {/* Book-a-call fallback */}
