@@ -19,7 +19,6 @@ import { DEMO_CALL_URL } from "@/lib/constants";
  */
 
 const LIVE_AGENT_TEL = "tel:+19289689136";
-const LIVE_AGENT_DISPLAY = "(928) 968-9136";
 
 // ── scroll-reveal hook ──────────────────────────────────────────────────────
 
@@ -273,7 +272,7 @@ function Nav() {
           <a href="#how">How it works</a>
         </div>
         <div className="mv2-nav-cta">
-          <a href={LIVE_AGENT_TEL} className="mv2-nav-tel">{LIVE_AGENT_DISPLAY}</a>
+          <a href={LIVE_AGENT_TEL} className="mv2-nav-tel">Call the live agent</a>
           <a href={DEMO_CALL_URL} target="_blank" rel="noopener noreferrer" className="mv2-btn mv2-btn-light">
             Book a demo
           </a>
@@ -305,7 +304,7 @@ function Hero() {
             Book a demo <ArrowUpRight />
           </a>
           <a href={LIVE_AGENT_TEL} className="mv2-btn mv2-btn-ghost mv2-btn-lg">
-            Hear it live — <span className="mv2-mono">{LIVE_AGENT_DISPLAY}</span>
+            Hear it live — call the demo line
           </a>
         </div>
         <div className="mv2-hero-callwin">
@@ -454,7 +453,7 @@ function FinalCta() {
               Book a demo <ArrowUpRight />
             </a>
             <a href={LIVE_AGENT_TEL} className="mv2-btn mv2-btn-ghost mv2-btn-lg">
-              Call the live agent — <span className="mv2-mono">{LIVE_AGENT_DISPLAY}</span>
+              Call the live agent
             </a>
           </div>
         </Reveal>
