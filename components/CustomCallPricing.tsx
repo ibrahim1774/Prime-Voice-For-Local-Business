@@ -181,18 +181,7 @@ export default function CustomCallPricing() {
           answer your calls, book your jobs, and capture your leads.
         </p>
 
-        {/* Test-it pill */}
-        <a
-          href={CALL_NUMBER_TEL}
-          onClick={trackLead}
-          className="mv2-catchall-test mv2-ca-in"
-          style={{ animationDelay: "0.36s", marginTop: "16px" }}
-        >
-          <span className="mv2-catchall-test-dot" aria-hidden="true" />
-          Test our live voice agent now
-        </a>
-
-        <div className="mv2-ca-in" style={{ animationDelay: "0.46s" }}>
+        <div className="mv2-ca-in" style={{ animationDelay: "0.36s" }}>
           <MiniWave />
         </div>
 
