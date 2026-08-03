@@ -231,7 +231,17 @@ export default function LeadImport({
               {colOptions(f.key)}
             </select>
             {map[f.key] >= 0 && parsed.rows[0]?.[map[f.key]] && (
-              <span className="dlr-sub" style={{ marginTop: 0, fontSize: 11.5 }}>
+              // Capped: a Google Maps URL runs 200+ characters and this
+              // sample would otherwise stretch the whole panel past the
+              // viewport. Full value stays in the tooltip.
+              <span
+                className="dlr-sub"
+                title={parsed.rows[0][map[f.key]]}
+                style={{
+                  marginTop: 0, fontSize: 11.5, maxWidth: 260,
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}
+              >
                 e.g. “{parsed.rows[0][map[f.key]]}”
               </span>
             )}
@@ -242,7 +252,7 @@ export default function LeadImport({
       {/* preview */}
       <p className="dlr-label" style={{ marginTop: 18, marginBottom: 8 }}>Preview</p>
       <div style={{ overflowX: "auto", border: "1px solid var(--line)", borderRadius: 10 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, tableLayout: "fixed" }}>
           <thead>
             <tr>
               {FIELDS.map((f) => (
@@ -255,11 +265,35 @@ export default function LeadImport({
           <tbody>
             {parsed.rows.slice(0, 4).map((r, i) => (
               <tr key={i}>
-                {FIELDS.map((f) => (
-                  <td key={f.key} style={{ padding: "8px 12px", borderBottom: "1px solid var(--line)", color: map[f.key] >= 0 ? "var(--paper)" : "var(--smoke-d)" }}>
-                    {map[f.key] >= 0 ? r[map[f.key]] || "—" : "—"}
-                  </td>
-                ))}
+                {FIELDS.map((f) => {
+                  const raw = map[f.key] >= 0 ? (r[map[f.key]] || "") : "";
+                  // Every cell is width-capped and ellipsised: a Google Maps
+                  // URL is hundreds of characters and would otherwise stretch
+                  // its column across the table and wrap rows three deep.
+                  // The full value stays in the tooltip (and, for the link,
+                  // in the href) so nothing is actually lost.
+                  const clamp: React.CSSProperties = {
+                    display: "block", maxWidth: 220,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  };
+                  return (
+                    <td key={f.key} style={{ padding: "8px 12px", borderBottom: "1px solid var(--line)", color: raw ? "var(--ink)" : "var(--smoke-d)", maxWidth: 220 }}>
+                      {f.key === "businessLink" && raw ? (
+                        <a
+                          href={/^https?:\/\//i.test(raw) ? raw : `https://${raw}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={raw}
+                          style={{ ...clamp, color: "var(--blue)", fontWeight: 600, textDecoration: "none" }}
+                        >
+                          {raw}
+                        </a>
+                      ) : (
+                        <span style={clamp} title={raw || undefined}>{raw || "—"}</span>
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
