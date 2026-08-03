@@ -138,15 +138,17 @@ export async function POST(request: NextRequest) {
     const name = String(row?.name ?? "").trim().slice(0, 120);
     const business = String(row?.business ?? "").trim().slice(0, 160);
     const industry = String(row?.industry ?? "").trim().slice(0, 80);
+    const businessLink = String(row?.businessLink ?? "").trim().slice(0, 500);
     const state = stateOfAreaCode(areaCodeOf(phone));
     const result = (await q`
-      INSERT INTO dialer_leads (phone, name, business, state, industry, list_name)
-      VALUES (${phone}, ${name}, ${business}, ${state}, ${industry}, ${listName})
+      INSERT INTO dialer_leads (phone, name, business, state, industry, list_name, business_link)
+      VALUES (${phone}, ${name}, ${business}, ${state}, ${industry}, ${listName}, ${businessLink})
       ON CONFLICT (phone) DO UPDATE SET
         name = CASE WHEN dialer_leads.name = '' THEN EXCLUDED.name ELSE dialer_leads.name END,
         business = CASE WHEN dialer_leads.business = '' THEN EXCLUDED.business ELSE dialer_leads.business END,
         state = CASE WHEN dialer_leads.state = '' THEN EXCLUDED.state ELSE dialer_leads.state END,
         industry = CASE WHEN dialer_leads.industry = '' THEN EXCLUDED.industry ELSE dialer_leads.industry END,
+        business_link = CASE WHEN dialer_leads.business_link = '' THEN EXCLUDED.business_link ELSE dialer_leads.business_link END,
         list_name = CASE WHEN dialer_leads.list_name = '' THEN EXCLUDED.list_name ELSE dialer_leads.list_name END,
         updated_at = now()
       RETURNING (xmax = 0) AS inserted`) as any[];
