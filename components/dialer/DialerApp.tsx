@@ -879,10 +879,47 @@ export default function DialerApp() {
     <div className="dlr">
       {toast && <div className="dlr-toast">{toast}</div>}
       <div className="dlr-shell">
+        {/* Left rail — brand + section nav, the CRM-console shape. */}
+        <aside className="dlr-side">
+          <div className="dlr-brand">
+            <span className="dlr-brand-dot" aria-hidden="true" />
+            Montivaro
+          </div>
+          <nav className="dlr-tabs">
+            {(["dial", "leads", "texts", "calls"] as const).map((t) =>
+              t === "leads" ? (
+                <span key={t} className="dlr-tabwrap">
+                  <button
+                    onClick={() => setTab("leads")}
+                    className={`dlr-tab${tab === "leads" || tab === "catchall" || tab === "primebarber" || tab === "website" ? " active" : ""}`}
+                    aria-haspopup="menu"
+                  >
+                    {tab === "catchall" ? "Custom Demo" : tab === "primebarber" ? "Prime Barber" : tab === "website" ? "Website Design" : "Leads"} ▾
+                  </button>
+                  <span className="dlr-tabmenu" role="menu">
+                    <button role="menuitem" onClick={() => setTab("leads")} className={tab === "leads" ? "on" : ""}>All leads</button>
+                    <button role="menuitem" onClick={() => setTab("catchall")} className={tab === "catchall" ? "on" : ""}>Custom Demo Calls</button>
+                    <button role="menuitem" onClick={() => setTab("primebarber")} className={tab === "primebarber" ? "on" : ""}>Prime Barber Calls</button>
+                    <button role="menuitem" onClick={() => setTab("website")} className={tab === "website" ? "on" : ""}>Website Design Calls</button>
+                  </span>
+                </span>
+              ) : (
+                <button key={t} onClick={() => setTab(t)} className={`dlr-tab${tab === t ? " active" : ""}`}>
+                  {TAB_LABELS[t]}
+                  {t === "texts" && unread > 0 && <span className="badge">{unread}</span>}
+                </button>
+              )
+            )}
+          </nav>
+        </aside>
+
+        <div className="dlr-main">
         <header className="dlr-top">
           <div>
-            <p className="dlr-eyebrow">Montivaro</p>
-            <h1 className="dlr-display" style={{ fontSize: 20, marginTop: 2 }}>Command Dialing Center</h1>
+            <p className="dlr-eyebrow">Command Center</p>
+            <h1 className="dlr-display" style={{ fontSize: 21, marginTop: 2, fontWeight: 700 }}>
+              {tab === "dial" ? "Dashboard" : tab === "texts" ? "Messages" : tab === "calls" ? "Call log" : "Leads"}
+            </h1>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
             <form
@@ -903,32 +940,6 @@ export default function DialerApp() {
                 <Icon name="phone" />
               </button>
             </form>
-            <nav className="dlr-tabs">
-              {(["dial", "leads", "texts", "calls"] as const).map((t) =>
-                t === "leads" ? (
-                  <span key={t} className="dlr-tabwrap">
-                    <button
-                      onClick={() => setTab("leads")}
-                      className={`dlr-tab${tab === "leads" || tab === "catchall" || tab === "primebarber" || tab === "website" ? " active" : ""}`}
-                      aria-haspopup="menu"
-                    >
-                      {tab === "catchall" ? "Custom Demo" : tab === "primebarber" ? "Prime Barber" : tab === "website" ? "Website Design" : "Leads"} ▾
-                    </button>
-                    <span className="dlr-tabmenu" role="menu">
-                      <button role="menuitem" onClick={() => setTab("leads")} className={tab === "leads" ? "on" : ""}>All leads</button>
-                      <button role="menuitem" onClick={() => setTab("catchall")} className={tab === "catchall" ? "on" : ""}>Custom Demo Calls</button>
-                      <button role="menuitem" onClick={() => setTab("primebarber")} className={tab === "primebarber" ? "on" : ""}>Prime Barber Calls</button>
-                      <button role="menuitem" onClick={() => setTab("website")} className={tab === "website" ? "on" : ""}>Website Design Calls</button>
-                    </span>
-                  </span>
-                ) : (
-                  <button key={t} onClick={() => setTab(t)} className={`dlr-tab${tab === t ? " active" : ""}`}>
-                    {TAB_LABELS[t]}
-                    {t === "texts" && unread > 0 && <span className="badge">{unread}</span>}
-                  </button>
-                )
-              )}
-            </nav>
           </div>
         </header>
 
@@ -1825,6 +1836,7 @@ export default function DialerApp() {
         )}
 
         {/* ══ NUMBERS ══ */}
+        </div>
       </div>
     </div>
   );
