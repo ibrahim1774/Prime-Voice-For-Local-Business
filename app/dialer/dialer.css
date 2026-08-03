@@ -90,7 +90,12 @@ body:has(.dlr) { background: #eef0f7; }
   background: var(--danger);
   box-shadow: 0 0 0 3px var(--danger-soft);
 }
-.dlr-main { min-width: 0; padding: 0 24px; }
+/* Grid children default to min-width:auto, so one very wide child (a lead
+   list row holding a full Google Maps URL, say) pushes the whole column
+   past the viewport and the page scrolls sideways. Clamp the track. */
+.dlr-shell > *, .dlr-main > *, .dlr-main section { min-width: 0; }
+.dlr-main { min-width: 0; max-width: 100%; padding: 0 24px; }
+.dlr-panel { min-width: 0; max-width: 100%; }
 @media (max-width: 640px) { .dlr-main { padding: 0 14px; } }
 
 /* top bar */
