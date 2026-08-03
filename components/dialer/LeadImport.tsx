@@ -23,6 +23,7 @@ const FIELDS = [
   { key: "name", label: "Name", required: false },
   { key: "business", label: "Business", required: false },
   { key: "industry", label: "Industry", required: false },
+  { key: "reviewLink", label: "Review link", required: false },
 ] as const;
 type FieldKey = (typeof FIELDS)[number]["key"];
 
@@ -55,13 +56,14 @@ function toParsed(grid: Grid, fileName: string): Parsed {
 
 // Best-guess column for each field, so the common case needs no clicks.
 function autoMap(p: Parsed): Record<FieldKey, number> {
-  const map: Record<FieldKey, number> = { phone: -1, name: -1, business: -1, industry: -1 };
+  const map: Record<FieldKey, number> = { phone: -1, name: -1, business: -1, industry: -1, reviewLink: -1 };
   const lower = p.headers.map((h) => h.toLowerCase());
   if (p.hasHeader) {
     map.phone = lower.findIndex((h) => /phone|number|cell|mobile|tel/.test(h));
     map.business = lower.findIndex((h) => /business|company|org|shop|store/.test(h));
     map.name = lower.findIndex((h) => /name|contact|owner/.test(h) && !/business|company/.test(h));
     map.industry = lower.findIndex((h) => /industry|category|type|niche|vertical/.test(h));
+    map.reviewLink = lower.findIndex((h) => /review|rating|gmb|maps|google.*(link|url)|listing/.test(h));
   }
   if (map.phone < 0) {
     // Column with the most phone-looking values.
@@ -72,7 +74,7 @@ function autoMap(p: Parsed): Record<FieldKey, number> {
     }
     map.phone = best;
   }
-  const taken = new Set([map.phone, map.business, map.name, map.industry].filter((i) => i >= 0));
+  const taken = new Set([map.phone, map.business, map.name, map.industry, map.reviewLink].filter((i) => i >= 0));
   if (map.name < 0) map.name = [...Array(p.headers.length).keys()].find((i) => !taken.has(i)) ?? -1;
   taken.add(map.name);
   if (map.business < 0) map.business = [...Array(p.headers.length).keys()].find((i) => !taken.has(i)) ?? -1;
@@ -86,13 +88,13 @@ export default function LeadImport({
   onDone,
 }: {
   onImport: (
-    rows: { name: string; business: string; phone: string; industry: string }[],
+    rows: { name: string; business: string; phone: string; industry: string; reviewLink: string }[],
     listName: string
   ) => Promise<{ added: number; updated: number; skipped: number } | null>;
   onDone: () => void;
 }) {
   const [parsed, setParsed] = useState<Parsed | null>(null);
-  const [map, setMap] = useState<Record<FieldKey, number>>({ phone: -1, name: -1, business: -1, industry: -1 });
+  const [map, setMap] = useState<Record<FieldKey, number>>({ phone: -1, name: -1, business: -1, industry: -1, reviewLink: -1 });
   const [listName, setListName] = useState("");
   const [industryAll, setIndustryAll] = useState("");
   const [error, setError] = useState("");
@@ -134,6 +136,7 @@ export default function LeadImport({
         name: map.name >= 0 ? r[map.name] || "" : "",
         business: map.business >= 0 ? r[map.business] || "" : "",
         industry: map.industry >= 0 ? r[map.industry] || "" : industryAll.trim(),
+        reviewLink: map.reviewLink >= 0 ? r[map.reviewLink] || "" : "",
       }))
       .filter((r) => looksPhone(r.phone));
     const res = await onImport(rows, listName.trim());
