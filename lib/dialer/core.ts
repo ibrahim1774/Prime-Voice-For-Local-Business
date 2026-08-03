@@ -77,9 +77,10 @@ export async function ensureSchema() {
   await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT ''`;
   await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS list_name text NOT NULL DEFAULT ''`;
   await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS industry text NOT NULL DEFAULT ''`;
-  // Google/Booksy review page for the business — imported alongside the
-  // lead so the caller can open it mid-call for context.
-  await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS review_link text NOT NULL DEFAULT ''`;
+  // The business's own page — website, Google/Booksy listing, whatever the
+  // export carries — imported with the lead so the caller can open it
+  // mid-call for context.
+  await q`ALTER TABLE dialer_leads ADD COLUMN IF NOT EXISTS business_link text NOT NULL DEFAULT ''`;
   // Wave losers get a short apology message, not a conversation — flagged so
   // the Calls tab can show only real prospect calls.
   await q`ALTER TABLE dialer_calls ADD COLUMN IF NOT EXISTS wave_lost boolean NOT NULL DEFAULT false`;

@@ -679,7 +679,7 @@ export default function DialerApp() {
   };
   useEffect(() => { if (authed && tab === "leads") loadLeads(); }, [authed, tab, loadLeads]);
 
-  const importRows = async (rows: { name: string; business: string; phone: string; industry?: string; reviewLink?: string }[], listName = "") => {
+  const importRows = async (rows: { name: string; business: string; phone: string; industry?: string; businessLink?: string }[], listName = "") => {
     if (!rows.length) { setUploadMsg("No valid phone numbers to import."); return null; }
     try {
       const res = await api("leads", { method: "POST", body: JSON.stringify({ rows, listName }) });
@@ -1373,16 +1373,16 @@ export default function DialerApp() {
                       </span>
                       {l.business && l.name && <span className="dlr-company" style={{ display: "block", color: "var(--smoke)" }}>{l.business}</span>}
                       <span className="dlr-phone" style={{ display: "block", marginTop: 1 }}>{fmtPhone(l.phone)}</span>
-                      {l.review_link && (
+                      {l.business_link && (
                         <a
-                          href={/^https?:\/\//i.test(l.review_link) ? l.review_link : `https://${l.review_link}`}
+                          href={/^https?:\/\//i.test(l.business_link) ? l.business_link : `https://${l.business_link}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
                           className="dlr-sub"
                           style={{ display: "inline-block", marginTop: 2, color: "var(--blue)", fontWeight: 600, textDecoration: "none" }}
                         >
-                          Reviews ↗
+                          Business page ↗
                         </a>
                       )}
                     </span>
