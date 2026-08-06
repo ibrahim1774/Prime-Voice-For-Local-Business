@@ -224,7 +224,11 @@ export default function DialerApp() {
     setTemplates(s.templates || []);
     setLines(s.lines || 1);
     setCallerId(s.callerId || "auto");
-    setDialSegment(s.dialSegment || "new");
+    // Always open on "New leads" — a persisted retry segment (e.g.
+    // "Voicemails") makes the queue look empty next session even with
+    // a full list imported. Mid-session changes still work; they just
+    // don't carry over to the next visit.
+    setDialSegment("new");
     setDialState(s.dialState || "");
     setDialList(s.dialList || "");
     setDialIndustry(s.dialIndustry || "");
