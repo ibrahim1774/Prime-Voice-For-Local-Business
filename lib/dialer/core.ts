@@ -246,7 +246,7 @@ export async function waveState(session: DialSession): Promise<WaveState> {
 
   const sids = session.wave.map((w) => w.callSid);
   const calls = (await sql()`
-    SELECT c.*, l.name, l.business, l.phone, l.id AS lead_id
+    SELECT c.*, l.name, l.business, l.phone, l.business_link, l.id AS lead_id
     FROM dialer_calls c JOIN dialer_leads l ON l.id = c.lead_id
     WHERE c.call_sid = ANY(${sids})`) as any[];
   const winnerSid = await waveWinner(session.waveId);

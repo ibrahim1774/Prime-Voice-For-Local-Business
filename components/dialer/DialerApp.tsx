@@ -71,6 +71,11 @@ function fmtPhone(p: string): string {
   const m = (p || "").match(/^\+1(\d{3})(\d{3})(\d{4})$/);
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : p || "";
 }
+// Imported business links often come without a scheme; a bare href would
+// resolve relative to the dialer.
+function linkHref(raw: string): string {
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+}
 function timeAgo(ts: string): string {
   const s = Math.max(0, (Date.now() - new Date(ts).getTime()) / 1000);
   if (s < 60) return `${Math.floor(s)}s ago`;
@@ -1215,6 +1220,17 @@ export default function DialerApp() {
                           <p className="dlr-name-lg" style={{ marginTop: 10 }}>{pending.name || "Unknown"}</p>
                           <p className="dlr-company-lg" style={{ marginTop: 2 }}>{pending.business || "—"}</p>
                           <p className="dlr-phone-lg" style={{ marginTop: 5 }}>{fmtPhone(pending.phone)}</p>
+                          {pending.business_link && (
+                            <a
+                              href={linkHref(pending.business_link)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="dlr-btn"
+                              style={{ display: "inline-flex", marginTop: 10, textDecoration: "none", borderColor: "rgba(96,165,250,0.5)", color: "#60a5fa" }}
+                            >
+                              Visit Google Business Profile ↗
+                            </a>
+                          )}
                           {w?.amd && (
                             <p style={{ marginTop: 10, fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, color: w.amd === "human" ? "var(--live)" : "var(--violet)" }}>
                               {w.amd === "human" ? <><Icon name="user" /> Human answered</> : <><Icon name="bot" /> Machine detected ({w.amd})</>}
@@ -1308,6 +1324,17 @@ export default function DialerApp() {
                               {l.business && <p className="dlr-company" style={{ color: "var(--smoke)" }}>{l.business}</p>}
                               <p className="dlr-phone" style={{ marginTop: 2 }}>{fmtPhone(l.phone)}</p>
                               <p className="dlr-sub" style={{ marginTop: 2, fontSize: 11 }}>{l.status === "in-progress" ? "answered" : l.status === "ringing" ? "ringing…" : l.status || "dialing…"}</p>
+                              {l.business_link && (
+                                <a
+                                  href={linkHref(l.business_link)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="dlr-sub"
+                                  style={{ display: "inline-block", marginTop: 3, color: "var(--blue)", fontWeight: 600, textDecoration: "none" }}
+                                >
+                                  Visit Google Business Profile ↗
+                                </a>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -1379,7 +1406,7 @@ export default function DialerApp() {
                       <span className="dlr-phone" style={{ display: "block", marginTop: 1 }}>{fmtPhone(l.phone)}</span>
                       {l.business_link && (
                         <a
-                          href={/^https?:\/\//i.test(l.business_link) ? l.business_link : `https://${l.business_link}`}
+                          href={linkHref(l.business_link)}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
