@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
         name: winnerCall.name,
         business: winnerCall.business,
         phone: winnerCall.phone,
+        business_link: winnerCall.business_link || "",
       };
     }
   }
@@ -84,6 +85,7 @@ export async function GET(request: NextRequest) {
       name: c.name,
       business: c.business,
       phone: c.phone,
+      business_link: c.business_link || "",
       status: c.status,
       amd: c.amd,
       callSid: c.call_sid,
