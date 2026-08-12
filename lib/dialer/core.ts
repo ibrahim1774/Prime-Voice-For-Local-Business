@@ -450,14 +450,7 @@ export async function pickCallerId(leadPhone: string): Promise<string> {
   return from;
 }
 
-// Deletes Twilio recordings older than 24h. Runs lazily on every recordings
-// list load and from the daily cron, so audio never outlives its window long.
-export async function purgeExpiredRecordings(): Promise<number> {
-  const rows = (await sql()`
-    SELECT id, recording_sid FROM dialer_calls
-    WHERE recording_sid <> '' AND NOT recording_deleted
-      AND started_at < now() - interval '24 hours'
-    LIMIT 100`) as any[];
+async function deleteRecordingRows(rows: { id: number; recording_sid: string }[]): Promise<number> {
   let purged = 0;
   for (const row of rows) {
     try {
@@ -470,6 +463,38 @@ export async function purgeExpiredRecordings(): Promise<number> {
     purged++;
   }
   return purged;
+}
+
+// Deletes Twilio recordings older than 24h. Runs lazily on every recordings
+// list load and from the daily cron, so audio never outlives its window long.
+export async function purgeExpiredRecordings(): Promise<number> {
+  const rows = (await sql()`
+    SELECT id, recording_sid FROM dialer_calls
+    WHERE recording_sid <> '' AND NOT recording_deleted
+      AND started_at < now() - interval '24 hours'
+    LIMIT 100`) as any[];
+  return deleteRecordingRows(rows);
+}
+
+// Deletes recordings of calls that were never a prospect conversation — a
+// machine/fax pickup, a sub-8s connect, or a call whose lead the agent marked
+// no-answer or voicemail. The Call log never shows these, so keeping the
+// audio (someone's voicemail greeting, a ring-out) for the full 24h window
+// serves nobody. The call row itself stays for stats and lead history.
+export async function purgeNonConversationRecordings(): Promise<number> {
+  const rows = (await sql()`
+    SELECT c.id, c.recording_sid
+    FROM dialer_calls c
+    LEFT JOIN dialer_leads l ON l.id = c.lead_id
+    WHERE c.recording_sid <> '' AND NOT c.recording_deleted
+      AND c.status = 'completed'
+      AND (
+        c.amd LIKE 'machine%' OR c.amd = 'fax'
+        OR c.duration_seconds < 8
+        OR COALESCE(l.status, '') IN ('no_answer', 'voicemail')
+      )
+    LIMIT 100`) as any[];
+  return deleteRecordingRows(rows);
 }
 
 // ── browser calling (WebRTC) ────────────────────────────────────────────────

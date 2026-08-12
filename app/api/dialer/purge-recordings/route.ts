@@ -4,6 +4,7 @@ import {
   hasDb,
   isAuthed,
   purgeExpiredRecordings,
+  purgeNonConversationRecordings,
 } from "@/lib/dialer/core";
 
 export const maxDuration = 120;
@@ -19,5 +20,6 @@ export async function GET(request: NextRequest) {
   if (!hasDb()) return NextResponse.json({ ok: true, purged: 0, note: "no db" });
   await ensureSchema();
   const purged = await purgeExpiredRecordings();
-  return NextResponse.json({ ok: true, purged });
+  const nonConvo = await purgeNonConversationRecordings();
+  return NextResponse.json({ ok: true, purged: purged + nonConvo });
 }
