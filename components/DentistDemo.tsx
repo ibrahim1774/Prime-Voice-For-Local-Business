@@ -181,10 +181,16 @@ export default function DentistDemo() {
             your office to set it up. Call the live line like a patient and
             hear it yourself.
           </p>
+          <p
+            className="dnt-sub dnt-in"
+            style={{ animationDelay: "0.48s", marginTop: 14, fontWeight: 800, color: "var(--ink)" }}
+          >
+            Call our live demo right now to hear how it sounds.
+          </p>
           <div className="dnt-cta dnt-in" style={{ animationDelay: "0.54s" }}>
             <a href={CALL_TEL} onClick={trackLead} className="dnt-call">
               <span className="dnt-live" aria-hidden="true" />
-              Call the demo line
+              Call the Live Demo
             </a>
             <a href={CALL_TEL} onClick={trackLead} className="dnt-number">{CALL_DISPLAY}</a>
           </div>
