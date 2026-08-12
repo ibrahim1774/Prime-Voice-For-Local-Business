@@ -1861,7 +1861,7 @@ export default function DialerApp() {
                       {c.phone && (c.name || c.business) && <span className="dlr-phone" style={{ marginLeft: 8 }}>{fmtPhone(c.phone)}</span>}
                       <span className="dlr-mono" style={{ marginLeft: 9, fontSize: 11.5, color: "var(--smoke-d)" }}>
                         {timeAgo(c.started_at)} · {c.duration_seconds ? mmss(c.duration_seconds) : "—"} · {c.status}
-                        {c.amd ? ` · ${c.amd === "human" ? "human" : "machine"}` : ""}
+                        {c.amd === "human" ? " · human" : ""}
                       </span>
                     </span>
                     {c.lead_status && <StatusPill status={c.lead_status} />}
