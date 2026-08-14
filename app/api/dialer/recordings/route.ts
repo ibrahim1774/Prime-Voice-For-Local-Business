@@ -5,6 +5,7 @@ import {
   purgeExpiredRecordings,
   purgeNonConversationRecordings,
   sql,
+  twilio,
   unauthorized,
 } from "@/lib/dialer/core";
 
@@ -45,4 +46,33 @@ export async function GET(request: NextRequest) {
     ORDER BY c.started_at DESC
     LIMIT 200`) as any[];
   return NextResponse.json({ calls: rows });
+}
+
+// DELETE ?id=<callId> — remove one call from the log for good: the Twilio
+// recording first (when one still exists), then the dialer_calls row. The
+// lead and its status are untouched — this only erases the call line.
+export async function DELETE(request: NextRequest) {
+  if (!isAuthed(request)) return unauthorized();
+  await ensureSchema();
+  const id = Number(new URL(request.url).searchParams.get("id"));
+  if (!Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "Pass a call id" }, { status: 400 });
+  }
+  const rows = (await sql()`
+    SELECT id, recording_sid, recording_deleted FROM dialer_calls WHERE id = ${id}`) as any[];
+  if (!rows.length) return NextResponse.json({ error: "Call not found" }, { status: 404 });
+  const call = rows[0];
+  if (call.recording_sid && !call.recording_deleted) {
+    try {
+      await twilio(`/Recordings/${call.recording_sid}.json`, undefined, "DELETE");
+    } catch (err: any) {
+      // 404 = already gone on Twilio's side; anything else must NOT leave an
+      // orphaned recording behind a deleted row — surface it instead.
+      if (!String(err?.message || "").includes("404")) {
+        return NextResponse.json({ error: "Could not delete the recording — try again" }, { status: 502 });
+      }
+    }
+  }
+  await sql()`DELETE FROM dialer_calls WHERE id = ${id}`;
+  return NextResponse.json({ ok: true });
 }

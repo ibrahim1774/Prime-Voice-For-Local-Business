@@ -858,6 +858,14 @@ export default function DialerApp() {
     if (!(authed && tab === "calls")) return;
     api("recordings").then((d) => setCallLog(d.calls || [])).catch(guard);
   }, [authed, tab, guard]);
+  const deleteCall = async (id: number, label: string) => {
+    if (!confirm(`Delete this call with ${label}? The log line and its recording are gone for good. The lead itself stays.`)) return;
+    try {
+      await api(`recordings?id=${id}`, { method: "DELETE" });
+      notify("Call deleted");
+      setCallLog((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) { guard(err); }
+  };
 
 
   // ── render ──
@@ -1864,7 +1872,17 @@ export default function DialerApp() {
                         {c.amd === "human" ? " · human" : ""}
                       </span>
                     </span>
-                    {c.lead_status && <StatusPill status={c.lead_status} />}
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {c.lead_status && <StatusPill status={c.lead_status} />}
+                      <button
+                        title="Delete this call"
+                        onClick={() => deleteCall(c.id, c.name || c.business || fmtPhone(c.phone || ""))}
+                        className="dlr-btn danger"
+                        style={{ padding: "7px 11px" }}
+                      >
+                        <Icon name="trash" />
+                      </button>
+                    </span>
                   </div>
                   {c.recording_sid && !c.recording_deleted ? (
                     <audio controls preload="none" style={{ width: "100%", marginTop: 9, height: 34 }} src={`/api/dialer/recordings/${c.recording_sid}`} />
