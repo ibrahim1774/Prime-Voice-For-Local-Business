@@ -441,6 +441,22 @@ export async function POST(request: NextRequest) {
           console.log(`call-report: ${lead.callerNumber} stayed ${secs}s (< ${OWNER_ALERT_MIN_SECONDS}s) — no owner alert`);
         }
       }
+
+      // The catch-all line no longer texts the CALLER anything after the
+      // call (owner call 2026-09-02): no sample-alert pitch, no /bookcall
+      // nudge. Callers who booked already got their confirmation above; the
+      // rest hear from the team. The Meta lead signal still fires for a
+      // qualified call so ad optimization is unchanged.
+      if (lead.callerNumber && qualified) {
+        await sendMetaEvent({
+          eventName: "QualifiedLead",
+          phone: lead.callerNumber,
+          eventId: message?.call?.id || undefined,
+          actionSource: "phone_call",
+          customData: { lead_type: "qualified_demo_call" },
+        });
+      }
+      return;
     }
 
     if (!lead.callerNumber) {
@@ -490,8 +506,8 @@ export async function POST(request: NextRequest) {
         eventId: message?.call?.id || undefined,
         actionSource: "phone_call",
         customData: {
-          lead_type:
-            product === "montivaro" ? "qualified_demo_call" : `${product}_demo_call`,
+          // The catch-all line returned above; only the vertical lines reach here.
+          lead_type: `${product}_demo_call`,
         },
       });
     } catch (err) {
