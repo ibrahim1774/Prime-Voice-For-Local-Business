@@ -139,19 +139,28 @@ export async function POST(request: NextRequest) {
           "Book the 15-minute Montivaro setup call on the calendar. Always include the caller's email in attendees so they receive the invite.",
       },
     ];
+    // Native tool DTOs carry name/description under `function` (top-level
+    // name/description are rejected). Fall back to a bare create — the
+    // naming pass below fills the name in afterwards.
     for (const spec of wanted) {
       if (allTools.some((t) => t.type === spec.type)) continue;
-      const r = await fetch(`${VAPI}/tool`, {
-        method: "POST",
-        headers: { ...auth, "Content-Type": "application/json" },
-        body: JSON.stringify(spec),
-      });
-      const j: any = await r.json().catch(() => ({}));
-      created.push({
-        type: spec.type,
-        ok: r.ok,
-        detail: r.ok ? j?.id : String(j?.message || r.status),
-      });
+      const attempts = [
+        { type: spec.type, function: { name: spec.name, description: spec.description } },
+        { type: spec.type },
+      ];
+      let outcome: { ok: boolean; detail?: string } = { ok: false };
+      for (const body of attempts) {
+        const r = await fetch(`${VAPI}/tool`, {
+          method: "POST",
+          headers: { ...auth, "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const j: any = await r.json().catch(() => ({}));
+        const msg = Array.isArray(j?.message) ? j.message.join(",") : j?.message;
+        outcome = { ok: r.ok, detail: r.ok ? j?.id : String(msg || r.status) };
+        if (r.ok) break;
+      }
+      created.push({ type: spec.type, ...outcome });
     }
     allTools = await listTools();
   }
@@ -167,7 +176,7 @@ export async function POST(request: NextRequest) {
     const r = await fetch(`${VAPI}/tool/${t.id}`, {
       method: "PATCH",
       headers: { ...auth, "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ function: { name } }),
     });
     if (!r.ok) console.error(`sync-config: could not name tool ${t.id} (${r.status})`);
     return name;
