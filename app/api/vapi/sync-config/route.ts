@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureSchema, sql } from "@/lib/dialer/core";
 import {
   CATCHALL_SYSTEM_PROMPT,
-  buildCatchallBookingPrompt,
+  BOOKING_SECTION_START,
+  BOOKING_SECTION_END,
+  withBookingSection,
 } from "@/lib/catchall-config.mjs";
 
 // One-shot config sync for the catch-all demo assistant.
@@ -185,7 +187,21 @@ export async function POST(request: NextRequest) {
     ? [calendar.availability.id, calendar.booking.id, ...(calendar.contact ? [calendar.contact.id] : [])]
     : [];
 
-  const systemPrompt = booking ? buildCatchallBookingPrompt(booking) : CATCHALL_SYSTEM_PROMPT;
+  // The personality prompt is the owner's — written in the Vapi dashboard.
+  // Keep it verbatim and only manage the booking block appended to it.
+  const currentMessages: any[] = Array.isArray(current?.model?.messages) ? current.model.messages : [];
+  const currentSystem: string =
+    currentMessages.find((m) => m?.role === "system")?.content ||
+    current?.model?.systemPrompt ||
+    "";
+  const basePrompt = currentSystem.trim() ? currentSystem : CATCHALL_SYSTEM_PROMPT;
+  const stripBooking = (p: string) => {
+    const s = p.indexOf(BOOKING_SECTION_START);
+    const e = p.indexOf(BOOKING_SECTION_END);
+    return s !== -1 && e !== -1 && e > s ? (p.slice(0, s) + p.slice(e + BOOKING_SECTION_END.length)).trimEnd() : p;
+  };
+  const systemPrompt = booking ? withBookingSection(basePrompt, booking) : stripBooking(basePrompt);
+  const otherMessages = currentMessages.filter((m) => m?.role !== "system");
 
   // PATCHing `model` replaces the whole object, so carry the live model
   // settings forward and only change messages + tools.
@@ -193,10 +209,11 @@ export async function POST(request: NextRequest) {
     ...(current?.model || {}),
     provider: current?.model?.provider || "anthropic",
     model: current?.model?.model || "claude-sonnet-4-5-20250929",
-    messages: [{ role: "system", content: systemPrompt }],
+    messages: [{ role: "system", content: systemPrompt }, ...otherMessages],
     toolIds,
   };
   delete (model as any).tools;
+  delete (model as any).systemPrompt;
 
   const patch = {
     server: { url: CALL_REPORT_URL, secret },
@@ -276,6 +293,9 @@ export async function POST(request: NextRequest) {
     createdTools: created,
     booking,
     toolIds,
+    promptSource: currentSystem.trim() ? "dashboard" : "code",
+    currentPromptHead: basePrompt.slice(0, 400),
+    promptHasBookingBlock: basePrompt.includes(BOOKING_SECTION_START),
   };
 
   if (inspectOnly) return NextResponse.json({ ok: true, inspect: true, ...report });
