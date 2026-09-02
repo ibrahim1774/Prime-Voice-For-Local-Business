@@ -44,6 +44,10 @@ export interface SetupCallRow {
   mode: CallMode;
   // Unguessable id for the public /c/<token> page in the texts and emails.
   token: string;
+  // Vapi's end-of-call analysis — shown back to the caller in the
+  // confirmation email as a sample of the lead alert an owner would get.
+  summary: string;
+  goal: string;
 }
 
 // One permanent Google Meet room (owner's "create a meeting for later"
@@ -84,6 +88,8 @@ export async function ensureSetupCallsSchema() {
   await sql()`ALTER TABLE setup_calls ADD COLUMN IF NOT EXISTS token text`;
   await sql()`CREATE UNIQUE INDEX IF NOT EXISTS setup_calls_token_idx ON setup_calls (token)`;
   await sql()`ALTER TABLE setup_calls ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'phone'`;
+  await sql()`ALTER TABLE setup_calls ADD COLUMN IF NOT EXISTS summary text NOT NULL DEFAULT ''`;
+  await sql()`ALTER TABLE setup_calls ADD COLUMN IF NOT EXISTS goal text NOT NULL DEFAULT ''`;
   ready = true;
 }
 
@@ -341,16 +347,18 @@ export async function saveSetupCall(input: {
   email: string;
   name: string;
   business: string;
+  summary?: string;
+  goal?: string;
   booking: Booking;
 }): Promise<SetupCallRow | null> {
   await ensureSetupCallsSchema();
   const rows = (await sql()`
-    INSERT INTO setup_calls (vapi_call_id, phone, email, name, business, start_at, timezone, source, token, mode)
+    INSERT INTO setup_calls (vapi_call_id, phone, email, name, business, start_at, timezone, source, token, mode, summary, goal)
     VALUES (${input.vapiCallId}, ${input.phone}, ${input.email}, ${input.name}, ${input.business},
             ${input.booking.startAt.toISOString()}, ${input.booking.timeZone}, ${input.booking.source}, ${newToken()},
-            ${input.booking.mode === "video" ? "video" : "phone"})
+            ${input.booking.mode === "video" ? "video" : "phone"}, ${(input.summary || "").slice(0, 1000)}, ${(input.goal || "").slice(0, 300)})
     ON CONFLICT (vapi_call_id) DO NOTHING
-    RETURNING id, vapi_call_id, phone, email, name, business, start_at, timezone, mode, token`) as SetupCallRow[];
+    RETURNING id, vapi_call_id, phone, email, name, business, start_at, timezone, mode, token, summary, goal`) as SetupCallRow[];
   return rows[0] || null;
 }
 
@@ -488,11 +496,37 @@ export function confirmationEmail(row: SetupCallRow): { subject: string; text: s
       ``,
       `Add to calendar / details: ${calendarPageUrl(row)}`,
       ``,
+      ...sampleLeadAlert(row),
       `Need a different time? Reply to this email or to our text.`,
       ``,
       `— The Montivaro team`,
     ].join("\n"),
   };
+}
+
+// The demo, replayed: the call they just had, written up the way Montivaro
+// would write it up for THEM as the owner. Short on purpose — it's a taste
+// of the alert, not a transcript. Omitted when the analysis gave us nothing.
+function sampleLeadAlert(row: SetupCallRow): string[] {
+  const summary = (row.summary || "").trim();
+  const goal = (row.goal || "").trim();
+  if (!summary && !goal) return [];
+  const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n - 1).trimEnd()}…`);
+  const who = [row.name, row.business].filter(Boolean).join(" from ") || "A caller";
+  return [
+    `— — — — — — — — — —`,
+    `A SAMPLE OF WHAT YOU'D GET AFTER EVERY CALL`,
+    `If the call you just made had come into ${row.business || "your business"}, this is the alert Montivaro would have sent you:`,
+    ``,
+    `🔔 New lead — ${who}`,
+    ...(goal ? [`What they wanted: ${clip(goal, 160)}`] : []),
+    ...(summary ? [`Summary: ${clip(summary, 320)}`] : []),
+    `📞 ${row.phone}`,
+    ``,
+    `Every call — answered or missed — lands in your texts or inbox like this. Nothing slips through.`,
+    `— — — — — — — — — —`,
+    ``,
+  ];
 }
 
 export function reminderEmail(row: SetupCallRow): { subject: string; text: string } {
@@ -518,6 +552,8 @@ export async function handleBookedSetupCall(input: {
   callerNumber: string;
   name: string;
   business: string;
+  summary?: string;
+  goal?: string;
   booking: Booking;
 }): Promise<SetupCallRow | null> {
   const phone = normalizePhone(input.callerNumber) || input.callerNumber;
@@ -527,6 +563,8 @@ export async function handleBookedSetupCall(input: {
     email: input.booking.email,
     name: input.name,
     business: input.business,
+    summary: input.summary,
+    goal: input.goal,
     booking: input.booking,
   });
   if (!row) return null; // duplicate delivery — already handled

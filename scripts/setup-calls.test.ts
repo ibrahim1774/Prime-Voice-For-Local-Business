@@ -9,6 +9,7 @@ import {
   confirmationSms,
   reminderSms,
   googleCalendarUrl,
+  confirmationEmail,
 } from "../lib/setupCalls";
 
 // Wall-clock time in the event's zone resolves to the right instant (DST on).
@@ -118,6 +119,8 @@ const row = {
   id: 7, vapi_call_id: "call-1", phone: "+19285550123", email: "joe@desertplumbing.com",
   name: "Joe Ortiz", business: "Desert Plumbing", start_at: "2026-09-09T17:00:00.000Z", timezone: "America/Phoenix",
   token: "abc123XYZ_-4", mode: "phone" as const,
+  summary: "Joe runs Desert Plumbing in Phoenix and wants after-hours calls answered and emergency jobs booked so he stops losing them to voicemail.",
+  goal: "After-hours answering + emergency job booking",
 };
 const sms = confirmationSms(row);
 assert.match(sms, /You're booked, Joe!/);
@@ -162,6 +165,19 @@ assert.equal(vgcal.searchParams.get("location"), "https://meet.google.com/abc-de
 assert.match(confirmationSms(row), /nothing to join/);
 assert.doesNotMatch(buildIcs(row), /LOCATION:/);
 console.log("--- sample video SMS ---\n" + vsms);
+
+// Confirmation email replays the call as a sample lead alert.
+const mail = confirmationEmail(row);
+assert.match(mail.text, /A SAMPLE OF WHAT YOU'D GET AFTER EVERY CALL/);
+assert.match(mail.text, /🔔 New lead — Joe Ortiz from Desert Plumbing/);
+assert.match(mail.text, /What they wanted: After-hours answering \+ emergency job booking/);
+assert.match(mail.text, /Summary: Joe runs Desert Plumbing/);
+assert.match(mail.text, /📞 \+19285550123/);
+// Nothing from the analysis → no sample block, email still complete.
+const bare = confirmationEmail({ ...row, summary: "", goal: "" });
+assert.doesNotMatch(bare.text, /SAMPLE OF WHAT/);
+assert.match(bare.text, /Need a different time/);
+console.log("--- sample confirmation email ---\n" + mail.text);
 
 console.log("setupCalls: all assertions passed");
 console.log("--- sample SMS ---\n" + sms);
