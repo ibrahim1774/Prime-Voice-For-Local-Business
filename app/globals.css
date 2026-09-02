@@ -873,3 +873,43 @@ body:has(.mv2) { background: var(--m-ink); }
   .mv2 .mv2-bookcall-shell { padding-top: 40px; }
   .mv2 .mv2-bookcall-cal { border-radius: 12px; }
 }
+
+/* /c/<token> — the setup-call booking page linked from the texts. Sits on
+   the /bookcall carbon shell; these are just the bits it adds. */
+.mv2 .mv2-setupcall-check {
+  margin: 0 auto 6px;
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  border: 1px solid var(--m-line-d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--m-paper);
+}
+.mv2 .mv2-setupcall-check svg { width: 30px; height: 30px; }
+.mv2 .mv2-setupcall-when {
+  margin: 14px auto 0;
+  font-size: clamp(18px, 3.2vw, 24px);
+  font-weight: 600;
+  color: var(--m-paper);
+}
+.mv2 .mv2-setupcall-how { text-align: left; }
+.mv2 .mv2-setupcall-how strong { color: #ffffff; font-weight: 600; }
+.mv2 .mv2-setupcall-label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--m-smoke-d);
+}
+.mv2 .mv2-setupcall-actions {
+  display: grid;
+  gap: 10px;
+  margin: 26px auto 0;
+  max-width: 420px;
+}
+.mv2 .mv2-setupcall-actions .mv2-btn { width: 100%; }
+.mv2 .mv2-setupcall .mv2-bookcall-sub { margin-top: 26px; }
