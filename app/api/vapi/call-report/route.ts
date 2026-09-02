@@ -103,6 +103,49 @@ async function sendSms(to: string, body: string): Promise<string> {
   return json?.sid || "";
 }
 
+// A caller has "tried the number" once they've stayed on this long —
+// shorter than that is a misdial or an instant hang-up, not worth a text.
+const OWNER_ALERT_MIN_SECONDS = 20;
+
+function callSeconds(message: any): number {
+  const startedAtMs = Date.parse(message?.startedAt || "") || 0;
+  const endedAtMs = Date.parse(message?.endedAt || "") || 0;
+  return Math.round(
+    Number(message?.durationSeconds) ||
+      (endedAtMs > startedAtMs ? (endedAtMs - startedAtMs) / 1000 : 0)
+  );
+}
+
+function formatDuration(message: any): string {
+  const secs = callSeconds(message);
+  if (!secs) return "";
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return m ? `${m}m${String(s).padStart(2, "0")}s` : `${s}s`;
+}
+
+// One short text to the owner per demo call: who, what they run, what they
+// wanted, the summary, their number. Two segments at most.
+function buildOwnerCallAlert(
+  message: any,
+  lead: { name?: string; business?: string; summary?: string; callerNumber: string },
+  structured: any
+): string {
+  const dur = formatDuration(message);
+  const who = [lead.name, lead.business].filter(Boolean).join(" — ");
+  const type = typeof structured?.businessType === "string" ? structured.businessType.trim() : "";
+  const wanted = typeof structured?.reasonForCall === "string" ? structured.reasonForCall.trim() : "";
+  const lines = [`📞 Demo call${dur ? ` · ${dur}` : ""}`];
+  if (who) lines.push(type ? `${who} (${type})` : who);
+  else if (type) lines.push(type);
+  else lines.push("Caller gave no name or business");
+  if (wanted) lines.push(`Wanted: ${truncate(wanted, 100)}`);
+  if (lead.summary) lines.push(truncate(lead.summary, 160));
+  lines.push(lead.callerNumber);
+  lines.push("Transcript + recording: montivaro.com/dialer");
+  return lines.join("\n");
+}
+
 function truncate(text: string, max: number): string {
   const t = (text || "").trim();
   return t.length <= max ? t : `${t.slice(0, max - 1).trimEnd()}…`;
@@ -378,6 +421,25 @@ export async function POST(request: NextRequest) {
           console.error("call-report: booking hand-off failed", err);
         }
         return;
+      }
+
+      // Owner alert for every phone call to the demo line that lasted at
+      // least OWNER_ALERT_MIN_SECONDS (owner ask 2026-09-02) — not just
+      // qualified leads. Booked calls already ping via
+      // handleBookedSetupCall, so this is the didn't-book path. Web
+      // click-to-call sessions have no number and are skipped; every call
+      // is still in the dialer's demo-calls page regardless.
+      if (lead.callerNumber) {
+        const secs = callSeconds(message);
+        if (secs >= OWNER_ALERT_MIN_SECONDS) {
+          try {
+            await sendSms(OWNER_ALERT_NUMBER, buildOwnerCallAlert(message, lead, structured));
+          } catch (err) {
+            console.error("call-report: owner call alert failed", err);
+          }
+        } else {
+          console.log(`call-report: ${lead.callerNumber} stayed ${secs}s (< ${OWNER_ALERT_MIN_SECONDS}s) — no owner alert`);
+        }
       }
     }
 
