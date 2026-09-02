@@ -20,10 +20,14 @@ export const OWNER_ALERT_NUMBER = "+13476131906";
 const CALL_MINUTES = 15;
 const SITE = "https://www.montivaro.com";
 
+export type CallMode = "phone" | "video";
+
 export interface Booking {
   startAt: Date;
   timeZone: string;
   email: string;
+  // Phone (we dial them) or video (they join the shared Meet room).
+  mode: CallMode;
   // Where the slot came from: the calendar tool call, or the analysis fallback.
   source: "tool" | "structured";
 }
@@ -37,8 +41,22 @@ export interface SetupCallRow {
   business: string;
   start_at: string;
   timezone: string;
+  mode: CallMode;
   // Unguessable id for the public /c/<token> page in the texts and emails.
   token: string;
+}
+
+// One permanent Google Meet room (owner's "create a meeting for later"
+// link). Availability checks keep bookings from overlapping, so the room is
+// reused, never shared. Unset → every booking is a phone call, and Keith is
+// never told to offer video (sync-config reads the same variable).
+export function videoUrl(): string {
+  return process.env.SETUP_CALL_VIDEO_URL?.trim() || "";
+}
+
+// A booking is treated as video only when the link exists to send.
+export function isVideo(row: Pick<SetupCallRow, "mode">): boolean {
+  return row.mode === "video" && Boolean(videoUrl());
 }
 
 // ── schema ──────────────────────────────────────────────────────────────────
@@ -65,6 +83,7 @@ export async function ensureSetupCallsSchema() {
   await sql()`CREATE INDEX IF NOT EXISTS setup_calls_start_idx ON setup_calls (start_at)`;
   await sql()`ALTER TABLE setup_calls ADD COLUMN IF NOT EXISTS token text`;
   await sql()`CREATE UNIQUE INDEX IF NOT EXISTS setup_calls_token_idx ON setup_calls (token)`;
+  await sql()`ALTER TABLE setup_calls ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'phone'`;
   ready = true;
 }
 
@@ -86,17 +105,25 @@ export function googleCalendarUrl(row: SetupCallRow): string {
     action: "TEMPLATE",
     text: `Montivaro setup call${row.business ? ` — ${row.business}` : ""}`,
     dates: `${stamp(start)}/${stamp(end)}`,
-    details: `Montivaro will call you at ${row.phone} to set up your AI receptionist. Nothing to join — we call you.`,
+    details: howItWorks(row) + `\nDetails: ${calendarPageUrl(row)}`,
     ctz: isValidTimeZone(row.timezone) ? row.timezone : "America/New_York",
   });
+  if (isVideo(row)) params.set("location", videoUrl());
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+// The one sentence every channel repeats about how the call happens.
+export function howItWorks(row: Pick<SetupCallRow, "mode" | "phone">): string {
+  return isVideo(row)
+    ? `Video call — join here at that time: ${videoUrl()}`
+    : `Montivaro will call you at ${row.phone} to set up your AI receptionist. Nothing to join — we call you.`;
 }
 
 export async function getSetupCallByToken(token: string): Promise<SetupCallRow | null> {
   if (!/^[A-Za-z0-9_-]{8,32}$/.test(token)) return null;
   await ensureSetupCallsSchema();
   const rows = (await sql()`
-    SELECT id, vapi_call_id, phone, email, name, business, start_at, timezone, token
+    SELECT id, vapi_call_id, phone, email, name, business, start_at, timezone, mode, token
     FROM setup_calls WHERE token = ${token} LIMIT 1`) as SetupCallRow[];
   return rows[0] || null;
 }
@@ -208,6 +235,13 @@ function firstEmail(args: Record<string, any>): string {
   return "";
 }
 
+// Keith tags the event description "MODE: video" / "MODE: phone".
+function modeFrom(text: unknown): CallMode | null {
+  if (typeof text !== "string") return null;
+  const m = text.match(/MODE:\s*(video|phone)/i);
+  return m ? (m[1].toLowerCase() as CallMode) : null;
+}
+
 function looksLikeError(result: unknown): boolean {
   if (result == null) return false;
   const text = typeof result === "string" ? result : JSON.stringify(result);
@@ -237,6 +271,7 @@ export function extractBookingFromReport(
   }
 
   let found: Booking | null = null;
+  let foundTagged = false;
   for (const m of messages) {
     const calls: any[] = Array.isArray(m?.toolCalls)
       ? m.toolCalls
@@ -261,12 +296,25 @@ export function extractBookingFromReport(
       if (!startAt) continue;
       // Keep the LAST successful booking — a re-book after a failed attempt
       // is the one that stuck.
-      found = { startAt, timeZone: isValidTimeZone(tz) ? tz : "America/New_York", email: firstEmail(args), source: "tool" };
+      const tagged = modeFrom(args.description) || modeFrom(args.summary);
+      foundTagged = Boolean(tagged);
+      found = {
+        startAt,
+        timeZone: isValidTimeZone(tz) ? tz : "America/New_York",
+        email: firstEmail(args),
+        mode: tagged || "phone",
+        source: "tool",
+      };
     }
   }
-  if (found) return found;
-
   const s: any = message?.analysis?.structuredData || {};
+  if (found) {
+    // The description tag is authoritative; the analysis fills in only when
+    // the tool call carried no tag (the model dropped it).
+    if (!foundTagged && s.setupCallMode === "video") found.mode = "video";
+    return found;
+  }
+
   if (s.bookedSetupCall === true && typeof s.setupCallStart === "string") {
     const tz = typeof s.setupCallTimeZone === "string" && isValidTimeZone(s.setupCallTimeZone)
       ? s.setupCallTimeZone
@@ -277,6 +325,7 @@ export function extractBookingFromReport(
         startAt,
         timeZone: tz,
         email: typeof s.email === "string" && s.email.includes("@") ? s.email.trim().toLowerCase() : "",
+        mode: s.setupCallMode === "video" ? "video" : "phone",
         source: "structured",
       };
     }
@@ -296,11 +345,12 @@ export async function saveSetupCall(input: {
 }): Promise<SetupCallRow | null> {
   await ensureSetupCallsSchema();
   const rows = (await sql()`
-    INSERT INTO setup_calls (vapi_call_id, phone, email, name, business, start_at, timezone, source, token)
+    INSERT INTO setup_calls (vapi_call_id, phone, email, name, business, start_at, timezone, source, token, mode)
     VALUES (${input.vapiCallId}, ${input.phone}, ${input.email}, ${input.name}, ${input.business},
-            ${input.booking.startAt.toISOString()}, ${input.booking.timeZone}, ${input.booking.source}, ${newToken()})
+            ${input.booking.startAt.toISOString()}, ${input.booking.timeZone}, ${input.booking.source}, ${newToken()},
+            ${input.booking.mode === "video" ? "video" : "phone"})
     ON CONFLICT (vapi_call_id) DO NOTHING
-    RETURNING id, vapi_call_id, phone, email, name, business, start_at, timezone, token`) as SetupCallRow[];
+    RETURNING id, vapi_call_id, phone, email, name, business, start_at, timezone, mode, token`) as SetupCallRow[];
   return rows[0] || null;
 }
 
@@ -316,10 +366,11 @@ export async function sendSms(to: string, body: string): Promise<string> {
 export function confirmationSms(row: SetupCallRow): string {
   const when = formatWhen(new Date(row.start_at), row.timezone);
   const hi = row.name ? `, ${row.name.split(/\s+/)[0]}` : "";
+  const video = isVideo(row);
   return [
     `✅ You're booked${hi}!`,
-    `Montivaro setup call — ${when}.`,
-    `We'll call you at ${row.phone} — nothing to join.`,
+    `Montivaro setup ${video ? "video call" : "call"} — ${when}.`,
+    video ? `📹 Join here at that time: ${videoUrl()}` : `We'll call you at ${row.phone} — nothing to join.`,
     `📅 Add it to your calendar: ${calendarPageUrl(row)}`,
     `We'll text you a reminder before the call. Need a different time? Just reply here.`,
   ].join("\n");
@@ -327,23 +378,24 @@ export function confirmationSms(row: SetupCallRow): string {
 
 export function reminderSms(row: SetupCallRow, kind: "24h" | "1h"): string {
   const when = formatWhen(new Date(row.start_at), row.timezone);
+  const video = isVideo(row);
   if (kind === "24h") {
     return [
-      `⏰ Reminder: your Montivaro setup call is tomorrow — ${when}.`,
-      `We'll call you at this number. Details: ${calendarPageUrl(row)}`,
+      `⏰ Reminder: your Montivaro setup ${video ? "video call" : "call"} is tomorrow — ${when}.`,
+      video ? `Join link + details: ${calendarPageUrl(row)}` : `We'll call you at this number. Details: ${calendarPageUrl(row)}`,
       `Reply if you need to reschedule.`,
     ].join("\n");
   }
   return [
-    `⏰ Your Montivaro setup call is in about an hour — ${when}.`,
-    `We'll call you at this number — nothing to join. Talk soon!`,
+    `⏰ Your Montivaro setup ${video ? "video call" : "call"} is in about an hour — ${when}.`,
+    video ? `📹 Join here: ${videoUrl()}` : `We'll call you at this number — nothing to join. Talk soon!`,
   ].join("\n");
 }
 
 export function ownerSms(row: SetupCallRow): string {
   const whenEt = formatWhen(new Date(row.start_at), "America/New_York");
   const who = [row.name, row.business].filter(Boolean).join(" — ") || "Unknown caller";
-  return `📅 Setup call booked: ${who} — ${whenEt} — ${row.phone}${row.email ? ` — ${row.email}` : ""}`;
+  return `📅 Setup ${isVideo(row) ? "VIDEO call" : "call"} booked: ${who} — ${whenEt} — ${row.phone}${row.email ? ` — ${row.email}` : ""}`;
 }
 
 // RFC 5545 invite so mail clients that don't get the calendar provider's own
@@ -355,7 +407,8 @@ export function buildIcs(row: SetupCallRow): string {
   const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
   const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
   const organizer = process.env.SETUP_CALL_OWNER_EMAIL?.trim();
-  const description = `Montivaro will call ${row.phone} to set up your AI receptionist. Nothing to join — we call you.\nDetails: ${calendarPageUrl(row)}`;
+  const description = `${howItWorks(row)}\nDetails: ${calendarPageUrl(row)}`;
+  const video = isVideo(row);
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -366,8 +419,9 @@ export function buildIcs(row: SetupCallRow): string {
     `DTSTAMP:${stamp(new Date())}`,
     `DTSTART:${stamp(start)}`,
     `DTEND:${stamp(end)}`,
-    `SUMMARY:${esc(`Montivaro setup call${row.business ? ` — ${row.business}` : ""}`)}`,
+    `SUMMARY:${esc(`Montivaro setup ${video ? "video call" : "call"}${row.business ? ` — ${row.business}` : ""}`)}`,
     `DESCRIPTION:${esc(description)}`,
+    ...(video ? [`LOCATION:${esc(videoUrl())}`, `URL:${videoUrl()}`] : []),
     ...(organizer ? [`ORGANIZER;CN=Montivaro:mailto:${organizer}`] : []),
     ...(row.email ? [`ATTENDEE;CN=${esc(row.name || row.email)};RSVP=TRUE:mailto:${row.email}`] : []),
     "BEGIN:VALARM",
@@ -429,8 +483,8 @@ export function confirmationEmail(row: SetupCallRow): { subject: string; text: s
     text: [
       `Hi${hi},`,
       ``,
-      `Your Montivaro setup call is booked for ${when}.`,
-      `We'll call you at ${row.phone} — nothing to join. The attached invite adds it to your calendar with a reminder.`,
+      `Your Montivaro setup ${isVideo(row) ? "video call" : "call"} is booked for ${when}.`,
+      `${howItWorks(row)} The attached invite adds it to your calendar with a reminder.`,
       ``,
       `Add to calendar / details: ${calendarPageUrl(row)}`,
       ``,
@@ -446,8 +500,8 @@ export function reminderEmail(row: SetupCallRow): { subject: string; text: strin
   return {
     subject: `Reminder: Montivaro setup call tomorrow, ${when}`,
     text: [
-      `Quick reminder — your Montivaro setup call is tomorrow, ${when}.`,
-      `We'll call you at ${row.phone} — nothing to join.`,
+      `Quick reminder — your Montivaro setup ${isVideo(row) ? "video call" : "call"} is tomorrow, ${when}.`,
+      howItWorks(row),
       `Details: ${calendarPageUrl(row)}`,
       ``,
       `Need to reschedule? Just reply to this email.`,
@@ -514,7 +568,7 @@ export async function sendDueReminders(now = new Date()): Promise<{ h24: number;
   const H = 3_600_000;
 
   const due24 = (await q`
-    SELECT id, vapi_call_id, phone, email, name, business, start_at, timezone, token
+    SELECT id, vapi_call_id, phone, email, name, business, start_at, timezone, mode, token
     FROM setup_calls
     WHERE reminded_24h_at IS NULL
       AND start_at BETWEEN ${iso(23 * H)} AND ${iso(25 * H)}
@@ -541,7 +595,7 @@ export async function sendDueReminders(now = new Date()): Promise<{ h24: number;
   }
 
   const due1 = (await q`
-    SELECT id, vapi_call_id, phone, email, name, business, start_at, timezone, token
+    SELECT id, vapi_call_id, phone, email, name, business, start_at, timezone, mode, token
     FROM setup_calls
     WHERE reminded_1h_at IS NULL
       AND start_at BETWEEN ${iso(0.5 * H)} AND ${iso(1.5 * H)}

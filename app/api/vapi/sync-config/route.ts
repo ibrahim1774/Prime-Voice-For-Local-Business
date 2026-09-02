@@ -182,13 +182,19 @@ export async function POST(request: NextRequest) {
     return name;
   };
 
-  let booking: { provider: Provider; availabilityTool: string; bookingTool: string; contactTool?: string } | null = null;
+  // Video is offered only once the owner's Meet room is configured — the
+  // same variable lib/setupCalls reads when it writes the texts and invite.
+  const video = Boolean(process.env.SETUP_CALL_VIDEO_URL?.trim());
+  let booking:
+    | { provider: Provider; availabilityTool: string; bookingTool: string; contactTool?: string; video: boolean }
+    | null = null;
   if (calendar) {
     booking = {
       provider: calendar.provider,
       availabilityTool: await ensureNamed(calendar.availability),
       bookingTool: await ensureNamed(calendar.booking),
       contactTool: calendar.contact ? await ensureNamed(calendar.contact) : undefined,
+      video,
     };
   }
 
@@ -280,6 +286,11 @@ export async function POST(request: NextRequest) {
             setupCallTimeZone: {
               type: "string",
               description: "If a setup call was booked: the caller's IANA time zone (e.g. America/Phoenix)",
+            },
+            setupCallMode: {
+              type: "string",
+              enum: ["phone", "video"],
+              description: "If a setup call was booked: 'video' if the caller chose a video call, otherwise 'phone'",
             },
             qualified: {
               type: "boolean",
