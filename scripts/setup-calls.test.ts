@@ -75,6 +75,7 @@ const report = {
                 endDateTime: "2026-09-09T10:15:00",
                 timeZone: "America/Phoenix",
                 attendees: [{ email: "Joe@DesertPlumbing.com" }],
+                description: "Joe — Desert Plumbing — +19285550123. MODE: video",
               }),
             },
           },
@@ -92,6 +93,7 @@ assert.equal(b.source, "tool");
 assert.equal(b.startAt.toISOString(), "2026-09-09T17:00:00.000Z");
 assert.equal(b.timeZone, "America/Phoenix");
 assert.equal(b.email, "joe@desertplumbing.com");
+assert.equal(b.mode, "video", "MODE tag in the description wins");
 
 // Without the configured name it still finds the booking by shape, and the
 // availability check is never mistaken for it.
@@ -107,6 +109,7 @@ const fallback = extractBookingFromReport({
 })!;
 assert.equal(fallback.source, "structured");
 assert.equal(fallback.startAt.toISOString(), "2026-09-10T19:00:00.000Z");
+assert.equal(fallback.mode, "phone", "no mode anywhere → phone");
 
 // No booking → null (the pitch SMS path stays untouched).
 assert.equal(extractBookingFromReport({ artifact: { messages: [] }, analysis: { structuredData: { qualified: true } } }), null);
@@ -114,7 +117,7 @@ assert.equal(extractBookingFromReport({ artifact: { messages: [] }, analysis: { 
 const row = {
   id: 7, vapi_call_id: "call-1", phone: "+19285550123", email: "joe@desertplumbing.com",
   name: "Joe Ortiz", business: "Desert Plumbing", start_at: "2026-09-09T17:00:00.000Z", timezone: "America/Phoenix",
-  token: "abc123XYZ_-4",
+  token: "abc123XYZ_-4", mode: "phone" as const,
 };
 const sms = confirmationSms(row);
 assert.match(sms, /You're booked, Joe!/);
@@ -132,6 +135,33 @@ assert.match(ics, /DTSTART:20260909T170000Z/);
 assert.match(ics, /DTEND:20260909T171500Z/);
 assert.match(ics, /METHOD:REQUEST/);
 assert.match(ics, /ATTENDEE;CN=Joe Ortiz;RSVP=TRUE:mailto:joe@desertplumbing.com/);
+assert.doesNotMatch(ics, /LOCATION:/);
+
+// Video booking with no Meet link configured falls back to phone wording —
+// never a dangling "join here" with nothing to join.
+const videoRow = { ...row, mode: "video" as const };
+delete process.env.SETUP_CALL_VIDEO_URL;
+assert.match(confirmationSms(videoRow), /nothing to join/);
+
+// With the room configured, every channel carries the link instead of the
+// "we call you" line.
+process.env.SETUP_CALL_VIDEO_URL = "https://meet.google.com/abc-defg-hij";
+const vsms = confirmationSms(videoRow);
+assert.match(vsms, /setup video call/);
+assert.match(vsms, /📹 Join here at that time: https:\/\/meet\.google\.com\/abc-defg-hij/);
+assert.doesNotMatch(vsms, /We'll call you/);
+assert.match(reminderSms(videoRow, "1h"), /Join here: https:\/\/meet\.google\.com\/abc-defg-hij/);
+assert.match(reminderSms(videoRow, "24h"), /Join link \+ details: https:\/\/www\.montivaro\.com\/c\/abc123XYZ_-4/);
+const vics = buildIcs(videoRow);
+assert.match(vics, /SUMMARY:Montivaro setup video call — Desert Plumbing/);
+assert.match(vics, /LOCATION:https:\/\/meet\.google\.com\/abc-defg-hij/);
+assert.match(vics, /URL:https:\/\/meet\.google\.com\/abc-defg-hij/);
+const vgcal = new URL(googleCalendarUrl(videoRow));
+assert.equal(vgcal.searchParams.get("location"), "https://meet.google.com/abc-defg-hij");
+// Phone bookings are untouched by the room being configured.
+assert.match(confirmationSms(row), /nothing to join/);
+assert.doesNotMatch(buildIcs(row), /LOCATION:/);
+console.log("--- sample video SMS ---\n" + vsms);
 
 console.log("setupCalls: all assertions passed");
 console.log("--- sample SMS ---\n" + sms);
