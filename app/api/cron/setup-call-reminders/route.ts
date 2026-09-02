@@ -32,8 +32,9 @@ export async function GET(request: NextRequest) {
       FROM setup_calls ORDER BY id DESC LIMIT 20`) as any[];
     return NextResponse.json({ ok: true, rows });
   }
-  const del = manual ? Number(request.nextUrl.searchParams.get("delete")) : NaN;
-  if (Number.isInteger(del)) {
+  const delParam = manual ? request.nextUrl.searchParams.get("delete") : null;
+  const del = delParam ? Number(delParam) : NaN;
+  if (Number.isInteger(del) && del > 0) {
     await ensureSetupCallsSchema();
     const gone = (await sql()`DELETE FROM setup_calls WHERE id = ${del} RETURNING id`) as any[];
     return NextResponse.json({ ok: true, deleted: gone.length });
