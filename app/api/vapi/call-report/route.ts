@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { sendMetaEvent } from "@/lib/metaCapi";
 import { ensureSchema, sql } from "@/lib/dialer/core";
 import { after } from "next/server";
+import {
+  OWNER_ALERT_NUMBER,
+  extractBookingFromReport,
+  handleBookedSetupCall,
+} from "@/lib/setupCalls";
 
 // Vapi end-of-call-report webhook for the demo assistants.
 //
@@ -19,9 +24,6 @@ export const maxDuration = 90;
 const CATCHALL_ASSISTANT_ID = "52081d54-3e98-4213-88cc-b618985a1d9b";
 const PRIMEBARBER_ASSISTANT_ID = "52d9dbcd-a215-4794-8bd7-fe2bd982fd35";
 const SMS_DELAY_MS = 20_000;
-// Ibrahim's cell — gets the short owner ping when a Website Design call
-// qualifies as a lead.
-const OWNER_ALERT_NUMBER = "+13476131906";
 
 type Product = "montivaro" | "primebarber" | "dentist" | "contractors" | "website";
 
@@ -54,6 +56,21 @@ async function verticalAssistants(): Promise<Record<string, Product>> {
     // keep whatever we had
   }
   return vertCache.map;
+}
+
+// Name of the create-event calendar tool sync-config attached to the
+// catch-all assistant — lets the booking extractor match the exact tool call
+// instead of guessing from argument shapes.
+async function bookingToolName(): Promise<string | undefined> {
+  try {
+    await ensureSchema();
+    const rows = (await sql()`
+      SELECT value FROM app_config WHERE key = 'catchall_booking_tool'`) as any[];
+    const v = rows[0]?.value;
+    return typeof v === "string" && v.trim() ? v.trim() : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function env(name: string): string | undefined {
@@ -317,6 +334,41 @@ export async function POST(request: NextRequest) {
         });
       } catch (err) {
         console.error("call-report: forward failed", err);
+      }
+    }
+
+    // Catch-all line: if the assistant booked the setup call through the
+    // calendar tools, the caller gets a booking confirmation (text + email +
+    // reminders from the cron) instead of the sample-alert pitch — they're
+    // past the pitch, they have an appointment.
+    if (product === "montivaro") {
+      const booking = extractBookingFromReport(message, await bookingToolName());
+      if (booking) {
+        try {
+          const row = await handleBookedSetupCall({
+            vapiCallId: message?.call?.id || null,
+            callerNumber: lead.callerNumber,
+            name: lead.name,
+            business: lead.business,
+            booking,
+          });
+          console.log(
+            `call-report: setup call booked (${booking.source}) for ${lead.callerNumber || "web caller"} at ${booking.startAt.toISOString()} → row #${row?.id ?? "dup"}`
+          );
+          if (lead.callerNumber) {
+            await sendMetaEvent({
+              eventName: "Schedule",
+              phone: lead.callerNumber,
+              email: booking.email || undefined,
+              eventId: message?.call?.id ? `${message.call.id}:schedule` : undefined,
+              actionSource: "phone_call",
+              customData: { source: "vapi_booking" },
+            });
+          }
+        } catch (err) {
+          console.error("call-report: booking hand-off failed", err);
+        }
+        return;
       }
     }
 
