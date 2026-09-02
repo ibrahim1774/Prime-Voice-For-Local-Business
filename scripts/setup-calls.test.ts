@@ -7,6 +7,8 @@ import {
   extractBookingFromReport,
   buildIcs,
   confirmationSms,
+  reminderSms,
+  googleCalendarUrl,
 } from "../lib/setupCalls";
 
 // Wall-clock time in the event's zone resolves to the right instant (DST on).
@@ -112,12 +114,20 @@ assert.equal(extractBookingFromReport({ artifact: { messages: [] }, analysis: { 
 const row = {
   id: 7, vapi_call_id: "call-1", phone: "+19285550123", email: "joe@desertplumbing.com",
   name: "Joe Ortiz", business: "Desert Plumbing", start_at: "2026-09-09T17:00:00.000Z", timezone: "America/Phoenix",
+  token: "abc123XYZ_-4",
 };
 const sms = confirmationSms(row);
 assert.match(sms, /You're booked, Joe!/);
 assert.match(sms, /Wednesday, Sep 9 at 10:00 AM MST/);
-assert.match(sms, /joe@desertplumbing.com/);
+assert.match(sms, /nothing to join/);
+assert.match(sms, /https:\/\/www\.montivaro\.com\/c\/abc123XYZ_-4/);
+assert.match(reminderSms(row, "24h"), /montivaro\.com\/c\/abc123XYZ_-4/);
+const gcal = new URL(googleCalendarUrl(row));
+assert.equal(gcal.searchParams.get("dates"), "20260909T170000Z/20260909T171500Z");
+assert.equal(gcal.searchParams.get("ctz"), "America/Phoenix");
+assert.match(gcal.searchParams.get("text")!, /Desert Plumbing/);
 const ics = buildIcs(row);
+assert.match(ics, /montivaro\.com\/c\/abc123XYZ_-4/);
 assert.match(ics, /DTSTART:20260909T170000Z/);
 assert.match(ics, /DTEND:20260909T171500Z/);
 assert.match(ics, /METHOD:REQUEST/);

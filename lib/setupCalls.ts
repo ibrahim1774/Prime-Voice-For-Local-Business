@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { ensureSchema, sql, twilio, normalizePhone } from "@/lib/dialer/core";
 
 // Setup-call bookings made by the catch-all demo assistant mid-call.
@@ -17,6 +18,7 @@ import { ensureSchema, sql, twilio, normalizePhone } from "@/lib/dialer/core";
 
 export const OWNER_ALERT_NUMBER = "+13476131906";
 const CALL_MINUTES = 15;
+const SITE = "https://www.montivaro.com";
 
 export interface Booking {
   startAt: Date;
@@ -35,6 +37,8 @@ export interface SetupCallRow {
   business: string;
   start_at: string;
   timezone: string;
+  // Unguessable id for the public /c/<token> page in the texts and emails.
+  token: string;
 }
 
 // ── schema ──────────────────────────────────────────────────────────────────
@@ -59,7 +63,42 @@ export async function ensureSetupCallsSchema() {
     created_at timestamptz NOT NULL DEFAULT now()
   )`;
   await sql()`CREATE INDEX IF NOT EXISTS setup_calls_start_idx ON setup_calls (start_at)`;
+  await sql()`ALTER TABLE setup_calls ADD COLUMN IF NOT EXISTS token text`;
+  await sql()`CREATE UNIQUE INDEX IF NOT EXISTS setup_calls_token_idx ON setup_calls (token)`;
   ready = true;
+}
+
+function newToken(): string {
+  return crypto.randomBytes(9).toString("base64url");
+}
+
+export function calendarPageUrl(row: Pick<SetupCallRow, "token">): string {
+  return `${SITE}/c/${row.token}`;
+}
+
+// Prefilled "add to Google Calendar" link — works for anyone with a Google
+// account, invited or not (the event's own link only opens for invitees).
+export function googleCalendarUrl(row: SetupCallRow): string {
+  const start = new Date(row.start_at);
+  const end = new Date(start.getTime() + CALL_MINUTES * 60_000);
+  const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `Montivaro setup call${row.business ? ` — ${row.business}` : ""}`,
+    dates: `${stamp(start)}/${stamp(end)}`,
+    details: `Montivaro will call you at ${row.phone} to set up your AI receptionist. Nothing to join — we call you.`,
+    ctz: isValidTimeZone(row.timezone) ? row.timezone : "America/New_York",
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+export async function getSetupCallByToken(token: string): Promise<SetupCallRow | null> {
+  if (!/^[A-Za-z0-9_-]{8,32}$/.test(token)) return null;
+  await ensureSetupCallsSchema();
+  const rows = (await sql()`
+    SELECT id, vapi_call_id, phone, email, name, business, start_at, timezone, token
+    FROM setup_calls WHERE token = ${token} LIMIT 1`) as SetupCallRow[];
+  return rows[0] || null;
 }
 
 // ── time helpers ────────────────────────────────────────────────────────────
@@ -257,11 +296,11 @@ export async function saveSetupCall(input: {
 }): Promise<SetupCallRow | null> {
   await ensureSetupCallsSchema();
   const rows = (await sql()`
-    INSERT INTO setup_calls (vapi_call_id, phone, email, name, business, start_at, timezone, source)
+    INSERT INTO setup_calls (vapi_call_id, phone, email, name, business, start_at, timezone, source, token)
     VALUES (${input.vapiCallId}, ${input.phone}, ${input.email}, ${input.name}, ${input.business},
-            ${input.booking.startAt.toISOString()}, ${input.booking.timeZone}, ${input.booking.source})
+            ${input.booking.startAt.toISOString()}, ${input.booking.timeZone}, ${input.booking.source}, ${newToken()})
     ON CONFLICT (vapi_call_id) DO NOTHING
-    RETURNING id, vapi_call_id, phone, email, name, business, start_at, timezone`) as SetupCallRow[];
+    RETURNING id, vapi_call_id, phone, email, name, business, start_at, timezone, token`) as SetupCallRow[];
   return rows[0] || null;
 }
 
@@ -277,18 +316,13 @@ export async function sendSms(to: string, body: string): Promise<string> {
 export function confirmationSms(row: SetupCallRow): string {
   const when = formatWhen(new Date(row.start_at), row.timezone);
   const hi = row.name ? `, ${row.name.split(/\s+/)[0]}` : "";
-  const lines = [
+  return [
     `✅ You're booked${hi}!`,
     `Montivaro setup call — ${when}.`,
-    `We'll call you at ${row.phone}.`,
-  ];
-  lines.push(
-    row.email
-      ? `📅 Calendar invite sent to ${row.email}. We'll text you a reminder before the call.`
-      : `📅 We'll text you a reminder before the call.`
-  );
-  lines.push("Need a different time? Just reply to this text.");
-  return lines.join("\n");
+    `We'll call you at ${row.phone} — nothing to join.`,
+    `📅 Add it to your calendar: ${calendarPageUrl(row)}`,
+    `We'll text you a reminder before the call. Need a different time? Just reply here.`,
+  ].join("\n");
 }
 
 export function reminderSms(row: SetupCallRow, kind: "24h" | "1h"): string {
@@ -296,12 +330,13 @@ export function reminderSms(row: SetupCallRow, kind: "24h" | "1h"): string {
   if (kind === "24h") {
     return [
       `⏰ Reminder: your Montivaro setup call is tomorrow — ${when}.`,
-      `We'll call you at this number. Reply if you need to reschedule.`,
+      `We'll call you at this number. Details: ${calendarPageUrl(row)}`,
+      `Reply if you need to reschedule.`,
     ].join("\n");
   }
   return [
     `⏰ Your Montivaro setup call is in about an hour — ${when}.`,
-    `We'll call you at this number. Talk soon!`,
+    `We'll call you at this number — nothing to join. Talk soon!`,
   ].join("\n");
 }
 
@@ -320,7 +355,7 @@ export function buildIcs(row: SetupCallRow): string {
   const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
   const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
   const organizer = process.env.SETUP_CALL_OWNER_EMAIL?.trim();
-  const description = `Montivaro will call ${row.phone} to set up your AI receptionist.`;
+  const description = `Montivaro will call ${row.phone} to set up your AI receptionist. Nothing to join — we call you.\nDetails: ${calendarPageUrl(row)}`;
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -395,7 +430,9 @@ export function confirmationEmail(row: SetupCallRow): { subject: string; text: s
       `Hi${hi},`,
       ``,
       `Your Montivaro setup call is booked for ${when}.`,
-      `We'll call you at ${row.phone}. The attached invite adds it to your calendar with a reminder.`,
+      `We'll call you at ${row.phone} — nothing to join. The attached invite adds it to your calendar with a reminder.`,
+      ``,
+      `Add to calendar / details: ${calendarPageUrl(row)}`,
       ``,
       `Need a different time? Reply to this email or to our text.`,
       ``,
@@ -410,7 +447,8 @@ export function reminderEmail(row: SetupCallRow): { subject: string; text: strin
     subject: `Reminder: Montivaro setup call tomorrow, ${when}`,
     text: [
       `Quick reminder — your Montivaro setup call is tomorrow, ${when}.`,
-      `We'll call you at ${row.phone}.`,
+      `We'll call you at ${row.phone} — nothing to join.`,
+      `Details: ${calendarPageUrl(row)}`,
       ``,
       `Need to reschedule? Just reply to this email.`,
       ``,
@@ -476,7 +514,7 @@ export async function sendDueReminders(now = new Date()): Promise<{ h24: number;
   const H = 3_600_000;
 
   const due24 = (await q`
-    SELECT id, vapi_call_id, phone, email, name, business, start_at, timezone
+    SELECT id, vapi_call_id, phone, email, name, business, start_at, timezone, token
     FROM setup_calls
     WHERE reminded_24h_at IS NULL
       AND start_at BETWEEN ${iso(23 * H)} AND ${iso(25 * H)}
@@ -503,7 +541,7 @@ export async function sendDueReminders(now = new Date()): Promise<{ h24: number;
   }
 
   const due1 = (await q`
-    SELECT id, vapi_call_id, phone, email, name, business, start_at, timezone
+    SELECT id, vapi_call_id, phone, email, name, business, start_at, timezone, token
     FROM setup_calls
     WHERE reminded_1h_at IS NULL
       AND start_at BETWEEN ${iso(0.5 * H)} AND ${iso(1.5 * H)}
