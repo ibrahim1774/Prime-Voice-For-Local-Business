@@ -107,9 +107,52 @@ export async function POST(request: NextRequest) {
   const previousServerUrl: string | null = current?.server?.url || current?.serverUrl || null;
 
   // Calendar tools live at the org level (Dashboard → Tools). Whatever the
-  // owner connected is what gets attached; nothing is created here.
-  const toolsResp = await fetch(`${VAPI}/tool?limit=200`, { headers: auth });
-  const allTools: VapiTool[] = toolsResp.ok ? ((await toolsResp.json().catch(() => [])) as VapiTool[]) : [];
+  // owner connected is what gets attached. Connecting Google Calendar in the
+  // dashboard only stores the OAuth credential — the tools are a separate
+  // step there — so when the credential is present and no calendar tools
+  // exist yet, create the two Google ones here.
+  const listTools = async (): Promise<VapiTool[]> => {
+    const r = await fetch(`${VAPI}/tool?limit=200`, { headers: auth });
+    return r.ok ? (((await r.json().catch(() => [])) as VapiTool[]) || []) : [];
+  };
+  let allTools = await listTools();
+  const credResp = await fetch(`${VAPI}/credential?limit=200`, { headers: auth });
+  const credentials: any[] = credResp.ok ? (((await credResp.json().catch(() => [])) as any[]) || []) : [];
+  const credentialProviders = credentials.map((c) => String(c?.provider || c?.type || "unknown"));
+  const hasGoogleCalendar = credentialProviders.some((p) => /google.*calendar/i.test(p));
+
+  const created: Array<{ type: string; ok: boolean; detail?: string }> = [];
+  if (!pickCalendarTools(allTools) && hasGoogleCalendar && !inspectOnly) {
+    const wanted = [
+      {
+        type: "google.calendar.availability.check",
+        name: DEFAULT_NAMES["google.calendar.availability.check"],
+        description:
+          "Check Montivaro's calendar for free 15-minute slots in a date/time window. Call before booking.",
+      },
+      {
+        type: "google.calendar.event.create",
+        name: DEFAULT_NAMES["google.calendar.event.create"],
+        description:
+          "Book the 15-minute Montivaro setup call on the calendar. Always include the caller's email in attendees so they receive the invite.",
+      },
+    ];
+    for (const spec of wanted) {
+      if (allTools.some((t) => t.type === spec.type)) continue;
+      const r = await fetch(`${VAPI}/tool`, {
+        method: "POST",
+        headers: { ...auth, "Content-Type": "application/json" },
+        body: JSON.stringify(spec),
+      });
+      const j: any = await r.json().catch(() => ({}));
+      created.push({
+        type: spec.type,
+        ok: r.ok,
+        detail: r.ok ? j?.id : String(j?.message || r.status),
+      });
+    }
+    allTools = await listTools();
+  }
   const calendar = pickCalendarTools(allTools);
 
   // Give unnamed native tools a stable name — the prompt has to refer to the
@@ -228,6 +271,9 @@ export async function POST(request: NextRequest) {
     previousServerUrl,
     currentToolIds: current?.model?.toolIds || [],
     orgTools: allTools.map((t) => ({ id: t.id, type: t.type, name: toolName(t) })),
+    credentialProviders,
+    hasGoogleCalendar,
+    createdTools: created,
     booking,
     toolIds,
   };
