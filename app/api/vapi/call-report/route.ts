@@ -350,6 +350,15 @@ export async function POST(request: NextRequest) {
             callerNumber: lead.callerNumber,
             name: lead.name,
             business: lead.business,
+            // Replayed to the caller in the confirmation email as the sample
+            // lead alert — the demo, in writing.
+            summary: lead.summary,
+            goal:
+              typeof structured.reasonForCall === "string" && structured.reasonForCall.trim()
+                ? structured.reasonForCall.trim()
+                : typeof structured.businessType === "string"
+                  ? structured.businessType.trim()
+                  : "",
             booking,
           });
           console.log(
