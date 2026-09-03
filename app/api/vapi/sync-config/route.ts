@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
           {
             role: "system",
             content:
-              "Summarize this call in 2-3 short sentences for an SMS lead alert to a business owner: who called, what their business is, and what they wanted. If a setup call was booked, say when. Plain text, no preamble.",
+              "Summarize this call in 2-3 short sentences for an SMS lead alert to a business owner: who called, what their business is, and what they wanted. The receptionist on the call is Montivaro's AI agent named Keith — Keith is NEVER the caller; describe the caller by their own name (or 'the caller' if they gave none). If a setup call was booked, say when. Plain text, no preamble.",
           },
           { role: "user", content: "{{transcript}}" },
         ],
@@ -254,20 +254,23 @@ export async function POST(request: NextRequest) {
           properties: {
             name: {
               type: "string",
-              description: "The caller's name, if they gave one",
+              description:
+                "The CALLER's first name (and last, if given). The receptionist is Montivaro's AI agent 'Keith' — never return Keith or Montivaro here. Empty if the caller never gave a name.",
             },
             businessName: {
               type: "string",
-              description: "The caller's business name, if mentioned",
+              description:
+                "The caller's own business name, if they said it. Never 'Montivaro' (that's us). Empty if not given.",
             },
             businessType: {
               type: "string",
               description:
-                "What kind of business the caller runs (e.g. plumbing, salon)",
+                "What kind of business the caller runs (e.g. plumbing, salon, property management)",
             },
             reasonForCall: {
               type: "string",
-              description: "Why they called / what they asked about",
+              description:
+                "What the caller wants the receptionist to handle, stated specifically in under 12 words — e.g. 'after-hours coverage for maintenance calls', 'booking appointments while they're with clients', 'overflow when the front desk is slammed'. Never generic phrases like 'inquiry' or 'learn more'. Empty if they never said.",
             },
             email: {
               type: "string",

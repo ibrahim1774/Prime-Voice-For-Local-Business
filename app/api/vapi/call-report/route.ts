@@ -142,7 +142,6 @@ function buildOwnerCallAlert(
   if (wanted) lines.push(`Wanted: ${truncate(wanted, 100)}`);
   if (lead.summary) lines.push(truncate(lead.summary, 160));
   lines.push(lead.callerNumber);
-  lines.push("Transcript + recording: montivaro.com/dialer");
   return lines.join("\n");
 }
 
