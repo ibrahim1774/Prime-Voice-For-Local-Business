@@ -1,7 +1,7 @@
 "use client";
 
 // /custom — call-the-live-demo hero (catch-all style, number never shown)
-// with the two plans ($97 / $199 — owner dropped the $49 tier and the free
+// with the two plans ($99 / $199 — owner dropped the $49 tier and the free
 // trial 2026-09-05) visible immediately: no generation step. Each plan
 // checks out at its own price through /api/create-checkout with NO trial,
 // so the card is charged at checkout. Styled on the monochrome .mv2 ink
@@ -29,7 +29,7 @@ const PLANS: Plan[] = [
   {
     id: "never-miss",
     name: "Never Miss",
-    price: 97,
+    price: 99,
     minutesLabel: "100 minutes included / mo",
     summary: "Email or call — your choice.",
     popular: true,
