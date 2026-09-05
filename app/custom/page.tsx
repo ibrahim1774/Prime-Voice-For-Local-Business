@@ -1,7 +1,7 @@
 import CustomCallPricing from "@/components/CustomCallPricing";
 
 export const metadata = {
-  title: "Montivaro | 24/7 AI Answering Agent — Plans from $97/mo",
+  title: "Montivaro | 24/7 AI Answering Agent — Plans from $99/mo",
 };
 
 export default function PageCustom() {
