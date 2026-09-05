@@ -45,7 +45,7 @@ export default function DemoExperience({
     : "Book a Call to Implement This for Your Business";
 
   const priceInfo: { amount: number; label: string } | null = prefixMatch("/custom")
-    ? { amount: 199, label: "$199/month \u2014 3-day free trial" }
+    ? { amount: 199, label: "$199/month" }
     : prefixMatch("/199")
     ? { amount: 199, label: "$199/month \u2014 3-day free trial" }
     : prefixMatch("/19")
