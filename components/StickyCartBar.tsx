@@ -161,7 +161,7 @@ export default function StickyCartBar() {
   });
 
   const priceConfig = prefixMatch("/custom")
-    ? fixedMonthly(199)
+    ? fixedMonthly(199, 0) // /custom: no free trial (owner, 2026-09-05)
     : prefixMatch("/199")
     ? fixedMonthly(199)
     : prefixMatch("/19")

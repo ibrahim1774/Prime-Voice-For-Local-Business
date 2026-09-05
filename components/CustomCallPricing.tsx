@@ -1,9 +1,10 @@
 "use client";
 
 // /custom — call-the-live-demo hero (catch-all style, number never shown)
-// with the three plans visible immediately: no generation step. Each plan
-// checks out at its own price through /api/create-checkout, the same flow
-// the old post-generate pricing used. Styled on the monochrome .mv2 ink
+// with the two plans ($97 / $199 — owner dropped the $49 tier and the free
+// trial 2026-09-05) visible immediately: no generation step. Each plan
+// checks out at its own price through /api/create-checkout with NO trial,
+// so the card is charged at checkout. Styled on the monochrome .mv2 ink
 // system so the whole page reads as one premium surface.
 
 import { useState } from "react";
@@ -26,32 +27,21 @@ interface Plan {
 
 const PLANS: Plan[] = [
   {
-    id: "business-line",
-    name: "Business Line",
-    price: 49,
-    minutesLabel: "50 minutes included / mo",
-    summary: "Email notifications only.",
-    bullets: [
-      "Runs 24/7, after-hours only, or just overflow — your choice",
-      "Every call answered — sounds like a real person",
-      "Every lead emailed to you: name, number, what they need",
-      "It knows your services, prices, and hours",
-      "Keep your current business number",
-    ],
-  },
-  {
     id: "never-miss",
     name: "Never Miss",
     price: 97,
     minutesLabel: "100 minutes included / mo",
     summary: "Email or call — your choice.",
-    inherit: "Everything in Business Line, plus:",
     popular: true,
     bullets: [
+      "Runs 24/7, after-hours only, or just overflow — your choice",
+      "Every call answered — sounds like a real person",
       "Live call transfer — your phone rings first",
       "Missed calls get answered, day or night",
       "Appointments booked while you work",
-      "Instant email the moment a lead calls",
+      "Instant email the moment a lead calls: name, number, what they need",
+      "It knows your services, prices, and hours",
+      "Keep your current business number",
     ],
   },
   {
@@ -139,7 +129,7 @@ export default function CustomCallPricing() {
         body: JSON.stringify({
           businessName: `${plan.name} plan — /custom`,
           price: plan.price,
-          trialDays: 3,
+          trialDays: 0,
           interval: "month",
           embedded: false,
         }),
@@ -247,7 +237,7 @@ export default function CustomCallPricing() {
               color: PAPER,
             }}
           >
-            Pick your plan. Start with a 3-day free trial.
+            Pick your plan. Live within 24–48 hours.
           </h2>
           <div
             style={{
@@ -268,7 +258,7 @@ export default function CustomCallPricing() {
               aria-hidden="true"
               style={{ width: 7, height: 7, borderRadius: 999, background: "#34d399" }}
             />
-            Try us for free &mdash; we&apos;ll get you set up within 24&ndash;48 hours
+            We set everything up for you within 24&ndash;48 hours
           </div>
           <p style={{ marginTop: 7, fontSize: 12.5, color: SMOKE }}>
             No setup fees. Cancel anytime.
@@ -354,7 +344,7 @@ export default function CustomCallPricing() {
                     opacity: loadingId && loadingId !== plan.id ? 0.6 : 1,
                   }}
                 >
-                  {loadingId === plan.id ? "Starting…" : `Start 3-Day Free Trial — then $${plan.price}/mo`}
+                  {loadingId === plan.id ? "Starting…" : `Get Started — $${plan.price}/mo`}
                 </button>
               </div>
             );
@@ -362,7 +352,7 @@ export default function CustomCallPricing() {
         </div>
 
         <p style={{ marginTop: 10, textAlign: "center", fontSize: 11, color: SMOKE }}>
-          3-day free trial on every plan · $1/min after your included minutes · Cancel anytime
+          $1/min after your included minutes · Cancel anytime
         </p>
 
         {/* Book-a-call fallback */}
