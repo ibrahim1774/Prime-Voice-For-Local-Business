@@ -37,6 +37,8 @@ export async function ensureLeadSchema() {
     last_owner_reply_at timestamptz
   )`;
   await sql()`ALTER TABLE website_design_leads ADD COLUMN IF NOT EXISTS name text NOT NULL DEFAULT ''`;
+  // Inbound MMS photo URLs (Twilio media), so the inbox can show them.
+  await sql()`ALTER TABLE dialer_messages ADD COLUMN IF NOT EXISTS media jsonb NOT NULL DEFAULT '[]'::jsonb`;
   await sql()`CREATE INDEX IF NOT EXISTS website_design_leads_phone_idx ON website_design_leads (phone, created_at)`;
   ready = true;
 }
