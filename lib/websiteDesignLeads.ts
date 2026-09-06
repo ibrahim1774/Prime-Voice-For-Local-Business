@@ -14,6 +14,7 @@ export const LEAD_SOURCE = "primehub-website-design-lead";
 export interface WebsiteDesignLead {
   id: number;
   phone: string;
+  name: string;
   business: string;
   can_pay: boolean;
   created_at: string;
@@ -35,20 +36,29 @@ export async function ensureLeadSchema() {
     last_inbound_at timestamptz,
     last_owner_reply_at timestamptz
   )`;
+  await sql()`ALTER TABLE website_design_leads ADD COLUMN IF NOT EXISTS name text NOT NULL DEFAULT ''`;
   await sql()`CREATE INDEX IF NOT EXISTS website_design_leads_phone_idx ON website_design_leads (phone, created_at)`;
   ready = true;
 }
 
-const firstName = (business: string) => business.trim().split(/\s+/)[0] || "there";
+const firstName = (name: string) => {
+  const w = name.trim().split(/\s+/)[0] || "";
+  return w ? w[0].toUpperCase() + w.slice(1) : "";
+};
 
-// The opener the lead gets right after submitting (owner's wording, 2026-09-06).
-export const leadOpenerSms = (business: string) =>
-  `Hey, we just saw you fill out the form for a free custom website for ${business.trim()}. ` +
-  `Want us to build it out in the next couple hours? ` +
-  `Do you have a Google Business Profile or any pictures we can use for the site?`;
+// The opener the lead gets ~15s after submitting (owner's wording, 2026-09-06).
+export const leadOpenerSms = (name: string, business: string) => {
+  const first = firstName(name);
+  return (
+    `Hey${first ? ` ${first}` : ""}, we just saw you fill out the form for a free custom website for ${business.trim()}. ` +
+    `We're trying to build out the site and send it over pretty soon. ` +
+    `Do you happen to have a Google Business Profile or any pictures we can use for the site?`
+  );
+};
 
-export const ownerNewLeadSms = (business: string, phone: string, canPay: boolean, page: string) =>
+export const ownerNewLeadSms = (name: string, business: string, phone: string, canPay: boolean, page: string) =>
   `🆕 Website Design Lead\n` +
+  `Name: ${name.trim() || "—"}\n` +
   `Business: ${business.trim()}\n` +
   `Mobile: ${phone}\n` +
   `Can cover hosting: ${canPay ? "Yes" : "No"}\n` +
@@ -58,6 +68,7 @@ export const ownerNewLeadSms = (business: string, phone: string, canPay: boolean
 
 export interface CreateLeadInput {
   business: string;
+  name: string;
   phone: string;
   canPay: boolean;
   page?: string;
@@ -77,6 +88,7 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
   if (!phone) throw new Error("Bad phone number");
   const business = (input.business || "").trim().slice(0, 120);
   if (!business) throw new Error("Missing business name");
+  const name = (input.name || "").trim().slice(0, 80);
   const page = (input.page || "").slice(0, 200);
   const q = sql();
 
@@ -88,13 +100,13 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
   if (recent.length) return { ok: true, phone, duplicate: true, leadSms: null, ownerSms: null };
 
   await q`
-    INSERT INTO website_design_leads (phone, business, can_pay, source, page)
-    VALUES (${phone}, ${business}, ${input.canPay}, ${LEAD_SOURCE}, ${page})`;
+    INSERT INTO website_design_leads (phone, name, business, can_pay, source, page)
+    VALUES (${phone}, ${name}, ${business}, ${input.canPay}, ${LEAD_SOURCE}, ${page})`;
   // Surface the lead in the dialer (Texts tab shows the business name).
   await q`
     INSERT INTO dialer_leads (phone, name, business, status, notes)
-    VALUES (${phone}, ${firstName(business)}, ${business}, 'new', ${"Website design lead (primehub.dev)"})
-    ON CONFLICT (phone) DO UPDATE SET business = EXCLUDED.business, updated_at = now()`;
+    VALUES (${phone}, ${name}, ${business}, 'new', ${"Website design lead (primehub.dev)"})
+    ON CONFLICT (phone) DO UPDATE SET name = CASE WHEN EXCLUDED.name <> '' THEN EXCLUDED.name ELSE dialer_leads.name END, business = EXCLUDED.business, updated_at = now()`;
 
   if (!input.canPay) {
     // Disqualified on the page — recorded, but nobody gets texted.
@@ -109,7 +121,7 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
     const owner = await twilio("/Messages.json", {
       To: OWNER_ALERT_NUMBER,
       From: from,
-      Body: ownerNewLeadSms(business, phone, input.canPay, page),
+      Body: ownerNewLeadSms(name, business, phone, input.canPay, page),
     });
     ownerSid = owner.sid || null;
   } catch (err) {
@@ -125,10 +137,10 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
 
 export const LEAD_OPENER_DELAY_MS = 15_000;
 
-export async function sendLeadOpener(phone: string, business: string, delayMs = LEAD_OPENER_DELAY_MS): Promise<string | null> {
+export async function sendLeadOpener(phone: string, name: string, business: string, delayMs = LEAD_OPENER_DELAY_MS): Promise<string | null> {
   if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
   const { from } = twilioEnv();
-  const opener = leadOpenerSms(business);
+  const opener = leadOpenerSms(name, business);
   const lead = await twilio("/Messages.json", { To: phone, From: from, Body: opener });
   const q = sql();
   await q`
@@ -145,7 +157,7 @@ export async function sendLeadOpener(phone: string, business: string, delayMs = 
 export async function findLeadByPhone(phone: string): Promise<WebsiteDesignLead | null> {
   await ensureLeadSchema();
   const rows = (await sql()`
-    SELECT id, phone, business, can_pay, created_at, last_inbound_at
+    SELECT id, phone, name, business, can_pay, created_at, last_inbound_at
     FROM website_design_leads WHERE phone = ${phone}
     ORDER BY created_at DESC LIMIT 1`) as any[];
   return rows[0] || null;
@@ -160,7 +172,7 @@ export async function forwardLeadMessageToOwner(
 ): Promise<void> {
   const { from } = twilioEnv();
   const text = body.trim() || (mediaUrls.length ? "(photo)" : "");
-  const header = `💬 ${lead.business} (${lead.phone})`;
+  const header = `💬 ${lead.name ? `${lead.name} · ` : ""}${lead.business} (${lead.phone})`;
   const params: Record<string, string | string[]> = {
     To: OWNER_ALERT_NUMBER,
     From: from,
@@ -191,7 +203,7 @@ export async function relayOwnerReply(
       target = await findLeadByPhone(phone);
       if (!target) {
         // Not one of our leads — still let the owner text any number from the line.
-        target = { id: 0, phone, business: phone, can_pay: true, created_at: "", last_inbound_at: null };
+        target = { id: 0, phone, name: "", business: phone, can_pay: true, created_at: "", last_inbound_at: null };
       }
       body = body.slice(explicit[0].length).trim();
     }
@@ -200,7 +212,7 @@ export async function relayOwnerReply(
     const tag = body.match(/^@(\d{4})\b[:\s-]*/);
     if (tag) {
       const rows = (await q`
-        SELECT id, phone, business, can_pay, created_at, last_inbound_at
+        SELECT id, phone, name, business, can_pay, created_at, last_inbound_at
         FROM website_design_leads WHERE phone LIKE ${"%" + tag[1]}
         ORDER BY created_at DESC LIMIT 1`) as any[];
       if (rows[0]) {
@@ -211,7 +223,7 @@ export async function relayOwnerReply(
   }
   if (!target) {
     const rows = (await q`
-      SELECT id, phone, business, can_pay, created_at, last_inbound_at
+      SELECT id, phone, name, business, can_pay, created_at, last_inbound_at
       FROM website_design_leads
       ORDER BY COALESCE(last_inbound_at, created_at) DESC LIMIT 1`) as any[];
     target = rows[0] || null;

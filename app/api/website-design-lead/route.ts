@@ -24,9 +24,11 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   try {
     const business = String(body?.business ?? "");
+    const name = String(body?.name ?? "");
     const canPay = body?.canPay !== false;
     const result = await createWebsiteDesignLead({
       business,
+      name,
       phone: String(body?.phone ?? ""),
       canPay,
       page: String(body?.page ?? ""),
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
       // Respond now; the lead's opener text goes out ~15s later.
       after(async () => {
         try {
-          const sid = await sendLeadOpener(result.phone, business);
+          const sid = await sendLeadOpener(result.phone, name, business);
           console.log("[website-design-lead] opener sent", { phone: result.phone, sid });
         } catch (err) {
           console.error("[website-design-lead] opener failed:", err);
@@ -66,12 +68,19 @@ export async function GET(request: NextRequest) {
     smsUrl = `lookup failed: ${err?.message || err}`;
   }
   const leads = (await sql()`
-    SELECT id, phone, business, can_pay, page, created_at, last_inbound_at, last_owner_reply_at
+    SELECT id, phone, name, business, can_pay, page, created_at, last_inbound_at, last_owner_reply_at
     FROM website_design_leads ORDER BY created_at DESC LIMIT 20`) as any[];
+  // Last few texts on each lead's thread (proves the delayed opener went out).
+  const messages = (await sql()`
+    SELECT m.phone, m.direction, left(m.body, 80) AS body, m.sid, m.created_at
+    FROM dialer_messages m
+    WHERE m.phone IN (SELECT phone FROM website_design_leads)
+    ORDER BY m.created_at DESC LIMIT 20`) as any[];
   return NextResponse.json({
     from,
     inboundSmsWebhook: smsUrl,
     forwardingReady: typeof smsUrl === "string" && smsUrl.includes("/api/dialer/sms-inbound"),
     leads,
+    messages,
   });
 }
