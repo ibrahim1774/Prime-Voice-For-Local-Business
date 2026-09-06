@@ -129,13 +129,13 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
   }
 
   // The lead's opener is sent by sendLeadOpener() after LEAD_OPENER_DELAY_MS
-  // (owner call 2026-09-06: "within 20 seconds or so" — a short pause reads
+  // (owner call 2026-09-06: "within 10 seconds" — a short pause reads
   // like a person typing, not an autoresponder). The route schedules it with
   // next/server after() so the form gets its response immediately.
   return { ok: true, phone, duplicate: false, leadSms: "scheduled", ownerSms: ownerSid };
 }
 
-export const LEAD_OPENER_DELAY_MS = 15_000;
+export const LEAD_OPENER_DELAY_MS = 7_000;
 
 export async function sendLeadOpener(phone: string, name: string, business: string, delayMs = LEAD_OPENER_DELAY_MS): Promise<string | null> {
   if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
