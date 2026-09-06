@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createWebsiteDesignLead, ensureLeadSchema } from "@/lib/websiteDesignLeads";
+import { NextRequest, NextResponse, after } from "next/server";
+import { createWebsiteDesignLead, ensureLeadSchema, sendLeadOpener } from "@/lib/websiteDesignLeads";
 import { sql, twilio, twilioEnv } from "@/lib/dialer/core";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // Called server-to-server by primehub.dev/api/website-design-lead with the
 // shared PRIMEHUB_LEAD_SECRET. Creates the lead, texts the lead + the owner
@@ -23,12 +23,25 @@ export async function POST(request: NextRequest) {
   if (!authed(request)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const body = await request.json().catch(() => ({}));
   try {
+    const business = String(body?.business ?? "");
+    const canPay = body?.canPay !== false;
     const result = await createWebsiteDesignLead({
-      business: String(body?.business ?? ""),
+      business,
       phone: String(body?.phone ?? ""),
-      canPay: body?.canPay !== false,
+      canPay,
       page: String(body?.page ?? ""),
     });
+    if (!result.duplicate && canPay) {
+      // Respond now; the lead's opener text goes out ~15s later.
+      after(async () => {
+        try {
+          const sid = await sendLeadOpener(result.phone, business);
+          console.log("[website-design-lead] opener sent", { phone: result.phone, sid });
+        } catch (err) {
+          console.error("[website-design-lead] opener failed:", err);
+        }
+      });
+    }
     return NextResponse.json(result);
   } catch (err: any) {
     const msg = err?.message || "Lead failed";

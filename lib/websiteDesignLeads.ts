@@ -102,15 +102,8 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
   }
 
   const { from } = twilioEnv();
-  const opener = leadOpenerSms(business);
-  const lead = await twilio("/Messages.json", { To: phone, From: from, Body: opener });
-  await q`
-    INSERT INTO dialer_messages (phone, direction, body, sid, read)
-    VALUES (${phone}, 'out', ${opener}, ${lead.sid || null}, true)`;
-  await q`
-    UPDATE dialer_leads SET status = 'sms_sent', updated_at = now()
-    WHERE phone = ${phone} AND status = 'new'`;
 
+  // Owner alert goes out right away.
   let ownerSid: string | null = null;
   try {
     const owner = await twilio("/Messages.json", {
@@ -122,7 +115,29 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
   } catch (err) {
     console.error("[website-design-lead] owner ping failed:", err);
   }
-  return { ok: true, phone, duplicate: false, leadSms: lead.sid || null, ownerSms: ownerSid };
+
+  // The lead's opener is sent by sendLeadOpener() after LEAD_OPENER_DELAY_MS
+  // (owner call 2026-09-06: "within 20 seconds or so" — a short pause reads
+  // like a person typing, not an autoresponder). The route schedules it with
+  // next/server after() so the form gets its response immediately.
+  return { ok: true, phone, duplicate: false, leadSms: "scheduled", ownerSms: ownerSid };
+}
+
+export const LEAD_OPENER_DELAY_MS = 15_000;
+
+export async function sendLeadOpener(phone: string, business: string, delayMs = LEAD_OPENER_DELAY_MS): Promise<string | null> {
+  if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
+  const { from } = twilioEnv();
+  const opener = leadOpenerSms(business);
+  const lead = await twilio("/Messages.json", { To: phone, From: from, Body: opener });
+  const q = sql();
+  await q`
+    INSERT INTO dialer_messages (phone, direction, body, sid, read)
+    VALUES (${phone}, 'out', ${opener}, ${lead.sid || null}, true)`;
+  await q`
+    UPDATE dialer_leads SET status = 'sms_sent', updated_at = now()
+    WHERE phone = ${phone} AND status = 'new'`;
+  return lead.sid || null;
 }
 
 // ── inbound handling (called from the Twilio inbound-SMS webhook) ───────────
