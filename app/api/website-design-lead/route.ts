@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       page: String(body?.page ?? ""),
     });
     if (!result.duplicate && canPay) {
-      // Respond now; the lead's opener text goes out ~15s later.
+      // Respond now; the lead's opener text goes out ~7s later.
       after(async () => {
         try {
           const sid = await sendLeadOpener(result.phone, name, business);
