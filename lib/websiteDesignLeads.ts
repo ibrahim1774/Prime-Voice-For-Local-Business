@@ -37,6 +37,9 @@ export async function ensureLeadSchema() {
     last_owner_reply_at timestamptz
   )`;
   await sql()`ALTER TABLE website_design_leads ADD COLUMN IF NOT EXISTS name text NOT NULL DEFAULT ''`;
+  // The Google Business Profile they picked on the form (name, address,
+  // maps link, website, rating) — PrimeHub resolves it and passes it here.
+  await sql()`ALTER TABLE website_design_leads ADD COLUMN IF NOT EXISTS gbp jsonb`;
   // Inbound MMS photo URLs (Twilio media), so the inbox can show them.
   await sql()`ALTER TABLE dialer_messages ADD COLUMN IF NOT EXISTS media jsonb NOT NULL DEFAULT '[]'::jsonb`;
   await sql()`CREATE INDEX IF NOT EXISTS website_design_leads_phone_idx ON website_design_leads (phone, created_at)`;
@@ -58,15 +61,45 @@ export const leadOpenerSms = (name: string, business: string) => {
   );
 };
 
-export const ownerNewLeadSms = (name: string, business: string, phone: string, canPay: boolean, page: string) =>
-  `🆕 Website Design Lead\n` +
-  `Name: ${name.trim() || "—"}\n` +
-  `Business: ${business.trim()}\n` +
-  `Mobile: ${phone}\n` +
-  `Can cover hosting: ${canPay ? "Yes" : "No"}\n` +
-  (page ? `From: ${page}\n` : "") +
-  `\nTheir replies + photos will be forwarded here. Reply on this thread to text them back (goes to the most recent lead), ` +
-  `or start with their number, e.g. "${phone} Hey…", to pick one.`;
+export const ownerNewLeadSms = (
+  name: string,
+  business: string,
+  phone: string,
+  canPay: boolean,
+  page: string,
+  gbp?: LeadGbp | null,
+) => {
+  const stars = gbp?.rating ? ` ★${gbp.rating}${gbp.reviews ? ` (${gbp.reviews})` : ""}` : "";
+  const gbpBlock = gbp?.mapsUrl || gbp?.address
+    ? `\nGoogle Business Profile${stars}\n` +
+      (gbp.name && gbp.name !== business.trim() ? `${gbp.name}\n` : "") +
+      (gbp.address ? `${gbp.address}\n` : "") +
+      (gbp.phone ? `${gbp.phone}\n` : "") +
+      (gbp.website ? `Site: ${gbp.website}\n` : "") +
+      (gbp.mapsUrl ? `${gbp.mapsUrl}\n` : "")
+    : "\nGoogle Business Profile: not picked on the form\n";
+  return (
+    `🆕 Website Design Lead\n` +
+    `Name: ${name.trim() || "—"}\n` +
+    `Business: ${business.trim()}\n` +
+    `Mobile: ${phone}\n` +
+    `Can cover hosting: ${canPay ? "Yes" : "No"}\n` +
+    (page ? `From: ${page}\n` : "") +
+    gbpBlock +
+    `\nTheir replies + photos will be forwarded here. Reply on this thread to text them back (goes to the most recent lead), ` +
+    `or start with their number, e.g. "${phone} Hey…", to pick one.`
+  );
+};
+
+export interface LeadGbp {
+  name?: string;
+  address?: string;
+  mapsUrl?: string;
+  website?: string;
+  phone?: string;
+  rating?: number;
+  reviews?: number;
+}
 
 export interface CreateLeadInput {
   business: string;
@@ -74,6 +107,7 @@ export interface CreateLeadInput {
   phone: string;
   canPay: boolean;
   page?: string;
+  gbp?: LeadGbp | null;
 }
 
 export interface CreateLeadResult {
@@ -102,8 +136,8 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
   if (recent.length) return { ok: true, phone, duplicate: true, leadSms: null, ownerSms: null };
 
   await q`
-    INSERT INTO website_design_leads (phone, name, business, can_pay, source, page)
-    VALUES (${phone}, ${name}, ${business}, ${input.canPay}, ${LEAD_SOURCE}, ${page})`;
+    INSERT INTO website_design_leads (phone, name, business, can_pay, source, page, gbp)
+    VALUES (${phone}, ${name}, ${business}, ${input.canPay}, ${LEAD_SOURCE}, ${page}, ${input.gbp ? JSON.stringify(input.gbp) : null}::jsonb)`;
   // Surface the lead in the dialer (Texts tab shows the business name).
   await q`
     INSERT INTO dialer_leads (phone, name, business, status, notes)
@@ -123,7 +157,7 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
     const owner = await twilio("/Messages.json", {
       To: OWNER_ALERT_NUMBER,
       From: from,
-      Body: ownerNewLeadSms(name, business, phone, input.canPay, page),
+      Body: ownerNewLeadSms(name, business, phone, input.canPay, page, input.gbp),
     });
     ownerSid = owner.sid || null;
   } catch (err) {

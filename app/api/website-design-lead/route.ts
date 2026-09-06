@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
       phone: String(body?.phone ?? ""),
       canPay,
       page: String(body?.page ?? ""),
+      gbp: body?.gbp && typeof body.gbp === "object" ? body.gbp : null,
     });
     if (!result.duplicate && canPay) {
       // Respond now; the lead's opener text goes out ~7s later.
