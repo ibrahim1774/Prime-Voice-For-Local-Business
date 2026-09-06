@@ -43,10 +43,9 @@ const firstName = (business: string) => business.trim().split(/\s+/)[0] || "ther
 
 // The opener the lead gets right after submitting (owner's wording, 2026-09-06).
 export const leadOpenerSms = (business: string) =>
-  `Hey! This is PrimeHub — we just saw you fill out the website form for ${business.trim()}. ` +
-  `We want to build your site out in the next couple of hours and send it over to you. ` +
-  `Do you happen to have a Google Business Profile, a booking link, or any pictures of your work/shop ` +
-  `you can send us here? Anything helps us get the details right.`;
+  `Hey, we just saw you fill out the form for a free custom website for ${business.trim()}. ` +
+  `Want us to build it out in the next couple hours? ` +
+  `Do you have a Google Business Profile or any pictures we can use for the site?`;
 
 export const ownerNewLeadSms = (business: string, phone: string, canPay: boolean, page: string) =>
   `🆕 Website Design Lead\n` +
