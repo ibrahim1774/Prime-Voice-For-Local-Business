@@ -7,6 +7,7 @@ import {
   validTwilioRequest,
 } from "@/lib/dialer/core";
 import {
+  ensureLeadSchema,
   findLeadByPhone,
   forwardLeadMessageToOwner,
   isOwnerNumber,
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
   }
   if (hasDb()) {
     await ensureSchema();
+    await ensureLeadSchema();
     const phone = normalizePhone(form.get("From") || "");
     const body = (form.get("Body") || "").slice(0, 2000);
     const media = mediaUrlsFromForm(form);
@@ -47,8 +49,8 @@ export async function POST(request: NextRequest) {
     } else {
       if (phone && (body || media.length)) {
         await sql()`
-          INSERT INTO dialer_messages (phone, direction, body, sid, read)
-          VALUES (${phone}, 'in', ${body || "(photo)"}, ${form.get("MessageSid") || null}, false)`;
+          INSERT INTO dialer_messages (phone, direction, body, sid, read, media)
+          VALUES (${phone}, 'in', ${body}, ${form.get("MessageSid") || null}, false, ${JSON.stringify(media)}::jsonb)`;
       }
       if (phone) {
         try {
