@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     smsUrl = `lookup failed: ${err?.message || err}`;
   }
   const leads = (await sql()`
-    SELECT id, phone, name, business, can_pay, page, created_at, last_inbound_at, last_owner_reply_at
+    SELECT id, phone, name, business, can_pay, page, gbp, created_at, last_inbound_at, last_owner_reply_at
     FROM website_design_leads ORDER BY created_at DESC LIMIT 20`) as any[];
   // Last few texts on each lead's thread (proves the delayed opener went out).
   const messages = (await sql()`
