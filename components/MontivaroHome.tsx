@@ -19,6 +19,9 @@ import { DEMO_CALL_URL } from "@/lib/constants";
  */
 
 const LIVE_AGENT_TEL = "tel:+19289689136";
+// Contact email — never printed on the page; the Email us buttons open
+// the visitor's mail app directly.
+const CONTACT_MAILTO = "mailto:ibrahim3709@gmail.com?subject=Montivaro%20%E2%80%94%20Project%20Inquiry";
 
 // ── scroll-reveal hook ──────────────────────────────────────────────────────
 
@@ -439,6 +442,56 @@ function Setup() {
   );
 }
 
+function FullSystem() {
+  const SERVICES = [
+    {
+      code: '01',
+      title: 'AI Voice Agents',
+      desc: 'A 24/7 human-like agent that answers every call, books the job, and sends you the lead — the Montivaro core.',
+    },
+    {
+      code: '02',
+      title: 'Websites',
+      desc: 'Custom, fast websites built for local businesses — designed to turn visitors into calls and booked jobs.',
+    },
+    {
+      code: '03',
+      title: 'Local Marketing',
+      desc: 'Google Ads and Facebook Ads managed for you — campaigns that put your business in front of local customers ready to buy.',
+    },
+  ];
+  return (
+    <section id="system" className="mv2-section mv2-carbon">
+      <div className="mv2-shell">
+        <Reveal>
+          <p className="mv2-eyebrow">THE FULL MONTIVARO SYSTEM</p>
+          <h2 className="mv2-h2">
+            The phone is one piece.
+            <br />
+            We build the whole machine.
+          </h2>
+        </Reveal>
+        <div className="mv2-caps">
+          {SERVICES.map((c, i) => (
+            <Reveal key={c.code} className="mv2-cap" delay={(i % 2) * 90}>
+              <p className="mv2-cap-code">{c.code}</p>
+              <h3>{c.title}</h3>
+              <p className="mv2-cap-desc">{c.desc}</p>
+            </Reveal>
+          ))}
+        </div>
+        <Reveal>
+          <div className="mv2-hero-ctas" style={{ marginTop: 34 }}>
+            <a href={CONTACT_MAILTO} className="mv2-btn mv2-btn-light mv2-btn-lg">
+              Email us about your project <ArrowUpRight />
+            </a>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 function FinalCta() {
   return (
     <section className="mv2-final mv2-carbon">
@@ -454,6 +507,9 @@ function FinalCta() {
             </a>
             <a href={LIVE_AGENT_TEL} className="mv2-btn mv2-btn-ghost mv2-btn-lg">
               Call the live agent
+            </a>
+            <a href={CONTACT_MAILTO} className="mv2-btn mv2-btn-ghost mv2-btn-lg">
+              Email us <ArrowUpRight />
             </a>
           </div>
         </Reveal>
@@ -479,6 +535,7 @@ export default function MontivaroHome() {
         <Capabilities />
         <Timeline />
         <Setup />
+        <FullSystem />
         <FinalCta />
       </main>
     </div>
