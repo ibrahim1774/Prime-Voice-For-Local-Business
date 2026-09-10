@@ -152,8 +152,9 @@ export default function CustomCallPricing() {
     const row = rowRef.current;
     if (!row) return;
     const onScroll = () => {
-      const w = row.clientWidth || 1;
-      setActiveCard(Math.round(row.scrollLeft / (w * 0.84)));
+      const first = row.firstElementChild as HTMLElement | null;
+      const step = (first?.offsetWidth || row.clientWidth || 1) + 10;
+      setActiveCard(Math.round(row.scrollLeft / step));
     };
     row.addEventListener("scroll", onScroll, { passive: true });
     return () => row.removeEventListener("scroll", onScroll);
