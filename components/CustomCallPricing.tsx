@@ -1,11 +1,14 @@
 "use client";
 
 // /custom — call-the-live-demo hero (catch-all style, number never shown)
-// with the two plans ($99 / $199 — owner dropped the $49 tier and the free
-// trial 2026-09-05) visible immediately: no generation step. Each plan
-// checks out at its own price through /api/create-checkout with NO trial,
-// so the card is charged at checkout. Styled on the monochrome .mv2 ink
-// system so the whole page reads as one premium surface.
+// followed by the two plans, visible immediately with no generation step.
+//
+// Plans (owner, 2026-09-10): $49 Email alerts · $99 Email + SMS alerts.
+// The channel a lead reaches the owner on is THE difference between the
+// tiers, so each card leads with it. No free trial — the card is charged at
+// checkout via /api/create-checkout. Styled on the monochrome .mv2 ink
+// system: the $99 card is set in paper against the carbon page so hierarchy
+// comes from material, not a colored border (see .mv2-cp-* in globals.css).
 
 import { useState } from "react";
 import BookingModal from "./BookingModal";
@@ -14,48 +17,55 @@ import { SETUP_CALL_URL } from "@/lib/constants";
 // Dialed, never displayed — the button copy carries the CTA.
 const CALL_NUMBER_TEL = "tel:+19289689136";
 
+type Channel = "email" | "sms";
+
 interface Plan {
   id: string;
   name: string;
   price: number;
-  minutesLabel: string;
-  summary: string;
+  channels: Channel[];
+  channelLabel: string;
+  tagline: string;
+  minutes: string;
   inherit?: string;
   bullets: string[];
-  popular?: boolean;
+  featured?: boolean;
 }
 
 const PLANS: Plan[] = [
   {
-    id: "never-miss",
-    name: "Never Miss",
-    price: 99,
-    minutesLabel: "100 minutes included / mo",
-    summary: "Email or call — your choice.",
-    popular: true,
+    id: "email-alerts",
+    name: "Email Alerts",
+    price: 49,
+    channels: ["email"],
+    channelLabel: "Email",
+    tagline: "Every lead call lands in your inbox.",
+    minutes: "100 minutes included each month",
     bullets: [
-      "Runs 24/7, after-hours only, or just overflow — your choice",
-      "Every call answered — sounds like a real person",
-      "Live call transfer — your phone rings first",
-      "Missed calls get answered, day or night",
+      "Every call answered, 24/7 — sounds like a real person",
+      "Runs all day, after-hours only, or just overflow",
+      "Live transfer — your phone rings first",
       "Appointments booked while you work",
-      "Instant email the moment a lead calls: name, number, what they need",
-      "It knows your services, prices, and hours",
+      "Instant email with the caller's name, number, and what they need",
+      "Knows your services, prices, and hours",
       "Keep your current business number",
     ],
   },
   {
-    id: "full-front-desk",
-    name: "Full Front Desk",
-    price: 199,
-    minutesLabel: "~250 minutes included / mo",
-    summary: "CRM integration included.",
-    inherit: "Everything in Never Miss, plus:",
+    id: "email-sms-alerts",
+    name: "Email + SMS Alerts",
+    price: 99,
+    channels: ["email", "sms"],
+    channelLabel: "Email + SMS",
+    tagline: "Every lead call texted to your phone, and emailed.",
+    minutes: "250 minutes included each month",
+    featured: true,
+    inherit: "Everything in Email Alerts, plus",
     bullets: [
-      "New leads go straight into your CRM",
-      "Instant text + email the moment a lead calls",
-      "Full 24/7 answering, or backup only — your choice",
-      "Priority help whenever you need a change",
+      "A text hits your phone the moment a lead calls — call them back in seconds",
+      "Caller's name, number, and what they need in the text",
+      "2.5× the included minutes",
+      "Priority help whenever you want something changed",
     ],
   },
 ];
@@ -81,7 +91,7 @@ function trackLead() {
 
 function MiniWave() {
   return (
-    <div className="mv2-catchall-wave" aria-hidden="true">
+    <div className="mv2-catchall-wave" aria-hidden="true" style={{ marginTop: 0 }}>
       {Array.from({ length: 22 }, (_, i) => (
         <span
           key={i}
@@ -97,23 +107,41 @@ function MiniWave() {
 
 function Check() {
   return (
-    <svg
-      style={{ width: 14, height: 14, flexShrink: 0, marginTop: 2 }}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      aria-hidden="true"
-    >
+    <svg className="mv2-cp-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
     </svg>
   );
 }
 
-const PAPER = "#f7f6f3";
-const SMOKE = "#8f8f96";
-const LINE = "rgba(247,246,243,0.14)";
-const CARD_BG = "rgba(247,246,243,0.035)";
+function MailIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 7.5 12 13l8.5-5.5" />
+    </svg>
+  );
+}
+
+function SmsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.6 3.2c-.5.35-1.4 0-1.4-.7z" />
+      <path strokeLinecap="round" d="M8 9h8M8 12.5h5" />
+    </svg>
+  );
+}
+
+function PhoneIcon() {
+  return (
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+      />
+    </svg>
+  );
+}
 
 export default function CustomCallPricing() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -150,236 +178,118 @@ export default function CustomCallPricing() {
   }
 
   return (
-    <div className="mv2 mv2-catchall" style={{ paddingBottom: 40 }}>
-      <div
-        className="mv2-catchall-shell"
-        style={{ minHeight: "auto", padding: "34px 24px 0" }}
-      >
-        {/* Headline */}
-        <h1
-          className="mv2-catchall-h mv2-ca-in"
-          style={{ animationDelay: "0.1s", marginTop: 0, fontSize: "clamp(22px, 3.6vw, 34px)" }}
-        >
+    <div className="mv2 mv2-catchall mv2-cp">
+      {/* ── Hero: headline + live demo call card ── */}
+      <div className="mv2-catchall-shell mv2-cp-hero">
+        <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.1s", marginTop: 0 }}>
           <span className="mv2-catchall-h-muted">A Missed Call Can = Lost Money.</span>{" "}
           <span>The New 24/7 Human-Like Answering Agent for Local Businesses</span>
         </h1>
 
-        {/* Subheadline */}
         <p className="mv2-catchall-sub mv2-ca-in" style={{ animationDelay: "0.24s" }}>
-          Tap to call and talk like a real customer would &mdash; tell the voice
-          agent what your business does and it&apos;ll show you exactly how it&apos;d
-          answer your calls, book your jobs, and capture your leads.
+          Call it and talk like a real customer would. Tell the agent what your
+          business does and hear how it answers your calls, books your jobs, and
+          captures your leads.
         </p>
 
-        <div className="mv2-ca-in" style={{ animationDelay: "0.36s" }}>
+        <div className="mv2-cp-democard mv2-ca-in" style={{ animationDelay: "0.36s" }}>
+          <div className="mv2-cp-demo-status">
+            <span className="mv2-cp-demo-dot" aria-hidden="true" />
+            Live demo line is open
+          </div>
           <MiniWave />
-        </div>
-
-        {/* Call button — no number anywhere on the page */}
-        <a
-          href={CALL_NUMBER_TEL}
-          onClick={trackLead}
-          className="mv2-btn mv2-btn-light mv2-catchall-call"
-          style={{ maxWidth: 400, paddingLeft: 26, paddingRight: 26, fontSize: 16 }}
-        >
-          <svg
-            width="20"
-            height="20"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
+          <a
+            href={CALL_NUMBER_TEL}
+            onClick={trackLead}
+            className="mv2-btn mv2-btn-light mv2-catchall-call mv2-cp-call"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-            />
-          </svg>
-          Call the Live Demo — Test It Out for Yourself
-        </a>
-
-        <p className="mv2-catchall-hint mv2-ca-in" style={{ animationDelay: "0.6s" }}>
-          One tap starts a real call with the voice agent
-        </p>
+            <PhoneIcon />
+            Call the live demo
+          </a>
+          <p className="mv2-cp-demo-hint">
+            One tap starts a real call. Try to stump it.
+          </p>
+        </div>
       </div>
 
       {/* ── Pricing ── */}
-      <section
-        className="mv2-ca-in"
-        style={{
-          animationDelay: "0.72s",
-          maxWidth: 1020,
-          margin: "0 auto",
-          padding: "30px 20px 0",
-        }}
-      >
-        <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <p
-            className="mv2-mono"
-            style={{
-              fontSize: 11,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              color: SMOKE,
-              marginBottom: 6,
-            }}
-          >
-            Pricing
-          </p>
-          <h2
-            style={{
-              fontSize: "clamp(21px, 3.2vw, 27px)",
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
-              lineHeight: 1.15,
-              color: PAPER,
-            }}
-          >
-            Pick your plan. Live within 24–48 hours.
-          </h2>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              marginTop: 10,
-              padding: "7px 15px",
-              borderRadius: 999,
-              border: "1px solid rgba(52,211,153,0.55)",
-              background: "rgba(52,211,153,0.12)",
-              color: "#34d399",
-              fontSize: 13.5,
-              fontWeight: 700,
-            }}
-          >
-            <span
-              aria-hidden="true"
-              style={{ width: 7, height: 7, borderRadius: 999, background: "#34d399" }}
-            />
-            We set everything up for you within 24&ndash;48 hours
-          </div>
-          <p style={{ marginTop: 7, fontSize: 12.5, color: SMOKE }}>
-            No setup fees. Cancel anytime.
+      <section className="mv2-cp-pricing mv2-ca-in" style={{ animationDelay: "0.72s" }} aria-labelledby="mv2-cp-plans-h">
+        <div className="mv2-cp-pricing-head">
+          <h2 id="mv2-cp-plans-h">Pick how you want to hear about every lead.</h2>
+          <p>
+            Same agent on both plans. We set it up for you within 24–48 hours.
+            No setup fee, cancel anytime.
           </p>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 540, margin: "0 auto" }}>
+        <div className="mv2-cp-grid">
           {PLANS.map((plan) => {
-            const isPopular = !!plan.popular;
+            const featured = !!plan.featured;
             return (
-              <div
+              <article
                 key={plan.id}
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  flexDirection: "column",
-                  borderRadius: 14,
-                  border: `1px solid ${isPopular ? "rgba(52,211,153,0.45)" : LINE}`,
-                  background: isPopular ? "rgba(52,211,153,0.05)" : CARD_BG,
-                  padding: "16px 16px 14px",
-                  boxShadow: isPopular ? "0 18px 44px rgba(0,0,0,0.45)" : "none",
-                }}
+                className={`mv2-cp-card${featured ? " is-featured" : ""}`}
               >
-                <div style={{ fontSize: 14, fontWeight: 600, color: PAPER }}>{plan.name}</div>
-                <div style={{ marginTop: 4, display: "flex", alignItems: "baseline", gap: 5 }}>
-                  <span style={{ fontSize: 27, fontWeight: 700, letterSpacing: "-0.03em", color: PAPER }}>
-                    ${plan.price}
+                {featured && <div className="mv2-cp-flag">Most owners choose this</div>}
+
+                <div className="mv2-cp-channels" aria-label={`Alerts by ${plan.channelLabel}`}>
+                  <span className={`mv2-cp-chip${plan.channels.includes("email") ? " on" : ""}`}>
+                    <MailIcon /> Email
                   </span>
-                  <span style={{ fontSize: 13, color: SMOKE }}>/month</span>
+                  <span className={`mv2-cp-chip${plan.channels.includes("sms") ? " on" : ""}`}>
+                    <SmsIcon /> SMS
+                  </span>
                 </div>
-                <div className="mv2-mono" style={{ marginTop: 4, fontSize: 11, color: SMOKE }}>
-                  {plan.minutesLabel}
+
+                <h3 className="mv2-cp-name">{plan.name}</h3>
+                <p className="mv2-cp-tagline">{plan.tagline}</p>
+
+                <div className="mv2-cp-price">
+                  <span className="mv2-cp-amount">
+                    <span className="mv2-cp-currency">$</span>
+                    {plan.price}
+                  </span>
+                  <span className="mv2-cp-per">per month</span>
                 </div>
-                <div
-                  style={{
-                    marginTop: 8,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: isPopular ? "#34d399" : PAPER,
-                  }}
-                >
-                  {plan.summary}
-                </div>
-                {plan.inherit && (
-                  <div style={{ marginTop: 7, fontSize: 11.5, fontWeight: 600, color: SMOKE }}>
-                    {plan.inherit}
-                  </div>
-                )}
-                <ul style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5, flex: 1 }}>
-                  {plan.bullets.map((b) => (
-                    <li
-                      key={b}
-                      style={{
-                        display: "flex",
-                        gap: 8,
-                        fontSize: 12.5,
-                        lineHeight: 1.4,
-                        color: "rgba(247,246,243,0.85)",
-                      }}
-                    >
-                      <span style={{ color: "#34d399" }}>
-                        <Check />
-                      </span>
-                      <span>{b}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="mv2-cp-minutes mv2-mono">{plan.minutes}</div>
+
                 <button
                   type="button"
                   onClick={() => checkout(plan)}
                   disabled={!!loadingId}
-                  style={{
-                    marginTop: 12,
-                    width: "100%",
-                    borderRadius: 999,
-                    border: isPopular ? "none" : `1px solid ${LINE}`,
-                    background: isPopular ? PAPER : "transparent",
-                    color: isPopular ? "#0b0b0c" : PAPER,
-                    padding: "11px 14px",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    opacity: loadingId && loadingId !== plan.id ? 0.6 : 1,
-                  }}
+                  className="mv2-cp-cta"
+                  aria-busy={loadingId === plan.id}
                 >
-                  {loadingId === plan.id ? "Starting…" : `Get Started — $${plan.price}/mo`}
+                  {loadingId === plan.id ? "Opening checkout…" : `Get started at $${plan.price}/mo`}
                 </button>
-              </div>
+
+                {plan.inherit && <p className="mv2-cp-inherit">{plan.inherit}</p>}
+                <ul className="mv2-cp-list">
+                  {plan.bullets.map((b) => (
+                    <li key={b}>
+                      <Check />
+                      <span>{b}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
             );
           })}
         </div>
 
-        <p style={{ marginTop: 10, textAlign: "center", fontSize: 11, color: SMOKE }}>
-          $1/min after your included minutes · Cancel anytime
+        <p className="mv2-cp-fine">
+          Minutes past your plan are $1 each. Cancel whenever you like.
         </p>
 
         {/* Book-a-call fallback */}
-        <div style={{ marginTop: 20, textAlign: "center" }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: PAPER }}>
-            Want it custom-built for your business first?
-          </p>
-          <div style={{ marginTop: 8, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <button
-              onClick={() => setIsBookingOpen(true)}
-              className="mv2-btn mv2-btn-ghost"
-            >
+        <div className="mv2-cp-book">
+          <p>Rather talk it through first?</p>
+          <div className="mv2-cp-book-actions">
+            <button onClick={() => setIsBookingOpen(true)} className="mv2-btn mv2-btn-ghost">
               Book a call with the team
             </button>
-            <a
-              href={SETUP_CALL_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                alignSelf: "center",
-                fontSize: 13,
-                color: SMOKE,
-                textDecoration: "underline",
-                textUnderlineOffset: 4,
-              }}
-            >
-              Not sure? Free 10-min call
+            <a href={SETUP_CALL_URL} target="_blank" rel="noopener noreferrer" className="mv2-cp-book-link">
+              Free 10-minute call
             </a>
           </div>
         </div>
