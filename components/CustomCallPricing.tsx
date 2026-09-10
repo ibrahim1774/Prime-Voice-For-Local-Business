@@ -10,7 +10,7 @@
 // system: the $99 card is set in paper against the carbon page so hierarchy
 // comes from material, not a colored border (see .mv2-cp-* in globals.css).
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BookingModal from "./BookingModal";
 import { SETUP_CALL_URL } from "@/lib/constants";
 
@@ -40,14 +40,12 @@ const PLANS: Plan[] = [
     channels: ["email"],
     channelLabel: "Email",
     tagline: "Every lead call lands in your inbox.",
-    minutes: "100 minutes included each month",
+    minutes: "45 min a month included, then $1 per extra minute",
     bullets: [
-      "Every call answered, 24/7 — sounds like a real person",
-      "Runs all day, after-hours only, or just overflow",
-      "Live transfer — your phone rings first",
+      "Every call answered 24/7, sounds like a real person",
+      "Live transfer, your phone rings first",
       "Appointments booked while you work",
-      "Instant email with the caller's name, number, and what they need",
-      "Knows your services, prices, and hours",
+      "Instant email: caller's name, number, what they need",
       "Keep your current business number",
     ],
   },
@@ -58,13 +56,13 @@ const PLANS: Plan[] = [
     channels: ["email", "sms"],
     channelLabel: "Email + SMS",
     tagline: "Every lead call texted to your phone, and emailed.",
-    minutes: "250 minutes included each month",
+    minutes: "80 min a month included, then $1 per extra minute",
     featured: true,
     inherit: "Everything in Email Alerts, plus",
     bullets: [
-      "A text hits your phone the moment a lead calls — call them back in seconds",
-      "Caller's name, number, and what they need in the text",
-      "2.5× the included minutes",
+      "A text hits your phone the moment a lead calls",
+      "Caller's name, number, and what they need, in the text",
+      "80 minutes a month instead of 45",
       "Priority help whenever you want something changed",
     ],
   },
@@ -91,7 +89,7 @@ function trackLead() {
 
 function MiniWave() {
   return (
-    <div className="mv2-catchall-wave" aria-hidden="true" style={{ marginTop: 0 }}>
+    <div className="mv2-catchall-wave mv2-cp-wave" aria-hidden="true">
       {Array.from({ length: 22 }, (_, i) => (
         <span
           key={i}
@@ -146,6 +144,20 @@ function PhoneIcon() {
 export default function CustomCallPricing() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [activeCard, setActiveCard] = useState(0);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // Swipe dots: which card is mostly in view on the phone-width row.
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const onScroll = () => {
+      const w = row.clientWidth || 1;
+      setActiveCard(Math.round(row.scrollLeft / (w * 0.84)));
+    };
+    row.addEventListener("scroll", onScroll, { passive: true });
+    return () => row.removeEventListener("scroll", onScroll);
+  }, []);
 
   async function checkout(plan: Plan) {
     if (loadingId) return;
@@ -179,25 +191,19 @@ export default function CustomCallPricing() {
 
   return (
     <div className="mv2 mv2-catchall mv2-cp">
-      {/* ── Hero: headline + live demo call card ── */}
+      {/* ── Hero: headline + compact live-demo call card ── */}
       <div className="mv2-catchall-shell mv2-cp-hero">
         <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.1s", marginTop: 0 }}>
           <span className="mv2-catchall-h-muted">A Missed Call Can = Lost Money.</span>{" "}
           <span>The New 24/7 Human-Like Answering Agent for Local Businesses</span>
         </h1>
 
-        <p className="mv2-catchall-sub mv2-ca-in" style={{ animationDelay: "0.24s" }}>
-          Call it and talk like a real customer would. Tell the agent what your
-          business does and hear how it answers your calls, books your jobs, and
-          captures your leads.
-        </p>
-
-        <div className="mv2-cp-democard mv2-ca-in" style={{ animationDelay: "0.36s" }}>
-          <div className="mv2-cp-demo-status">
+        <div className="mv2-cp-democard mv2-ca-in" style={{ animationDelay: "0.24s" }}>
+          <div className="mv2-cp-demo-top">
             <span className="mv2-cp-demo-dot" aria-hidden="true" />
-            Live demo line is open
+            <span className="mv2-cp-demo-status">Live demo line is open</span>
+            <MiniWave />
           </div>
-          <MiniWave />
           <a
             href={CALL_NUMBER_TEL}
             onClick={trackLead}
@@ -206,51 +212,42 @@ export default function CustomCallPricing() {
             <PhoneIcon />
             Call the live demo
           </a>
-          <p className="mv2-cp-demo-hint">
-            One tap starts a real call. Try to stump it.
-          </p>
+          <p className="mv2-cp-demo-hint">Talk to it like a real customer would. Try to stump it.</p>
         </div>
       </div>
 
       {/* ── Pricing ── */}
-      <section className="mv2-cp-pricing mv2-ca-in" style={{ animationDelay: "0.72s" }} aria-labelledby="mv2-cp-plans-h">
+      <section className="mv2-cp-pricing mv2-ca-in" style={{ animationDelay: "0.4s" }} aria-labelledby="mv2-cp-plans-h">
         <div className="mv2-cp-pricing-head">
-          <h2 id="mv2-cp-plans-h">Pick how you want to hear about every lead.</h2>
-          <p>
-            Same agent on both plans. We set it up for you within 24–48 hours.
-            No setup fee, cancel anytime.
-          </p>
+          <h2 id="mv2-cp-plans-h">Pick how you hear about every lead.</h2>
+          <p>Same agent on both. Set up for you within 24–48 hours. No setup fee, cancel anytime.</p>
         </div>
 
-        <div className="mv2-cp-grid">
+        <div className="mv2-cp-row" ref={rowRef}>
           {PLANS.map((plan) => {
             const featured = !!plan.featured;
             return (
-              <article
-                key={plan.id}
-                className={`mv2-cp-card${featured ? " is-featured" : ""}`}
-              >
-                {featured && <div className="mv2-cp-flag">Most owners choose this</div>}
-
-                <div className="mv2-cp-channels" aria-label={`Alerts by ${plan.channelLabel}`}>
-                  <span className={`mv2-cp-chip${plan.channels.includes("email") ? " on" : ""}`}>
-                    <MailIcon /> Email
-                  </span>
-                  <span className={`mv2-cp-chip${plan.channels.includes("sms") ? " on" : ""}`}>
-                    <SmsIcon /> SMS
-                  </span>
+              <article key={plan.id} className={`mv2-cp-card${featured ? " is-featured" : ""}`}>
+                <div className="mv2-cp-top">
+                  <div className="mv2-cp-channels" aria-label={`Alerts by ${plan.channelLabel}`}>
+                    <span className={`mv2-cp-chip${plan.channels.includes("email") ? " on" : ""}`}>
+                      <MailIcon /> Email
+                    </span>
+                    <span className={`mv2-cp-chip${plan.channels.includes("sms") ? " on" : ""}`}>
+                      <SmsIcon /> SMS
+                    </span>
+                  </div>
+                  <div className="mv2-cp-price">
+                    <span className="mv2-cp-amount">
+                      <span className="mv2-cp-currency">$</span>
+                      {plan.price}
+                    </span>
+                    <span className="mv2-cp-per">/mo</span>
+                  </div>
                 </div>
 
                 <h3 className="mv2-cp-name">{plan.name}</h3>
                 <p className="mv2-cp-tagline">{plan.tagline}</p>
-
-                <div className="mv2-cp-price">
-                  <span className="mv2-cp-amount">
-                    <span className="mv2-cp-currency">$</span>
-                    {plan.price}
-                  </span>
-                  <span className="mv2-cp-per">per month</span>
-                </div>
                 <div className="mv2-cp-minutes mv2-mono">{plan.minutes}</div>
 
                 <button
@@ -276,10 +273,11 @@ export default function CustomCallPricing() {
             );
           })}
         </div>
-
-        <p className="mv2-cp-fine">
-          Minutes past your plan are $1 each. Cancel whenever you like.
-        </p>
+        <div className="mv2-cp-dots" aria-hidden="true">
+          {PLANS.map((p, i) => (
+            <span key={p.id} className={i === activeCard ? "on" : ""} />
+          ))}
+        </div>
 
         {/* Book-a-call fallback */}
         <div className="mv2-cp-book">
