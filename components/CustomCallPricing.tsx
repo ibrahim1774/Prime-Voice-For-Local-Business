@@ -195,7 +195,7 @@ export default function CustomCallPricing() {
       {/* ── Hero: headline + compact live-demo call card ── */}
       <div className="mv2-catchall-shell mv2-cp-hero">
         <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.1s", marginTop: 0 }}>
-          <span className="mv2-catchall-h-muted">A Missed Call Can = Lost Money.</span>{" "}
+          <span className="mv2-catchall-h-muted">Local businesses miss calls every day. Every missed call = lost money.</span>{" "}
           <span>The New 24/7 Human-Like Answering Agent for Local Businesses</span>
         </h1>
 
