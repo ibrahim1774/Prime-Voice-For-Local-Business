@@ -40,7 +40,7 @@ const PLANS: Plan[] = [
     channels: ["email"],
     channelLabel: "Email",
     tagline: "Every lead call lands in your inbox.",
-    minutes: "100 minutes included each month",
+    minutes: "45 minutes a month included, then $1 per extra minute",
     bullets: [
       "Every call answered, 24/7 — sounds like a real person",
       "Runs all day, after-hours only, or just overflow",
@@ -58,13 +58,13 @@ const PLANS: Plan[] = [
     channels: ["email", "sms"],
     channelLabel: "Email + SMS",
     tagline: "Every lead call texted to your phone, and emailed.",
-    minutes: "250 minutes included each month",
+    minutes: "80 minutes a month included, then $1 per extra minute",
     featured: true,
     inherit: "Everything in Email Alerts, plus",
     bullets: [
       "A text hits your phone the moment a lead calls — call them back in seconds",
       "Caller's name, number, and what they need in the text",
-      "2.5× the included minutes",
+      "80 minutes a month instead of 45",
       "Priority help whenever you want something changed",
     ],
   },
@@ -278,7 +278,7 @@ export default function CustomCallPricing() {
         </div>
 
         <p className="mv2-cp-fine">
-          Minutes past your plan are $1 each. Cancel whenever you like.
+          Cancel whenever you like.
         </p>
 
         {/* Book-a-call fallback */}
