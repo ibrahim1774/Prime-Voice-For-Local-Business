@@ -61,6 +61,14 @@ export const leadOpenerSms = (name: string, business: string) => {
   );
 };
 
+// primehub.dev/lead opener (owner wording, 2026-09-11). That form has no
+// name field, so it opens without one; goes out LEAD_PAGE_OPENER_DELAY_MS
+// after submit.
+export const leadPageOpenerSms = (business: string) =>
+  `Hey, just saw you wanted a site for ${business.trim()}. Before we build it out for you, ` +
+  `can you please send us some info about your business, like a Google Business Profile or an Instagram page?`;
+export const LEAD_PAGE_OPENER_DELAY_MS = 10_000;
+
 export const ownerNewLeadSms = (
   name: string,
   business: string,
@@ -173,10 +181,10 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
 
 export const LEAD_OPENER_DELAY_MS = 7_000;
 
-export async function sendLeadOpener(phone: string, name: string, business: string, delayMs = LEAD_OPENER_DELAY_MS): Promise<string | null> {
+export async function sendLeadOpener(phone: string, name: string, business: string, delayMs = LEAD_OPENER_DELAY_MS, openerText?: string): Promise<string | null> {
   if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
   const { from } = twilioEnv();
-  const opener = leadOpenerSms(name, business);
+  const opener = openerText || leadOpenerSms(name, business);
   const lead = await twilio("/Messages.json", { To: phone, From: from, Body: opener });
   const q = sql();
   await q`

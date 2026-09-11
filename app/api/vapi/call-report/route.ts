@@ -431,6 +431,17 @@ export async function POST(request: NextRequest) {
       if (lead.callerNumber) {
         const secs = callSeconds(message);
         if (secs >= OWNER_ALERT_MIN_SECONDS) {
+          // Meta Lead for the /custom ads (owner call 2026-09-11): a real
+          // phone call to the demo line that lasted at least 20s. Tap-to-call
+          // on the page only fires Contact, so Lead = "called and stayed on".
+          await sendMetaEvent({
+            eventName: "Lead",
+            phone: lead.callerNumber,
+            eventId: message?.call?.id ? `${message.call.id}:lead` : undefined,
+            actionSource: "phone_call",
+            sourceUrl: "https://www.montivaro.com/custom",
+            customData: { lead_type: "demo_call_20s", call_seconds: String(secs) },
+          });
           try {
             await sendSms(OWNER_ALERT_NUMBER, buildOwnerCallAlert(message, lead, structured));
           } catch (err) {
