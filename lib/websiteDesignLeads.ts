@@ -51,13 +51,43 @@ const firstName = (name: string) => {
   return w ? w[0].toUpperCase() + w.slice(1) : "";
 };
 
-// The opener the lead gets ~15s after submitting (owner's wording, 2026-09-06).
+// Every text we originate is one SMS segment: Twilio bills per segment,
+// 160 chars of plain GSM-7 — and a single emoji, curly quote or long dash
+// flips the whole message to 70-char UCS-2 segments. So: ASCII only,
+// <= 160 chars, and the business name is the first thing trimmed when a
+// message would run long (owner call 2026-09-11).
+export const SMS_MAX = 160;
+export const asciiSms = (s: string) =>
+  s
+    .normalize("NFKD")
+    .replace(/[\u2018\u2019\u02BC]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/[^\x20-\x7E\n]/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ ?\n ?/g, "\n")
+    .trim();
+// Builds a message around a business name, shortening the name (then the
+// tail) until the whole thing fits in one segment.
+export const fitSms = (build: (business: string) => string, business: string): string => {
+  let biz = asciiSms(business);
+  let out = asciiSms(build(biz));
+  while (out.length > SMS_MAX && biz.length > 6) {
+    biz = biz.slice(0, Math.max(6, biz.length - 4)).trim();
+    out = asciiSms(build(biz));
+  }
+  return out.length > SMS_MAX ? out.slice(0, SMS_MAX - 3).trimEnd() + "..." : out;
+};
+
+// The opener the lead gets ~7s after submitting /website-design-lead.
 export const leadOpenerSms = (name: string, business: string) => {
-  const first = firstName(name);
-  return (
-    `Hey${first ? ` ${first}` : ""}, we just saw you fill out the form for a free custom website for ${business.trim()}. ` +
-    `We're trying to build out the site and send it over pretty soon. ` +
-    `Do you happen to have a Google Business Profile or any pictures we can use for the site?`
+  const first = asciiSms(firstName(name));
+  return fitSms(
+    (b) =>
+      `Hey${first ? ` ${first}` : ""}, saw your form for a free website for ${b}. ` +
+      `Building it soon - do you have a Google Business Profile or any pictures we can use?`,
+    business,
   );
 };
 
@@ -65,10 +95,16 @@ export const leadOpenerSms = (name: string, business: string) => {
 // name field, so it opens without one; goes out LEAD_PAGE_OPENER_DELAY_MS
 // after submit.
 export const leadPageOpenerSms = (business: string) =>
-  `Hey, just saw you wanted a site for ${business.trim()}. Before we build it out for you, ` +
-  `can you please send us some info about your business, like a Google Business Profile or an Instagram page?`;
+  fitSms(
+    (b) =>
+      `Hey, saw you wanted a site for ${b}. Before we build it, can you send some info on your business, ` +
+      `like a Google Business Profile or Instagram page?`,
+    business,
+  );
 export const LEAD_PAGE_OPENER_DELAY_MS = 10_000;
 
+// Owner alert, one segment. GBP falls back from maps link -> address -> none
+// so the phone number is never the thing that gets cut.
 export const ownerNewLeadSms = (
   name: string,
   business: string,
@@ -77,26 +113,19 @@ export const ownerNewLeadSms = (
   page: string,
   gbp?: LeadGbp | null,
 ) => {
-  const stars = gbp?.rating ? ` ★${gbp.rating}${gbp.reviews ? ` (${gbp.reviews})` : ""}` : "";
-  const gbpBlock = gbp?.mapsUrl || gbp?.address
-    ? `\nGoogle Business Profile${stars}\n` +
-      (gbp.name && gbp.name !== business.trim() ? `${gbp.name}\n` : "") +
-      (gbp.address ? `${gbp.address}\n` : "") +
-      (gbp.phone ? `${gbp.phone}\n` : "") +
-      (gbp.website ? `Site: ${gbp.website}\n` : "") +
-      (gbp.mapsUrl ? `${gbp.mapsUrl}\n` : "")
-    : "\nGoogle Business Profile: not picked on the form\n";
-  return (
-    `🆕 Website Design Lead\n` +
-    `Name: ${name.trim() || "—"}\n` +
-    `Business: ${business.trim()}\n` +
-    `Mobile: ${phone}\n` +
-    `Can cover hosting: ${canPay ? "Yes" : "No"}\n` +
-    (page ? `From: ${page}\n` : "") +
-    gbpBlock +
-    `\nTheir replies + photos will be forwarded here. Reply on this thread to text them back (goes to the most recent lead), ` +
-    `or start with their number, e.g. "${phone} Hey…", to pick one.`
-  );
+  const who = asciiSms(name) || "no name";
+  const src = /\/lead\b/.test(page) ? "/lead" : "/website-design-lead";
+  const gbpOptions = [gbp?.mapsUrl, gbp?.address, ""].filter((v) => typeof v === "string") as string[];
+  for (const g of gbpOptions) {
+    const msg = fitSms(
+      (b) => `Website lead (${src}): ${b} | ${who} | ${phone} | hosting ${canPay ? "yes" : "no"} | GBP ${g || "none"}`,
+      business,
+    );
+    // fitSms trims the business first; only fall back on the GBP field if
+    // even a 6-char business name could not fit alongside this GBP value.
+    if (!(msg.endsWith("...") && g)) return msg;
+  }
+  return fitSms((b) => `Website lead (${src}): ${b} | ${who} | ${phone} | hosting ${canPay ? "yes" : "no"} | GBP none`, business);
 };
 
 export interface LeadGbp {
@@ -216,11 +245,12 @@ export async function forwardLeadMessageToOwner(
 ): Promise<void> {
   const { from } = twilioEnv();
   const text = body.trim() || (mediaUrls.length ? "(photo)" : "");
-  const header = `💬 ${lead.name ? `${lead.name} · ` : ""}${lead.business} (${lead.phone})`;
+  // ASCII header so a forwarded reply never drops to 70-char UCS-2 segments.
+  const header = asciiSms(`${lead.name ? `${lead.name} - ` : ""}${lead.business} (${lead.phone}):`);
   const params: Record<string, string | string[]> = {
     To: OWNER_ALERT_NUMBER,
     From: from,
-    Body: `${header}\n${text}`.slice(0, 1500),
+    Body: `${header}\n${asciiSms(text)}`.slice(0, 1500),
   };
   // Twilio-hosted inbound media is fetchable by URL, so it re-sends as MMS.
   if (mediaUrls.length) params.MediaUrl = mediaUrls.slice(0, 10);
