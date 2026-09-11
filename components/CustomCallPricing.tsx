@@ -68,23 +68,21 @@ const PLANS: Plan[] = [
   },
 ];
 
+// Tap-to-call fires Contact only. The Meta Lead for this page is sent
+// server-side by /api/vapi/call-report once the caller has actually stayed
+// on the demo line for 20+ seconds (owner call 2026-09-11); Purchase fires
+// on /thank-you after Stripe checkout.
 function trackLead() {
-  const eventId = `lead_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  const eventId = `contact_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   const fbq = (window as any).fbq;
   if (typeof fbq === "function") {
     fbq(
       "track",
-      "Lead",
+      "Contact",
       { content_name: "/custom tap-to-call", content_category: "tap-to-call" },
       { eventID: eventId }
     );
   }
-  fetch("/api/meta-lead-conversion", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phoneNumber: "+19289689136", eventId }),
-    keepalive: true,
-  }).catch(() => {});
 }
 
 function MiniWave() {

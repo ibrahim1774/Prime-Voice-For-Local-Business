@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { createWebsiteDesignLead, ensureLeadSchema, sendLeadOpener } from "@/lib/websiteDesignLeads";
+import { createWebsiteDesignLead, ensureLeadSchema, sendLeadOpener, leadPageOpenerSms, LEAD_PAGE_OPENER_DELAY_MS } from "@/lib/websiteDesignLeads";
 import { sql, twilio, twilioEnv } from "@/lib/dialer/core";
 
 export const maxDuration = 60;
@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
     const business = String(body?.business ?? "");
     const name = String(body?.name ?? "");
     const canPay = body?.canPay !== false;
+    // "lead" = primehub.dev/lead (no name field, its own opener, 10s delay).
+    const variant = String(body?.variant ?? "");
     const result = await createWebsiteDesignLead({
       business,
       name,
@@ -35,10 +37,12 @@ export async function POST(request: NextRequest) {
       gbp: body?.gbp && typeof body.gbp === "object" ? body.gbp : null,
     });
     if (!result.duplicate && canPay) {
-      // Respond now; the lead's opener text goes out ~7s later.
+      // Respond now; the lead's opener text goes out ~7s later (10s for /lead).
       after(async () => {
         try {
-          const sid = await sendLeadOpener(result.phone, name, business);
+          const sid = variant === "lead"
+            ? await sendLeadOpener(result.phone, name, business, LEAD_PAGE_OPENER_DELAY_MS, leadPageOpenerSms(business))
+            : await sendLeadOpener(result.phone, name, business);
           console.log("[website-design-lead] opener sent", { phone: result.phone, sid });
         } catch (err) {
           console.error("[website-design-lead] opener failed:", err);
