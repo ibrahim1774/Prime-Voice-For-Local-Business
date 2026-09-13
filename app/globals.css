@@ -916,7 +916,7 @@ body:has(.mv2) { background: var(--m-ink); }
 
 /* ── /custom pricing (.mv2-cp) ──────────────────────────────────────────
    Compact hero so both plans are on screen the moment the page opens. Plans
-   differ by alert channel; the $99 card is paper on the carbon page (hierarchy
+   differ by alert channel; the $197 card is paper on the carbon page (hierarchy
    by material). Phone widths: a horizontal swipe row with the second card
    peeking in from the right. */
 .mv2.mv2-cp { padding-bottom: 48px; }

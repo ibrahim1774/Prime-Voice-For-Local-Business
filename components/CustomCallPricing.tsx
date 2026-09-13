@@ -3,11 +3,11 @@
 // /custom — call-the-live-demo hero (catch-all style, number never shown)
 // followed by the two plans, visible immediately with no generation step.
 //
-// Plans (owner, 2026-09-10): $49 Email alerts · $99 Email + SMS alerts.
+// Plans (owner, 2026-09-13): $97 Email alerts · $197 Email + SMS alerts.
 // The channel a lead reaches the owner on is THE difference between the
 // tiers, so each card leads with it. No free trial — the card is charged at
 // checkout via /api/create-checkout. Styled on the monochrome .mv2 ink
-// system: the $99 card is set in paper against the carbon page so hierarchy
+// system: the $197 card is set in paper against the carbon page so hierarchy
 // comes from material, not a colored border (see .mv2-cp-* in globals.css).
 
 import { useEffect, useRef, useState } from "react";
@@ -36,7 +36,7 @@ const PLANS: Plan[] = [
   {
     id: "email-alerts",
     name: "Email Alerts",
-    price: 49,
+    price: 97,
     channels: ["email"],
     channelLabel: "Email",
     tagline: "Every lead call lands in your inbox.",
@@ -52,7 +52,7 @@ const PLANS: Plan[] = [
   {
     id: "email-sms-alerts",
     name: "Email + SMS Alerts",
-    price: 99,
+    price: 197,
     channels: ["email", "sms"],
     channelLabel: "Email + SMS",
     tagline: "Every lead call texted to your phone, and emailed.",
