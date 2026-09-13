@@ -151,8 +151,14 @@ export default function CustomCallPricing() {
     if (!row) return;
     const onScroll = () => {
       const first = row.firstElementChild as HTMLElement | null;
-      const step = (first?.offsetWidth || row.clientWidth || 1) + 10;
-      setActiveCard(Math.round(row.scrollLeft / step));
+      const second = first?.nextElementSibling as HTMLElement | null;
+      // Measure the real card pitch so the dots stay correct when the gap
+      // or the card width changes in CSS.
+      const step =
+        first && second
+          ? second.offsetLeft - first.offsetLeft
+          : (first?.offsetWidth || row.clientWidth || 1);
+      setActiveCard(Math.round(row.scrollLeft / Math.max(step, 1)));
     };
     row.addEventListener("scroll", onScroll, { passive: true });
     return () => row.removeEventListener("scroll", onScroll);
@@ -192,9 +198,11 @@ export default function CustomCallPricing() {
     <div className="mv2 mv2-catchall mv2-cp">
       {/* ── Hero: headline + compact live-demo call card ── */}
       <div className="mv2-catchall-shell mv2-cp-hero">
+        <p className="mv2-cp-kicker mv2-ca-in" style={{ animationDelay: "0.06s" }}>
+          Local businesses miss calls every day. Every missed call = lost money.
+        </p>
         <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.1s", marginTop: 0 }}>
-          <span className="mv2-catchall-h-muted">Local businesses miss calls every day. Every missed call = lost money.</span>{" "}
-          <span>The New 24/7 Human-Like Answering Agent for Local Businesses</span>
+          The New 24/7 Human-Like Answering Agent for Local Businesses
         </h1>
 
         <div className="mv2-cp-democard mv2-ca-in" style={{ animationDelay: "0.24s" }}>
