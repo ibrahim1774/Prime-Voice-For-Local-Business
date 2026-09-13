@@ -7,6 +7,7 @@ import {
   extractBookingFromReport,
   handleBookedSetupCall,
 } from "@/lib/setupCalls";
+import { asciiSms, fitSms } from "@/lib/websiteDesignLeads";
 
 // Vapi end-of-call-report webhook for the demo assistants.
 //
@@ -135,14 +136,14 @@ function buildOwnerCallAlert(
   const who = [lead.name, lead.business].filter(Boolean).join(" — ");
   const type = typeof structured?.businessType === "string" ? structured.businessType.trim() : "";
   const wanted = typeof structured?.reasonForCall === "string" ? structured.reasonForCall.trim() : "";
-  const lines = [`📞 Demo call${dur ? ` · ${dur}` : ""}`];
+  const lines = [`Demo call${dur ? ` - ${dur}` : ""}`];
   if (who) lines.push(type ? `${who} (${type})` : who);
   else if (type) lines.push(type);
   else lines.push("Caller gave no name or business");
   if (wanted) lines.push(`Wanted: ${truncate(wanted, 100)}`);
   if (lead.summary) lines.push(truncate(lead.summary, 160));
   lines.push(lead.callerNumber);
-  return lines.join("\n");
+  return asciiSms(lines.join("\n"));
 }
 
 function truncate(text: string, max: number): string {
@@ -161,27 +162,16 @@ function buildSmsBody(lead: {
       ? `${lead.name} from ${lead.business}`
       : lead.name || lead.business || "A caller";
 
-  const header = [`🔔 New lead — ${who} just called.`];
-  if (lead.summary) header.push(truncate(lead.summary, 240));
-  header.push(`📞 ${lead.callerNumber}`);
-
-  const pitch = [
-    "Sample AI Receptionist Call Alert.",
-    "",
-    "We custom-build yours to your own business:",
-    "• Built for your business",
-    "• 24/7 or after-hours",
-    "• Custom call flow",
-    "• SMS/email alerts",
-    "• CRM integration",
-  ];
-
-  return [
-    header.join("\n"),
-    pitch.join("\n"),
-    "Price ranges from $199/month to $997/month depending on what your needs are - usage minutes included",
-    "📅 Choose a time and we'll handle the setup.\nmontivaro.com/bookcall",
-  ].join("\n\n");
+  // One segment, no emoji, NO PRICE (owner, 2026-09-13). Anything over 160
+  // GSM-7 characters bills as a second segment, and a single emoji would drop
+  // the whole message to 70-char UCS-2 segments. fitSms trims `who` first so
+  // the booking link is never the thing that gets cut.
+  return fitSms(
+    (w) =>
+      `New lead: ${w} just called. That's the alert you'd get, 24/7. ` +
+      `We build yours custom. Book: montivaro.com/bookcall`,
+    who,
+  );
 }
 
 // Dentist variant of the sample alert: same alert header, tighter pitch,
