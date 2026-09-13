@@ -10,7 +10,7 @@
 // system: the $197 card is set in paper against the carbon page so hierarchy
 // comes from material, not a colored border (see .mv2-cp-* in globals.css).
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import BookingModal from "./BookingModal";
 import { SETUP_CALL_URL } from "@/lib/constants";
 
@@ -115,27 +115,7 @@ function PhoneIcon() {
 export default function CustomCallPricing() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [activeCard, setActiveCard] = useState(0);
-  const rowRef = useRef<HTMLDivElement>(null);
 
-  // Swipe dots: which card is mostly in view on the phone-width row.
-  useEffect(() => {
-    const row = rowRef.current;
-    if (!row) return;
-    const onScroll = () => {
-      const first = row.firstElementChild as HTMLElement | null;
-      const second = first?.nextElementSibling as HTMLElement | null;
-      // Measure the real card pitch so the dots stay correct when the gap
-      // or the card width changes in CSS.
-      const step =
-        first && second
-          ? second.offsetLeft - first.offsetLeft
-          : (first?.offsetWidth || row.clientWidth || 1);
-      setActiveCard(Math.round(row.scrollLeft / Math.max(step, 1)));
-    };
-    row.addEventListener("scroll", onScroll, { passive: true });
-    return () => row.removeEventListener("scroll", onScroll);
-  }, []);
 
   async function checkout(plan: Plan) {
     if (loadingId) return;
@@ -203,7 +183,7 @@ export default function CustomCallPricing() {
           <p>Same agent on both. Live in 24–48 hours, cancel anytime.</p>
         </div>
 
-        <div className="mv2-cp-row" ref={rowRef}>
+        <div className="mv2-cp-row">
           {PLANS.map((plan) => {
             const featured = !!plan.featured;
             return (
@@ -242,11 +222,6 @@ export default function CustomCallPricing() {
               </article>
             );
           })}
-        </div>
-        <div className="mv2-cp-dots" aria-hidden="true">
-          {PLANS.map((p, i) => (
-            <span key={p.id} className={i === activeCard ? "on" : ""} />
-          ))}
         </div>
 
         {/* Book-a-call fallback */}

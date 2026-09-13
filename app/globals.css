@@ -1023,12 +1023,8 @@ body:has(.mv2) { background: var(--m-ink); }
 @media (min-width: 720px) {
   .mv2 .mv2-cp-row { overflow: visible; gap: 12px; padding: 4px 20px 0; justify-content: center; }
   .mv2 .mv2-cp-card { flex: 0 1 330px; }
-  .mv2 .mv2-cp-dots { display: none; }
 }
 
-.mv2 .mv2-cp-dots { display: flex; justify-content: center; gap: 6px; margin-top: 2px; }
-.mv2 .mv2-cp-dots span { width: 6px; height: 6px; border-radius: 999px; background: rgba(247, 246, 243, 0.22); transition: background 0.2s ease, width 0.2s ease; }
-.mv2 .mv2-cp-dots span.on { background: var(--m-paper); width: 18px; }
 
 .mv2 .mv2-cp-card {
   --cp-fg: var(--m-paper);
@@ -1155,7 +1151,6 @@ body:has(.mv2) { background: var(--m-ink); }
   /* min-width:0 — grid items default to min-width:auto, so the nowrap CTA
      was forcing the column wider than the screen. */
   .mv2 .mv2-cp-card { flex: initial; min-width: 0; scroll-snap-align: none; padding: 12px 8px; border-radius: 14px; }
-  .mv2 .mv2-cp-dots { display: none; }
   .mv2 .mv2-cp-channels { gap: 4px; }
   .mv2 .mv2-cp-chip { padding: 3px 6px 3px 5px; font-size: 9.5px; gap: 3px; }
   .mv2 .mv2-cp-chip svg { width: 11px; height: 11px; }
