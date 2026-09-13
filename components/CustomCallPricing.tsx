@@ -25,7 +25,6 @@ interface Plan {
   price: number;
   channels: Channel[];
   channelLabel: string;
-  tagline: string;
   minutes: string;
   inherit?: string;
   bullets: string[];
@@ -39,14 +38,12 @@ const PLANS: Plan[] = [
     price: 97,
     channels: ["email"],
     channelLabel: "Email",
-    tagline: "Every lead call lands in your inbox.",
-    minutes: "45 min a month included, then $1 per extra minute",
+    minutes: "45 min/mo included, then $1/min",
     bullets: [
-      "Every call answered 24/7, sounds like a real person",
+      "Answered 24/7, sounds like a real person",
       "Live transfer, your phone rings first",
       "Appointments booked while you work",
-      "Instant email: caller's name, number, what they need",
-      "Keep your current business number",
+      "Email with the caller's name, number and need",
     ],
   },
   {
@@ -55,15 +52,13 @@ const PLANS: Plan[] = [
     price: 197,
     channels: ["email", "sms"],
     channelLabel: "Email + SMS",
-    tagline: "Every lead call texted to your phone, and emailed.",
-    minutes: "80 min a month included, then $1 per extra minute",
+    minutes: "80 min/mo included, then $1/min",
     featured: true,
     inherit: "Everything in Email Alerts, plus",
     bullets: [
-      "A text hits your phone the moment a lead calls",
-      "Caller's name, number, and what they need, in the text",
-      "80 minutes a month instead of 45",
-      "Priority help whenever you want something changed",
+      "A text the moment a lead calls",
+      "Caller's name, number and need, in the text",
+      "Priority help whenever you want a change",
     ],
   },
 ];
@@ -219,7 +214,7 @@ export default function CustomCallPricing() {
             <PhoneIcon />
             Call the live demo
           </a>
-          <p className="mv2-cp-demo-hint">Talk to it like a real customer would. Try to stump it.</p>
+          <p className="mv2-cp-demo-hint">Talk to it like a real customer. Try to stump it.</p>
         </div>
       </div>
 
@@ -227,7 +222,7 @@ export default function CustomCallPricing() {
       <section className="mv2-cp-pricing mv2-ca-in" style={{ animationDelay: "0.4s" }} aria-labelledby="mv2-cp-plans-h">
         <div className="mv2-cp-pricing-head">
           <h2 id="mv2-cp-plans-h">Pick how you hear about every lead.</h2>
-          <p>Same agent on both. Set up for you within 24–48 hours. No setup fee, cancel anytime.</p>
+          <p>Same agent on both. Live in 24–48 hours, cancel anytime.</p>
         </div>
 
         <div className="mv2-cp-row" ref={rowRef}>
@@ -254,7 +249,6 @@ export default function CustomCallPricing() {
                 </div>
 
                 <h3 className="mv2-cp-name">{plan.name}</h3>
-                <p className="mv2-cp-tagline">{plan.tagline}</p>
                 <div className="mv2-cp-minutes mv2-mono">{plan.minutes}</div>
 
                 <button
