@@ -26,8 +26,6 @@ interface Plan {
   channels: Channel[];
   channelLabel: string;
   minutes: string;
-  inherit?: string;
-  bullets: string[];
   featured?: boolean;
 }
 
@@ -39,12 +37,6 @@ const PLANS: Plan[] = [
     channels: ["email"],
     channelLabel: "Email",
     minutes: "45 min/mo included, then $1/min",
-    bullets: [
-      "Answered 24/7, sounds like a real person",
-      "Live transfer, your phone rings first",
-      "Appointments booked while you work",
-      "Email with the caller's name, number and need",
-    ],
   },
   {
     id: "email-sms-alerts",
@@ -54,12 +46,6 @@ const PLANS: Plan[] = [
     channelLabel: "Email + SMS",
     minutes: "80 min/mo included, then $1/min",
     featured: true,
-    inherit: "Everything in Email Alerts, plus",
-    bullets: [
-      "A text the moment a lead calls",
-      "Caller's name, number and need, in the text",
-      "Priority help whenever you want a change",
-    ],
   },
 ];
 
@@ -93,14 +79,6 @@ function MiniWave() {
         />
       ))}
     </div>
-  );
-}
-
-function Check() {
-  return (
-    <svg className="mv2-cp-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
   );
 }
 
@@ -193,12 +171,12 @@ export default function CustomCallPricing() {
     <div className="mv2 mv2-catchall mv2-cp">
       {/* ── Hero: headline + compact live-demo call card ── */}
       <div className="mv2-catchall-shell mv2-cp-hero">
-        <p className="mv2-cp-kicker mv2-ca-in" style={{ animationDelay: "0.06s" }}>
-          Local businesses miss calls every day. Every missed call = lost money.
-        </p>
-        <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.1s", marginTop: 0 }}>
-          The New 24/7 Human-Like Answering Agent for Local Businesses
+        <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.08s", marginTop: 0 }}>
+          Local businesses miss calls every day. Every missed call can equal lost money.
         </h1>
+        <p className="mv2-cp-sub mv2-ca-in" style={{ animationDelay: "0.16s" }}>
+          The new 24/7 answering agent that sounds human.
+        </p>
 
         <div className="mv2-cp-democard mv2-ca-in" style={{ animationDelay: "0.24s" }}>
           <div className="mv2-cp-demo-top">
@@ -261,15 +239,6 @@ export default function CustomCallPricing() {
                   {loadingId === plan.id ? "Opening checkout…" : `Get started at $${plan.price}/mo`}
                 </button>
 
-                {plan.inherit && <p className="mv2-cp-inherit">{plan.inherit}</p>}
-                <ul className="mv2-cp-list">
-                  {plan.bullets.map((b) => (
-                    <li key={b}>
-                      <Check />
-                      <span>{b}</span>
-                    </li>
-                  ))}
-                </ul>
               </article>
             );
           })}
