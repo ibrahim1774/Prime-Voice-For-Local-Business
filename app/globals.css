@@ -1026,37 +1026,6 @@ body:has(.mv2) { background: var(--m-ink); }
   .mv2 .mv2-cp-dots { display: none; }
 }
 
-/* Phones: both plans side by side, no swiping — the owner wants to compare
-   the two prices without moving anything (2026-09-13). Everything inside the
-   card steps down a size so two fit a 390px screen without clipping. */
-@media (max-width: 719px) {
-  .mv2 .mv2-cp-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    padding: 4px 14px 6px;
-    overflow: visible;
-    scroll-snap-type: none;
-  }
-  /* min-width:0 — grid items default to min-width:auto, so the nowrap CTA
-     was forcing the column wider than the screen. */
-  .mv2 .mv2-cp-card { flex: initial; min-width: 0; scroll-snap-align: none; padding: 12px 8px; border-radius: 14px; }
-  .mv2 .mv2-cp-dots { display: none; }
-  .mv2 .mv2-cp-channels { gap: 4px; }
-  .mv2 .mv2-cp-chip { padding: 3px 6px 3px 5px; font-size: 9.5px; gap: 3px; }
-  .mv2 .mv2-cp-chip svg { width: 11px; height: 11px; }
-  .mv2 .mv2-cp-amount { font-size: 25px; }
-  .mv2 .mv2-cp-currency { font-size: 14px; }
-  .mv2 .mv2-cp-per { font-size: 11.5px; }
-  .mv2 .mv2-cp-name { margin-top: 6px; font-size: 13.5px; }
-  .mv2 .mv2-cp-tagline { font-size: 11px; line-height: 1.35; }
-  .mv2 .mv2-cp-minutes { margin-top: 5px; font-size: 9px; line-height: 1.35; }
-  .mv2 .mv2-cp-cta { margin-top: 10px; padding: 10px 4px; font-size: 10px; letter-spacing: -0.02em; }
-  .mv2 .mv2-cp-list { gap: 4px; }
-  .mv2 .mv2-cp-list li { font-size: 10.5px; line-height: 1.3; gap: 5px; }
-  .mv2 .mv2-cp-check { width: 10px; height: 10px; margin-top: 1.5px; }
-  .mv2 .mv2-cp-inherit { font-size: 10px; }
-}
 .mv2 .mv2-cp-dots { display: flex; justify-content: center; gap: 6px; margin-top: 2px; }
 .mv2 .mv2-cp-dots span { width: 6px; height: 6px; border-radius: 999px; background: rgba(247, 246, 243, 0.22); transition: background 0.2s ease, width 0.2s ease; }
 .mv2 .mv2-cp-dots span.on { background: var(--m-paper); width: 18px; }
@@ -1170,6 +1139,38 @@ body:has(.mv2) { background: var(--m-ink); }
 .mv2 .mv2-cp-book > p { margin: 0 0 8px; font-size: 13.5px; font-weight: 600; color: var(--m-paper); }
 .mv2 .mv2-cp-book-actions { display: flex; gap: 14px; justify-content: center; align-items: center; flex-wrap: wrap; }
 .mv2 .mv2-cp-book-link { font-size: 13px; color: var(--m-smoke-d); text-decoration: underline; text-underline-offset: 4px; }
+
+/* Phones: both plans side by side, no swiping — the owner wants to compare
+   the two prices without moving anything (2026-09-13). Everything inside the
+   card steps down a size so two fit a 390px screen without clipping. */
+@media (max-width: 719px) {
+  .mv2 .mv2-cp-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 4px 14px 6px;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+  /* min-width:0 — grid items default to min-width:auto, so the nowrap CTA
+     was forcing the column wider than the screen. */
+  .mv2 .mv2-cp-card { flex: initial; min-width: 0; scroll-snap-align: none; padding: 12px 8px; border-radius: 14px; }
+  .mv2 .mv2-cp-dots { display: none; }
+  .mv2 .mv2-cp-channels { gap: 4px; }
+  .mv2 .mv2-cp-chip { padding: 3px 6px 3px 5px; font-size: 9.5px; gap: 3px; }
+  .mv2 .mv2-cp-chip svg { width: 11px; height: 11px; }
+  .mv2 .mv2-cp-amount { font-size: 25px; }
+  .mv2 .mv2-cp-currency { font-size: 14px; }
+  .mv2 .mv2-cp-per { font-size: 11.5px; }
+  .mv2 .mv2-cp-name { margin-top: 6px; font-size: 13.5px; }
+  .mv2 .mv2-cp-tagline { font-size: 11px; line-height: 1.35; }
+  .mv2 .mv2-cp-minutes { margin-top: 5px; font-size: 9px; line-height: 1.35; }
+  .mv2 .mv2-cp-cta { margin-top: 10px; padding: 10px 4px; font-size: 10px; letter-spacing: -0.02em; }
+  .mv2 .mv2-cp-list { gap: 4px; }
+  .mv2 .mv2-cp-list li { font-size: 10.5px; line-height: 1.3; gap: 5px; }
+  .mv2 .mv2-cp-check { width: 10px; height: 10px; margin-top: 1.5px; }
+  .mv2 .mv2-cp-inherit { font-size: 10px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .mv2 .mv2-cp-demo-dot { animation: none; }
