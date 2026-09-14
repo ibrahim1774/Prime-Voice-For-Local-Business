@@ -78,3 +78,17 @@ is the current behaviour everywhere. Server-side only — never `NEXT_PUBLIC_`.
 - Reviews are deliberately not fetched (priciest Places SKU, little value to a
   receptionist). `rating` + `reviewCount` are.
 - `photos.ts` is a seam with no blob implementation — see the marked spot.
+
+## Two keys, matching PrimeHub and AI-Barber
+
+| Variable | Where it runs | Job |
+|---|---|---|
+| `GOOGLE_PLACES_SERVER_KEY` | server only | search, detail fetch, photo resolution, type-ahead fallback. **Required.** |
+| `NEXT_PUBLIC_GOOGLE_PLACES_KEY` | visitor's browser | type-ahead straight from the browser, no server hop. Optional. |
+
+When a subpage is built, its name field should call Google directly with the
+browser key when present (`POST https://places.googleapis.com/v1/places:autocomplete`,
+header `X-Goog-Api-Key`), and fall back to `/api/places-autocomplete` otherwise.
+The browser key must be referrer-restricted to `montivaro.com` in Google Cloud;
+a rejected browser key should silently fall back to the server route. Never put
+the server key behind a `NEXT_PUBLIC_` prefix.
