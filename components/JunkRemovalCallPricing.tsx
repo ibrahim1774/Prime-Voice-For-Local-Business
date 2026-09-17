@@ -22,7 +22,8 @@ import { SETUP_CALL_URL } from "@/lib/constants";
 
 // Clearlot Junk Removal (assistant bd1d7544…) answers this line.
 const CALL_NUMBER_DISPLAY = "(929) 281-0251";
-const CALL_NUMBER_TEL = "tel:+19292810251";
+const CALL_NUMBER_E164 = "+19292810251";
+const CALL_NUMBER_TEL = `tel:${CALL_NUMBER_E164}`;
 
 const PRICE = 99;
 
@@ -35,22 +36,36 @@ const INCLUDED = [
   "Flags the heavy and hazardous stuff before you roll",
   "Captures the address, access and when they need it gone",
   "Texts you every lead before the caller hangs up",
+  "Setup done for you — live in 24–48 hours",
 ];
 
-// Tap-to-call fires Contact only. The Meta Lead for this page is sent
-// server-side by /api/vapi/call-report once the caller has actually stayed
-// on the demo line long enough to count.
+// Tap-to-call fires Lead on BOTH rails with one shared eventID so Meta
+// dedupes them: the browser pixel (blocked for plenty of visitors) and the
+// server CAPI, which also sends the hashed number for matching.
+//
+// A browser cannot observe whether the tap actually became a call — the tel:
+// handoff is the last thing we see. So Lead here means intent. The stricter
+// signal is QualifiedLead, fired server-side by /api/vapi/call-report only
+// after the caller has really stayed on the line. Optimise on whichever
+// matches the campaign.
 function trackLead() {
-  const eventId = `contact_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  const eventId = `lead_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   const fbq = (window as any).fbq;
   if (typeof fbq === "function") {
     fbq(
       "track",
-      "Contact",
+      "Lead",
       { content_name: "/junk-removal tap-to-call", content_category: "tap-to-call" },
       { eventID: eventId }
     );
   }
+  // keepalive so the POST survives the browser handing off to the dialer.
+  fetch("/api/meta-lead-conversion", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phoneNumber: CALL_NUMBER_E164, eventId }),
+    keepalive: true,
+  }).catch(() => {});
 }
 
 function MiniWave() {
@@ -164,7 +179,10 @@ export default function JunkRemovalCallPricing() {
       >
         <div className="mv2-cp-pricing-head">
           <h2 id="mv2-jr-plan-h">One line. One price.</h2>
-          <p>Live in 24&ndash;48 hours, cancel anytime. Hear it first &mdash; then decide.</p>
+          <p>
+            We set it up for you and you&rsquo;re live in 24&ndash;48 hours.
+            Cancel anytime &mdash; hear it first, then decide.
+          </p>
         </div>
 
         <div className="mv2-cp-row is-single">
@@ -180,6 +198,9 @@ export default function JunkRemovalCallPricing() {
             </div>
 
             <h3 className="mv2-cp-name">Junk Removal Answering</h3>
+            <div className="mv2-cp-minutes mv2-mono">
+              80 min/mo included, then $1/min
+            </div>
 
             <ul className="mv2-cp-list">
               {INCLUDED.map((item) => (

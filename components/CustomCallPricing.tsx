@@ -15,7 +15,8 @@ import BookingModal from "./BookingModal";
 import { SETUP_CALL_URL } from "@/lib/constants";
 
 // Dialed, never displayed — the button copy carries the CTA.
-const CALL_NUMBER_TEL = "tel:+19289689136";
+const CALL_NUMBER_E164 = "+19289689136";
+const CALL_NUMBER_TEL = `tel:${CALL_NUMBER_E164}`;
 
 type Channel = "email" | "sms";
 
@@ -49,21 +50,34 @@ const PLANS: Plan[] = [
   },
 ];
 
-// Tap-to-call fires Contact only. The Meta Lead for this page is sent
-// server-side by /api/vapi/call-report once the caller has actually stayed
-// on the demo line for 20+ seconds (owner call 2026-09-11); Purchase fires
-// on /thank-you after Stripe checkout.
+// Tap-to-call fires Lead on BOTH rails with one shared eventID so Meta
+// dedupes them: the browser pixel (blocked for plenty of visitors) and the
+// server CAPI, which also sends the hashed number for matching. Purchase
+// fires on /thank-you after Stripe checkout.
+//
+// This was Contact-only from 2026-09-11 to 2026-09-17, so that "Lead" could
+// mean a real 20-second conversation rather than a button press (owner
+// call). Reversed on owner request — the stricter signal still exists as
+// QualifiedLead, which /api/vapi/call-report fires only after the caller
+// actually stays on the line, so optimise on whichever suits the campaign.
 function trackLead() {
-  const eventId = `contact_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  const eventId = `lead_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   const fbq = (window as any).fbq;
   if (typeof fbq === "function") {
     fbq(
       "track",
-      "Contact",
+      "Lead",
       { content_name: "/custom tap-to-call", content_category: "tap-to-call" },
       { eventID: eventId }
     );
   }
+  // keepalive so the POST survives the browser handing off to the dialer.
+  fetch("/api/meta-lead-conversion", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phoneNumber: CALL_NUMBER_E164, eventId }),
+    keepalive: true,
+  }).catch(() => {});
 }
 
 function MiniWave() {
