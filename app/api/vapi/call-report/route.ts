@@ -26,12 +26,19 @@ const CATCHALL_ASSISTANT_ID = "52081d54-3e98-4213-88cc-b618985a1d9b";
 const PRIMEBARBER_ASSISTANT_ID = "52d9dbcd-a215-4794-8bd7-fe2bd982fd35";
 const SMS_DELAY_MS = 20_000;
 
-type Product = "montivaro" | "primebarber" | "dentist" | "contractors" | "website";
+type Product =
+  | "montivaro"
+  | "primebarber"
+  | "dentist"
+  | "contractors"
+  | "website"
+  | "junk-removal";
 
 const VERTICAL_KEYS: Record<string, Product> = {
   dentist_assistant_id: "dentist",
   contractors_assistant_id: "contractors",
   website_assistant_id: "website",
+  "junk-removal_assistant_id": "junk-removal",
 };
 
 // The vertical assistants (dentist, contractors, $97 website) live in the

@@ -23,6 +23,11 @@ const VERTICALS = [
   { key: "dentist", number: "+16572464071" },
   { key: "contractors", number: "+18406882671" },
   { key: "website", number: "+19842992378" },
+  // 2026-09-17: junk removal demo line, on its own number. 2378 was NOT
+  // reused for it — /websites (components/WebsitesDemo.tsx) still advertises
+  // that number in three tel: links, so repointing it sends $97-website
+  // traffic to a junk removal receptionist.
+  { key: "junk-removal", number: "+19292810251" },
 ] as const;
 
 const PATCH_BODY = {
