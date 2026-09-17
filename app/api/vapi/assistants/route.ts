@@ -19,6 +19,13 @@ const PROTECTED_IDS = new Set([
   "4ec4a1d0-2d64-48aa-beee-e2417ddc258f", // Dentist
   "8d33e6cf-7922-4b01-822f-39d71e38de58", // Contractors
   "1892e500-d126-49d8-85c3-a526015a2950", // Website Design ($97)
+  // Trade demo assistants (2026-09-17). junk-removal answers the
+  // (984) 299-2378 line; the other four are web-demo only so far.
+  "bd1d7544-8ade-4656-9209-0bc5e571b694", // Clearlot Junk Removal
+  "43d06d38-0940-4556-bb7e-a0902bd76a27", // Mirrorline Mobile Detailing
+  "3deffcc9-2cdb-4b23-86a9-265a7ce1f344", // Greenmark Landscaping
+  "5ba0833a-1f4a-4b21-a695-dad70c5ac1e1", // Oakline Property Management
+  "16407868-7785-4ccd-84c5-b90fb8960831", // Rightway Plumbing
 ]);
 
 export async function POST(request: NextRequest) {

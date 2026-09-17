@@ -22,7 +22,12 @@ const CALL_REPORT_URL = "https://www.montivaro.com/api/vapi/call-report";
 const VERTICALS = [
   { key: "dentist", number: "+16572464071" },
   { key: "contractors", number: "+18406882671" },
-  { key: "website", number: "+19842992378" },
+  // 2026-09-17: (984) 299-2378 was the $97 Website line. That funnel's
+  // assistant (1892e500…) had already drifted off this number and is attached
+  // to nothing, so the number is reused for the junk removal demo line rather
+  // than left pointing at a half-dismantled product. Restoring the website
+  // line means giving it its own number and adding its key back here.
+  { key: "junk-removal", number: "+19842992378" },
 ] as const;
 
 const PATCH_BODY = {
