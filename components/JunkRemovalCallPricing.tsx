@@ -3,11 +3,13 @@
 // /junk-removal — the /custom page, cut down and aimed at one trade.
 //
 // Same shape as CustomCallPricing: call-the-live-demo hero, then pricing,
-// then the book-a-call fallback. Three deliberate differences (owner,
-// 2026-09-17): copy is junk-removal specific, there is ONE plan at $99/mo,
-// and the card's CTA is the demo call rather than Stripe checkout — nobody
-// is asked to buy before they've heard it answer. There is no generation
-// step and no business-name field; every caller reaches the same line.
+// then the book-a-call fallback. Junk-removal copy, ONE plan at $99/mo.
+// There is no generation step and no business-name field; every caller
+// reaches the same line.
+//
+// The hero owns the "call the demo" action; the card owns the buy. They were
+// briefly the same button, which wasted the card (owner, 2026-09-17) — hear
+// it in the hero, buy it in the card.
 //
 // Styled on the existing monochrome .mv2 ink system (.mv2-cp-* in
 // globals.css). The only new CSS is `.is-single` on the plan row: that row is
@@ -89,6 +91,39 @@ function CheckIcon() {
 
 export default function JunkRemovalCallPricing() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
+  async function checkout() {
+    if (isCheckingOut) return;
+    setIsCheckingOut(true);
+    try {
+      const res = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessName: "Junk Removal Answering — /junk-removal",
+          price: PRICE,
+          // Explicit: /api/create-checkout defaults trialDays to 3 when the
+          // field is absent, and this plan has no trial.
+          trialDays: 0,
+          interval: "month",
+          embedded: false,
+        }),
+      });
+      const data: { url?: string; error?: string } = await res.json().catch(() => ({}));
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        console.error("Checkout failed:", data.error || "no url returned");
+        alert("Something went wrong starting checkout. Please try again or contact support.");
+        setIsCheckingOut(false);
+      }
+    } catch (err) {
+      console.error("Checkout error:", err);
+      alert("Something went wrong starting checkout. Please try again or contact support.");
+      setIsCheckingOut(false);
+    }
+  }
 
   return (
     <div className="mv2 mv2-catchall mv2-cp">
@@ -155,14 +190,18 @@ export default function JunkRemovalCallPricing() {
               ))}
             </ul>
 
-            <a
-              href={CALL_NUMBER_TEL}
-              onClick={trackLead}
-              className="mv2-cp-cta mv2-cp-cta-call"
+            <button
+              type="button"
+              onClick={checkout}
+              disabled={isCheckingOut}
+              className="mv2-cp-cta"
+              aria-busy={isCheckingOut}
             >
-              <PhoneIcon />
-              Call for a live demo
-            </a>
+              {isCheckingOut ? "Opening checkout…" : `Get started at $${PRICE}/mo`}
+            </button>
+            <p className="mv2-cp-cta-note">
+              Heard it already? Start today &mdash; cancel anytime.
+            </p>
           </article>
         </div>
 
