@@ -37,8 +37,6 @@ type Product =
 const VERTICAL_KEYS: Record<string, Product> = {
   dentist_assistant_id: "dentist",
   contractors_assistant_id: "contractors",
-  // Kept so any app_config row written before (984) 299-2378 was reassigned
-  // still resolves to a product instead of being dropped at `if (!product)`.
   website_assistant_id: "website",
   "junk-removal_assistant_id": "junk-removal",
 };

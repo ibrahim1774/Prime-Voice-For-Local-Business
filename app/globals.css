@@ -1167,6 +1167,24 @@ body:has(.mv2) { background: var(--m-ink); }
   .mv2 .mv2-cp-inherit { font-size: 10px; }
 }
 
+/* /junk-removal ships ONE plan. The phone rule above is a 2-up grid sized to
+   fit two cards on a 390px screen, so a lone card would sit in the left column
+   at 10px type. is-single gives it the full width back and undoes the shrink. */
+.mv2 .mv2-cp-row.is-single { justify-content: center; }
+@media (max-width: 719px) {
+  .mv2 .mv2-cp-row.is-single { grid-template-columns: 1fr; }
+  .mv2 .mv2-cp-row.is-single .mv2-cp-cta { padding: 12px 10px; font-size: 13px; letter-spacing: -0.01em; }
+  .mv2 .mv2-cp-row.is-single .mv2-cp-list { gap: 6px; }
+  .mv2 .mv2-cp-row.is-single .mv2-cp-list li { font-size: 12.5px; line-height: 1.4; gap: 7px; }
+  .mv2 .mv2-cp-row.is-single .mv2-cp-check { width: 12px; height: 12px; margin-top: 2px; }
+}
+
+/* The junk-removal card's CTA is a tel: link, not a checkout button. */
+.mv2 a.mv2-cp-cta-call {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  text-decoration: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mv2 .mv2-cp-demo-dot { animation: none; }
   .mv2 .mv2-cp-row { scroll-behavior: auto; }
