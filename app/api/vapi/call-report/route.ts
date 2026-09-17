@@ -490,14 +490,32 @@ export async function POST(request: NextRequest) {
       const sid = await sendSms(lead.callerNumber, body);
       console.log(`call-report: lead SMS sent to ${lead.callerNumber} (${sid})`);
 
-      // Owner ping for the Website Design line: one short segment (≤160
-      // chars) to Ibrahim the moment a call qualifies — name, business,
-      // number. Fail-soft: a failed ping never blocks the lead event.
+      // Owner ping the moment a call qualifies — name, business, number.
+      // Fail-soft: a failed ping never blocks the lead event.
+      //
+      // The junk-removal ping is built with fitSms/asciiSms rather than
+      // truncate, so it is guaranteed to bill as ONE GSM-7 segment. The
+      // website ping above it keeps its emoji for continuity, but note that
+      // a single emoji switches the whole message to UCS-2 and 70-char
+      // segments — so that one is ~3 segments, not the 1 its old comment
+      // claimed. Don't add emoji here.
       if (product === "website") {
         try {
           await sendSms(
             OWNER_ALERT_NUMBER,
             truncate(`🌐 New Website Design lead: ${lead.name} — ${lead.business} — ${lead.callerNumber}`, 160)
+          );
+        } catch (err) {
+          console.error("call-report: owner alert failed", err);
+        }
+      } else if (product === "junk-removal") {
+        try {
+          await sendSms(
+            OWNER_ALERT_NUMBER,
+            fitSms(
+              (b) => `New Junk Removal lead: ${asciiSms(lead.name)} - ${b} - ${lead.callerNumber}`,
+              lead.business
+            )
           );
         } catch (err) {
           console.error("call-report: owner alert failed", err);
