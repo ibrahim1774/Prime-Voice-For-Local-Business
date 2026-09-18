@@ -31,9 +31,32 @@ const VERTICALS = [
 ] as const;
 
 const PATCH_BODY = {
+  // Turn-taking. This block is applied to EVERY vertical on every sync, so it
+  // is the single source of truth — anything set on an assistant by hand or by
+  // another script is overwritten the next time this runs. It previously read
+  // `waitSeconds: 0.4` with no wait function, which silently reverted the
+  // tuned settings on the junk removal line (2026-09-17).
+  //
+  // transcriptionEndpointingPlan is what callers actually feel. It branches on
+  // whether the transcript ends in punctuation, so smartFormat must be on at
+  // the transcriber for the fast 0.1s path to fire at all; otherwise every
+  // turn falls to onNoPunctuationSeconds. onNumberSeconds stays highest so the
+  // agent does not cut in while someone reads out a phone number.
+  //
+  // waitFunction is livekit's curve in ms, where x is the probability the
+  // caller is STILL speaking (x=0 means they have clearly stopped), so the
+  // wait rises with x: ~20ms when they are done, ~166ms at a coin flip.
   startSpeakingPlan: {
-    waitSeconds: 0.4,
-    smartEndpointingPlan: { provider: "livekit" },
+    waitSeconds: 0,
+    transcriptionEndpointingPlan: {
+      onPunctuationSeconds: 0.1,
+      onNoPunctuationSeconds: 0.45,
+      onNumberSeconds: 0.35,
+    },
+    smartEndpointingPlan: {
+      provider: "livekit",
+      waitFunction: "20 + 100 * sqrt(x) + 600 * x^3",
+    },
   },
   serverMessages: ["end-of-call-report"],
   artifactPlan: { recordingEnabled: true },
