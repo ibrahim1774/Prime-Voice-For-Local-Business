@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteThread, listMessages, listThreads, sendReply, updateThread } from "@/lib/leadInbox";
+import {
+  deleteMessage,
+  deleteThread,
+  listMessages,
+  listThreads,
+  sendReply,
+  updateThread,
+} from "@/lib/leadInbox";
 
 export const maxDuration = 30;
 
@@ -7,9 +14,12 @@ export const maxDuration = 30;
 // (PrimeHub's /api/inbox adds it after checking the owner's Supabase login).
 //   GET                       → { threads }
 //   GET ?phone=+1…            → { messages } (marks inbound as read)
-//   POST   { phone, body }    → { message }   send a reply from the 650 line
+//   POST   { phone, body, media? } → { message }  reply from the 650 line;
+//           media = base64 data URLs, sent as MMS (body may be empty if there
+//           is at least one image)
 //   PATCH  { phone, name, business } → { ok } rename a thread
-//   DELETE { phone }          → { ok, deleted } remove a conversation
+//   DELETE { messageId }      → { ok } remove ONE message
+//   DELETE { phone }          → { ok, deleted } remove the whole conversation
 
 function authed(request: NextRequest): boolean {
   const secret = process.env.PRIMEHUB_LEAD_SECRET?.trim();
@@ -39,7 +49,14 @@ export async function POST(request: NextRequest) {
   if (!authed(request)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const body = await request.json().catch(() => ({}));
   try {
-    const message = await sendReply(String(body?.phone ?? ""), String(body?.body ?? ""));
+    const attachments = Array.isArray(body?.media)
+      ? body.media.filter((m: unknown) => typeof m === "string").slice(0, 8)
+      : [];
+    const message = await sendReply(
+      String(body?.phone ?? ""),
+      String(body?.body ?? ""),
+      attachments
+    );
     return NextResponse.json({ ok: true, message });
   } catch (err: any) {
     return fail(err, "Send failed");
@@ -61,6 +78,11 @@ export async function DELETE(request: NextRequest) {
   if (!authed(request)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const body = await request.json().catch(() => ({}));
   try {
+    // messageId = delete one message; phone = delete the whole conversation.
+    if (body?.messageId != null) {
+      const ok = await deleteMessage(Number(body.messageId));
+      return NextResponse.json({ ok, deleted: ok ? { messages: 1 } : { messages: 0 } });
+    }
     const deleted = await deleteThread(String(body?.phone ?? ""));
     return NextResponse.json({ ok: true, deleted });
   } catch (err: any) {

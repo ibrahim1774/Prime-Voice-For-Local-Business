@@ -42,6 +42,17 @@ export async function ensureLeadSchema() {
   await sql()`ALTER TABLE website_design_leads ADD COLUMN IF NOT EXISTS gbp jsonb`;
   // Inbound MMS photo URLs (Twilio media), so the inbox can show them.
   await sql()`ALTER TABLE dialer_messages ADD COLUMN IF NOT EXISTS media jsonb NOT NULL DEFAULT '[]'::jsonb`;
+  // Images the OWNER attaches to a reply. Twilio fetches MMS media from a
+  // public URL, so the bytes have to live somewhere it can reach without our
+  // credentials — they are stored here and served by
+  // /api/website-design-lead/outbound-media behind an HMAC token. Inbound
+  // media stays as Twilio URLs (proxied); only outbound is stored.
+  await sql()`CREATE TABLE IF NOT EXISTS inbox_media (
+    id serial PRIMARY KEY,
+    content_type text NOT NULL,
+    bytes bytea NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`;
   await sql()`CREATE INDEX IF NOT EXISTS website_design_leads_phone_idx ON website_design_leads (phone, created_at)`;
   ready = true;
 }
