@@ -63,7 +63,10 @@ const PATCH_BODY = {
     customEndpointingRules: [
       {
         type: "assistant",
-        regex: "address|zip|postal|street|phone|number",
+        // NOT "street" — the prompts read addresses back, and matching a
+        // read-back would stall the next one-word answer. See the
+        // full note in lib/vertical-agents.mjs.
+        regex: "address|zip|postal|phone|number",
         regexOptions: [{ type: "ignore-case", enabled: true }],
         timeoutSeconds: 1.8,
       },
