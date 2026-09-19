@@ -163,7 +163,7 @@ export default function JunkRemovalCallPricing() {
             className="mv2-btn mv2-btn-light mv2-catchall-call mv2-cp-call"
           >
             <PhoneIcon />
-            Call the live junk removal demo line
+            Call the junk removal demo line
           </a>
           <p className="mv2-cp-demo-hint">
             {CALL_NUMBER_DISPLAY} &middot; call it like a customer with a garage to clear. Try to stump it.
