@@ -977,7 +977,9 @@ body:has(.mv2) { background: var(--m-ink); }
   70%, 100% { box-shadow: 0 0 0 9px rgba(247, 246, 243, 0); }
 }
 .mv2 .mv2-cp-call {
-  margin-top: 12px;
+  /* Pushed down off the waveform above it (owner, 2026-09-18) — at 12px the
+     button read as part of the wave rather than a separate control. */
+  margin-top: 22px;
   width: 100%;
   max-width: 100%;
   padding: 15px 22px;
