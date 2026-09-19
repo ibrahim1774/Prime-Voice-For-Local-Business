@@ -213,13 +213,17 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
   }
 
   // The lead's opener is sent by sendLeadOpener() after LEAD_OPENER_DELAY_MS
-  // (owner call 2026-09-06: "within 10 seconds" — a short pause reads
-  // like a person typing, not an autoresponder). The route schedules it with
-  // next/server after() so the form gets its response immediately.
+  // — a pause so it reads like a person getting to it, not an autoresponder.
+  // The route schedules it with next/server after() so the form gets its
+  // response immediately.
   return { ok: true, phone, duplicate: false, leadSms: "scheduled", ownerSms: ownerSid };
 }
 
-export const LEAD_OPENER_DELAY_MS = 7_000;
+// 30s (owner, 2026-09-18; was 7s). The route's maxDuration is 60s and the
+// wait is a plain setTimeout inside after(), so this has to stay comfortably
+// under that — the send happens AFTER the sleep, and a function killed at the
+// ceiling would drop the text with no error anywhere.
+export const LEAD_OPENER_DELAY_MS = 30_000;
 
 export async function sendLeadOpener(phone: string, name: string, business: string, delayMs = LEAD_OPENER_DELAY_MS, openerText?: string): Promise<string | null> {
   if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
