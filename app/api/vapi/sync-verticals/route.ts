@@ -37,26 +37,37 @@ const PATCH_BODY = {
   // `waitSeconds: 0.4` with no wait function, which silently reverted the
   // tuned settings on the junk removal line (2026-09-17).
   //
-  // transcriptionEndpointingPlan is what callers actually feel. It branches on
-  // whether the transcript ends in punctuation, so smartFormat must be on at
-  // the transcriber for the fast 0.1s path to fire at all; otherwise every
-  // turn falls to onNoPunctuationSeconds. onNumberSeconds stays highest so the
-  // agent does not cut in while someone reads out a phone number.
+  // KEEP THIS IN STEP WITH lib/vertical-agents.mjs. The long explanation of
+  // why each value is what it is lives there; the short version:
   //
-  // waitFunction is livekit's curve in ms, where x is the probability the
-  // caller is STILL speaking (x=0 means they have clearly stopped), so the
-  // wait rises with x: ~20ms when they are done, ~166ms at a coin flip.
+  //   - smartEndpointingPlan OVERRIDES transcriptionEndpointingPlan, so the
+  //     three transcription values below are inert and kept only as a
+  //     fallback. Tuning them changes nothing while livekit is set.
+  //   - customEndpointingRules outrank both. The rule below is the fix for a
+  //     caller giving an address and getting ~15 seconds of silence back
+  //     (2026-09-19): livekit reads a spoken zip as an unfinished sentence
+  //     and will wait indefinitely, so a deterministic timeout caps it.
+  //   - waitSeconds 0.25 is a human beat before speaking; 0 made the agent
+  //     jump on callers.
   startSpeakingPlan: {
-    waitSeconds: 0,
+    waitSeconds: 0.25,
     transcriptionEndpointingPlan: {
       onPunctuationSeconds: 0.1,
-      onNoPunctuationSeconds: 0.45,
-      onNumberSeconds: 0.35,
+      onNoPunctuationSeconds: 0.8,
+      onNumberSeconds: 0.5,
     },
     smartEndpointingPlan: {
       provider: "livekit",
-      waitFunction: "20 + 100 * sqrt(x) + 600 * x^3",
+      waitFunction: "20 + 250 * sqrt(x) + 1500 * x^3",
     },
+    customEndpointingRules: [
+      {
+        type: "assistant",
+        regex: "address|zip|postal|street|phone|number",
+        regexOptions: [{ type: "ignore-case", enabled: true }],
+        timeoutSeconds: 1.8,
+      },
+    ],
   },
   serverMessages: ["end-of-call-report"],
   artifactPlan: { recordingEnabled: true },
