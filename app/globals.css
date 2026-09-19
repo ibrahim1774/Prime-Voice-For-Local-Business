@@ -982,6 +982,15 @@ body:has(.mv2) { background: var(--m-ink); }
   max-width: 100%;
   padding: 15px 22px;
   font-size: 16.5px;
+  /* Trade-specific labels ("Call the junk removal demo line") are long enough
+     to wrap on a phone, and with no line-height the two lines sat on top of
+     each other. Also keep the icon from being squeezed by the text. */
+  line-height: 1.3;
+  text-wrap: balance;
+}
+.mv2 .mv2-cp-call svg { flex: none; }
+@media (max-width: 420px) {
+  .mv2 .mv2-cp-call { font-size: 15px; padding: 14px 16px; }
 }
 .mv2 .mv2-cp-demo-hint { margin: 10px 0 0; font-size: 12.5px; color: var(--m-smoke); }
 
