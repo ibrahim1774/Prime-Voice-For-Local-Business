@@ -2,8 +2,9 @@
 
 // /junk-removal — the /custom page, cut down and aimed at one trade.
 //
-// Same shape as CustomCallPricing: call-the-live-demo hero, then pricing,
-// then the book-a-call fallback. Junk-removal copy, ONE plan at $99/mo.
+// Shaped like CustomCallPricing: call-the-live-demo hero, then pricing.
+// Junk-removal copy, ONE plan at $99/mo. NO book-a-call block (owner,
+// 2026-09-18) — the page offers exactly two actions, hear it or buy it.
 // There is no generation step and no business-name field; every caller
 // reaches the same line.
 //
@@ -17,8 +18,6 @@
 // would sit in the left column at 10px type.
 
 import { useState } from "react";
-import BookingModal from "./BookingModal";
-import { SETUP_CALL_URL } from "@/lib/constants";
 
 // Clearlot Junk Removal (assistant bd1d7544…) answers this line.
 const CALL_NUMBER_DISPLAY = "(929) 281-0251";
@@ -105,7 +104,6 @@ function CheckIcon() {
 }
 
 export default function JunkRemovalCallPricing() {
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   async function checkout() {
@@ -197,7 +195,7 @@ export default function JunkRemovalCallPricing() {
               </div>
             </div>
 
-            <h3 className="mv2-cp-name">Junk Removal Answering</h3>
+            <h3 className="mv2-cp-name">Your own custom junk removal voice agent</h3>
             <div className="mv2-cp-minutes mv2-mono">
               80 min/mo included, then $1/min
             </div>
@@ -226,21 +224,8 @@ export default function JunkRemovalCallPricing() {
           </article>
         </div>
 
-        {/* Book-a-call fallback, same as /custom */}
-        <div className="mv2-cp-book">
-          <p>Rather talk it through first?</p>
-          <div className="mv2-cp-book-actions">
-            <button onClick={() => setIsBookingOpen(true)} className="mv2-btn mv2-btn-ghost">
-              Book a call with the team
-            </button>
-            <a href={SETUP_CALL_URL} target="_blank" rel="noopener noreferrer" className="mv2-cp-book-link">
-              Free 10-minute call
-            </a>
-          </div>
-        </div>
       </section>
 
-      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
     </div>
   );
 }
