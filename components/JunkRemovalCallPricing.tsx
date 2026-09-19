@@ -143,12 +143,11 @@ export default function JunkRemovalCallPricing() {
       {/* ── Hero: headline + live-demo call card ── */}
       <div className="mv2-catchall-shell mv2-cp-hero">
         <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.08s", marginTop: 0 }}>
-          Junk removal voice agent
+          Junk removal businesses: capture your missed calls 24/7
         </h1>
         <p className="mv2-cp-sub mv2-ca-in" style={{ animationDelay: "0.16s" }}>
-          A missed call is the next guy&rsquo;s job. This one picks up nights,
-          weekends and mid-haul &mdash; gets the load, the address and when
-          &mdash; then texts you the lead.
+          Our voice agent answers the calls you miss, captures the lead and
+          texts it straight to you &mdash; seven days a week.
         </p>
 
         <div className="mv2-cp-democard mv2-ca-in" style={{ animationDelay: "0.24s" }}>
