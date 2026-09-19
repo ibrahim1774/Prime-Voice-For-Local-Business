@@ -1,9 +1,9 @@
 import JunkRemovalCallPricing from "@/components/JunkRemovalCallPricing";
 
 export const metadata = {
-  title: "Montivaro | 24/7 AI Answering for Junk Removal — $99/mo",
+  title: "Montivaro | Junk Removal Voice Agent — $99/mo",
   description:
-    "The 24/7 answering agent that books junk removal jobs while your crew is on a route. Call the live demo line and hear it work.",
+    "Answers when your hands are full — nights, weekends and mid-haul. Gets the load, the address and when, then texts you the lead. Call the live demo line and hear it work.",
 };
 
 export default function PageJunkRemoval() {

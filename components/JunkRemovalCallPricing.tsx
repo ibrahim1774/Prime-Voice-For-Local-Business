@@ -143,10 +143,12 @@ export default function JunkRemovalCallPricing() {
       {/* ── Hero: headline + live-demo call card ── */}
       <div className="mv2-catchall-shell mv2-cp-hero">
         <h1 className="mv2-catchall-h mv2-ca-in" style={{ animationDelay: "0.08s", marginTop: 0 }}>
-          You can&rsquo;t answer the phone with a couch in your hands.
+          Junk removal voice agent
         </h1>
         <p className="mv2-cp-sub mv2-ca-in" style={{ animationDelay: "0.16s" }}>
-          The 24/7 answering agent that books junk jobs while your crew is on a route.
+          A missed call is the next guy&rsquo;s job. This one picks up nights,
+          weekends and mid-haul &mdash; gets the load, the address and when
+          &mdash; then texts you the lead.
         </p>
 
         <div className="mv2-cp-democard mv2-ca-in" style={{ animationDelay: "0.24s" }}>
@@ -161,7 +163,7 @@ export default function JunkRemovalCallPricing() {
             className="mv2-btn mv2-btn-light mv2-catchall-call mv2-cp-call"
           >
             <PhoneIcon />
-            Call for a live demo
+            Call the live junk removal demo line
           </a>
           <p className="mv2-cp-demo-hint">
             {CALL_NUMBER_DISPLAY} &middot; call it like a customer with a garage to clear. Try to stump it.
