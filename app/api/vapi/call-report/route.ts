@@ -115,6 +115,22 @@ async function sendSms(to: string, body: string): Promise<string> {
 // shorter than that is a misdial or an instant hang-up, not worth a text.
 const OWNER_ALERT_MIN_SECONDS = 20;
 
+// Which line the caller reached, for the owner ping below. Short on purpose:
+// it is the first thing read on a lock screen, and every extra character is
+// SMS budget.
+const PRODUCT_LABEL: Record<Product, string> = {
+  montivaro: "Montivaro",
+  primebarber: "Prime Barber",
+  dentist: "Dentist",
+  contractors: "Contractors",
+  website: "Website",
+  "junk-removal": "Junk Removal",
+};
+
+function fmtSecs(s: number): string {
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m${String(s % 60).padStart(2, "0")}s`;
+}
+
 function callSeconds(message: any): number {
   const startedAtMs = Date.parse(message?.startedAt || "") || 0;
   const endedAtMs = Date.parse(message?.endedAt || "") || 0;
@@ -471,8 +487,46 @@ export async function POST(request: NextRequest) {
       return;
     }
     if (!qualified) {
+      // The caller had a real conversation but never identified themselves,
+      // so there is no lead to send. Ping the owner anyway once the call is
+      // substantial (owner, 2026-09-20: "do the 20-second rule on junk
+      // removal and all the other voice agents").
+      //
+      // Until now this only existed for the catch-all, inside the
+      // `product === "montivaro"` block above — which is why eight calls to
+      // the junk removal line, several over 90 seconds, produced nothing at
+      // all. The verticals were built on the stricter name-and-business gate
+      // and never reached that code.
+      //
+      // Deliberately EITHER/OR, not both: this branch returns before the
+      // qualified lead SMS, so any one call produces at most one text. The
+      // wording differs enough to tell them apart on a lock screen — this
+      // one says "no name given", the lead one names the business.
+      //
+      // montivaro cannot reach here (its block returns unconditionally at
+      // the end), so the catch-all keeps its own existing alert and is not
+      // double-texted.
+      const secs = callSeconds(message);
+      if (secs >= OWNER_ALERT_MIN_SECONDS) {
+        try {
+          await sendSms(
+            OWNER_ALERT_NUMBER,
+            fitSms(
+              (label) =>
+                `${label} demo: caller ${lead.callerNumber} stayed ${fmtSecs(secs)}. No name given.`,
+              PRODUCT_LABEL[product]
+            )
+          );
+        } catch (err) {
+          console.error("call-report: owner call ping failed", err);
+        }
+      } else {
+        console.log(
+          `call-report: caller ${lead.callerNumber} stayed ${secs}s (< ${OWNER_ALERT_MIN_SECONDS}s) — no ping`
+        );
+      }
       console.log(
-        `call-report: caller ${lead.callerNumber} didn't give both a name and a business — no SMS, no lead`
+        `call-report: caller ${lead.callerNumber} didn't give both a name and a business — no lead SMS`
       );
       return;
     }
