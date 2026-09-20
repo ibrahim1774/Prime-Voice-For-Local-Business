@@ -295,14 +295,20 @@ function Hero() {
   return (
     <section id="top" className="mv2-hero">
       <div className="mv2-shell">
+        {/* Category-led, because every non-brand ad group lands here. The old
+            "You're on a job. The phone rings." was written for one of the five
+            — a tradesperson — and told the other four (generic AI receptionist,
+            answering service, after hours, virtual receptionist) that the page
+            was not for them. Leading with the noun people actually typed into
+            Google is the message match the clicks are being paid for. */}
         <h1 className="mv2-h1">
-          <span className="mv2-h1-line"><span>You&rsquo;re on a job.</span></span>
-          <span className="mv2-h1-line"><span>The phone rings.</span></span>
-          <span className="mv2-h1-line"><span>Montivaro answers.</span></span>
+          <span className="mv2-h1-line"><span>Your AI receptionist.</span></span>
+          <span className="mv2-h1-line"><span>Answers every call.</span></span>
+          <span className="mv2-h1-line"><span>Day, night, weekend.</span></span>
         </h1>
         <p className="mv2-hero-sub">
-          A human-sounding agent that picks up every call, books the appointment,
-          and sends you the lead — while you stay on the tools.
+          Sounds like a real person, books the appointment and texts you the
+          lead &mdash; on the number you already have.
         </p>
         <div className="mv2-hero-ctas mv2-hero-ctas-stack">
           <a href={LIVE_AGENT_TEL} className="mv2-btn mv2-btn-light mv2-btn-xl mv2-hero-call">
