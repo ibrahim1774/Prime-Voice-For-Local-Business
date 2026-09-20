@@ -19,6 +19,7 @@ import { DEMO_CALL_URL } from "@/lib/constants";
  */
 
 const LIVE_AGENT_TEL = "tel:+19289689136";
+const LIVE_AGENT_DISPLAY = "(928) 968-9136";
 
 // ── scroll-reveal hook ──────────────────────────────────────────────────────
 
@@ -251,6 +252,14 @@ const SETUP: { title: string; desc: string }[] = [
 
 // ── page ────────────────────────────────────────────────────────────────────
 
+function PhoneGlyph() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+    </svg>
+  );
+}
+
 function ArrowUpRight() {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -286,10 +295,6 @@ function Hero() {
   return (
     <section id="top" className="mv2-hero">
       <div className="mv2-shell">
-        <p className="mv2-eyebrow mv2-hero-eyebrow">
-          <span className="mv2-live-dot" aria-hidden="true" />
-          24/7 AI VOICE AGENT — FOR LOCAL BUSINESS
-        </p>
         <h1 className="mv2-h1">
           <span className="mv2-h1-line"><span>You&rsquo;re on a job.</span></span>
           <span className="mv2-h1-line"><span>The phone rings.</span></span>
@@ -299,12 +304,22 @@ function Hero() {
           A human-sounding agent that picks up every call, books the appointment,
           and sends you the lead — while you stay on the tools.
         </p>
-        <div className="mv2-hero-ctas">
-          <a href={DEMO_CALL_URL} target="_blank" rel="noopener noreferrer" className="mv2-btn mv2-btn-light mv2-btn-lg">
-            Book a demo <ArrowUpRight />
+        <div className="mv2-hero-ctas mv2-hero-ctas-stack">
+          <a href={LIVE_AGENT_TEL} className="mv2-btn mv2-btn-light mv2-btn-xl mv2-hero-call">
+            <PhoneGlyph />
+            <span className="mv2-hero-call-text">
+              <span className="mv2-hero-call-label">Call the live demo line</span>
+              <span className="mv2-hero-call-sub">
+                Hear exactly how it sounds — {LIVE_AGENT_DISPLAY}
+              </span>
+            </span>
           </a>
-          <a href={LIVE_AGENT_TEL} className="mv2-btn mv2-btn-ghost mv2-btn-lg">
-            Hear it live — call the demo line
+          <p className="mv2-eyebrow mv2-hero-call-note">
+            <span className="mv2-live-dot" aria-hidden="true" />
+            ANSWERS 24/7 — NO SIGNUP, JUST CALL
+          </p>
+          <a href={DEMO_CALL_URL} target="_blank" rel="noopener noreferrer" className="mv2-btn mv2-btn-ghost mv2-btn-lg">
+            Book a demo <ArrowUpRight />
           </a>
         </div>
         <div className="mv2-hero-callwin">
