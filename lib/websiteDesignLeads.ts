@@ -40,6 +40,11 @@ export async function ensureLeadSchema() {
   // The Google Business Profile they picked on the form (name, address,
   // maps link, website, rating) — PrimeHub resolves it and passes it here.
   await sql()`ALTER TABLE website_design_leads ADD COLUMN IF NOT EXISTS gbp jsonb`;
+  // /barber-design-lead collects a booking link instead of a business name.
+  // The link is stored raw here; `business` holds a readable shop name
+  // derived from its slug, because `business` is what the duplicate check,
+  // the dialer row and the inbox thread label all key on.
+  await sql()`ALTER TABLE website_design_leads ADD COLUMN IF NOT EXISTS booking_link text NOT NULL DEFAULT ''`;
   // Inbound MMS photo URLs (Twilio media), so the inbox can show them.
   await sql()`ALTER TABLE dialer_messages ADD COLUMN IF NOT EXISTS media jsonb NOT NULL DEFAULT '[]'::jsonb`;
   // Images the OWNER attaches to a reply. Twilio fetches MMS media from a
@@ -114,8 +119,31 @@ export const leadPageOpenerSms = (business: string) =>
   );
 export const LEAD_PAGE_OPENER_DELAY_MS = 10_000;
 
+// /barber-design-lead. Deliberately a question, not an instruction — it is
+// the first text a stranger gets from an unknown number, and "send me X"
+// reads like an autoresponder issuing orders. Short on purpose too: 124
+// characters, comfortably one GSM-7 segment.
+//
+// It does NOT mention whether their link came through. An earlier draft did,
+// and it read as though we had lost it (owner, 2026-09-21).
+export const barberOpenerSms = () =>
+  asciiSms(
+    "Hey, saw you wanted a site for your barbershop. Mind sending over your booking link? " +
+      "We're looking to start building it soon.",
+  );
+export const LEAD_BARBER_OPENER_DELAY_MS = 20_000;
+
 // Owner alert, one segment. GBP falls back from maps link -> address -> none
 // so the phone number is never the thing that gets cut.
+// Barber alert: exactly three things (owner, 2026-09-21) — that it is a
+// barber lead, the number, and the link. No shop name, no hosting flag.
+// Dropping those is what buys the headroom to send the FULL link: a
+// truncated booking URL is not clickable, which defeats the message. Even a
+// long Booksy link with tracking params lands near 126 chars, so this stays
+// one segment in practice.
+export const ownerBarberLeadSms = (phone: string, bookingLink: string) =>
+  asciiSms(`Barber site lead: ${phone} - ${bookingLink}`);
+
 export const ownerNewLeadSms = (
   name: string,
   business: string,
@@ -156,6 +184,8 @@ export interface CreateLeadInput {
   canPay: boolean;
   page?: string;
   gbp?: LeadGbp | null;
+  // /barber-design-lead only: the raw booking URL the barber pasted.
+  bookingLink?: string;
 }
 
 export interface CreateLeadResult {
@@ -174,6 +204,7 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
   if (!business) throw new Error("Missing business name");
   const name = (input.name || "").trim().slice(0, 80);
   const page = (input.page || "").slice(0, 200);
+  const bookingLink = (input.bookingLink || "").trim().slice(0, 500);
   const q = sql();
 
   // Same number twice within 10 minutes (double tap, refresh) → don't re-text.
@@ -184,8 +215,8 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
   if (recent.length) return { ok: true, phone, duplicate: true, leadSms: null, ownerSms: null };
 
   await q`
-    INSERT INTO website_design_leads (phone, name, business, can_pay, source, page, gbp)
-    VALUES (${phone}, ${name}, ${business}, ${input.canPay}, ${LEAD_SOURCE}, ${page}, ${input.gbp ? JSON.stringify(input.gbp) : null}::jsonb)`;
+    INSERT INTO website_design_leads (phone, name, business, can_pay, source, page, gbp, booking_link)
+    VALUES (${phone}, ${name}, ${business}, ${input.canPay}, ${LEAD_SOURCE}, ${page}, ${input.gbp ? JSON.stringify(input.gbp) : null}::jsonb, ${bookingLink})`;
   // Surface the lead in the dialer (Texts tab shows the business name).
   await q`
     INSERT INTO dialer_leads (phone, name, business, status, notes)
@@ -205,7 +236,9 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
     const owner = await twilio("/Messages.json", {
       To: OWNER_ALERT_NUMBER,
       From: from,
-      Body: ownerNewLeadSms(name, business, phone, input.canPay, page, input.gbp),
+      Body: bookingLink
+        ? ownerBarberLeadSms(phone, bookingLink)
+        : ownerNewLeadSms(name, business, phone, input.canPay, page, input.gbp),
     });
     ownerSid = owner.sid || null;
   } catch (err) {
