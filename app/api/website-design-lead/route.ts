@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { createWebsiteDesignLead, ensureLeadSchema, sendLeadOpener, leadPageOpenerSms, LEAD_PAGE_OPENER_DELAY_MS } from "@/lib/websiteDesignLeads";
+import { createWebsiteDesignLead, ensureLeadSchema, sendLeadOpener, leadPageOpenerSms, LEAD_PAGE_OPENER_DELAY_MS, barberOpenerSms, LEAD_BARBER_OPENER_DELAY_MS } from "@/lib/websiteDesignLeads";
 import { sql, twilio, twilioEnv } from "@/lib/dialer/core";
 
 export const maxDuration = 60;
@@ -26,8 +26,11 @@ export async function POST(request: NextRequest) {
     const business = String(body?.business ?? "");
     const name = String(body?.name ?? "");
     const canPay = body?.canPay !== false;
-    // "lead" = primehub.dev/lead (no name field, its own opener, 10s delay).
+    // "lead"   = primehub.dev/lead (no name field, its own opener, 10s delay).
+    // "barber" = primehub.dev/barber-design-lead (booking link + mobile,
+    //             its own opener, 20s delay, link-only owner alert).
     const variant = String(body?.variant ?? "");
+    const bookingLink = String(body?.bookingLink ?? "");
     const result = await createWebsiteDesignLead({
       business,
       name,
@@ -35,12 +38,15 @@ export async function POST(request: NextRequest) {
       canPay,
       page: String(body?.page ?? ""),
       gbp: body?.gbp && typeof body.gbp === "object" ? body.gbp : null,
+      bookingLink,
     });
     if (!result.duplicate && canPay) {
       // Respond now; the lead's opener text goes out ~7s later (10s for /lead).
       after(async () => {
         try {
-          const sid = variant === "lead"
+          const sid = variant === "barber"
+            ? await sendLeadOpener(result.phone, name, business, LEAD_BARBER_OPENER_DELAY_MS, barberOpenerSms())
+            : variant === "lead"
             ? await sendLeadOpener(result.phone, name, business, LEAD_PAGE_OPENER_DELAY_MS, leadPageOpenerSms(business))
             : await sendLeadOpener(result.phone, name, business);
           console.log("[website-design-lead] opener sent", { phone: result.phone, sid });
