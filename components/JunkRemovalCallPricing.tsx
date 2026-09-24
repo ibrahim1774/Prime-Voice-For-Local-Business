@@ -29,13 +29,20 @@ const PRICE = 99;
 // What the agent actually collects on a junk call — these mirror the intake
 // order in the assistant's prompt, so the page never promises more than the
 // line delivers.
-const INCLUDED = [
-  "Answers 24/7 — mid-haul, after hours, weekends",
-  "Gets the item list, the volume and where it's sitting",
-  "Flags the heavy and hazardous stuff before you roll",
-  "Captures the address, access and when they need it gone",
-  "Texts you every lead before the caller hangs up",
-  "Setup done for you — live in 24–48 hours",
+// `strong` marks the one line that is a different category from the rest:
+// everything else describes what the agent does on a call, while the website
+// is a bundled product and the reason to pick this over a bare answering
+// service. It leads the list so it is read before the price is weighed.
+type Perk = { text: string; strong?: boolean };
+
+const INCLUDED: Perk[] = [
+  { text: "Free 20+ page website included", strong: true },
+  { text: "Answers 24/7 — mid-haul, after hours, weekends" },
+  { text: "Gets the item list, the volume and where it's sitting" },
+  { text: "Flags the heavy and hazardous stuff before you roll" },
+  { text: "Captures the address, access and when they need it gone" },
+  { text: "Texts you every lead before the caller hangs up" },
+  { text: "Setup done for you — live in 24–48 hours" },
 ];
 
 // Tap-to-call fires Lead on BOTH rails with one shared eventID so Meta
@@ -203,9 +210,9 @@ export default function JunkRemovalCallPricing() {
 
             <ul className="mv2-cp-list">
               {INCLUDED.map((item) => (
-                <li key={item}>
+                <li key={item.text} className={item.strong ? "is-strong" : undefined}>
                   <CheckIcon />
-                  <span>{item}</span>
+                  <span>{item.text}</span>
                 </li>
               ))}
             </ul>
