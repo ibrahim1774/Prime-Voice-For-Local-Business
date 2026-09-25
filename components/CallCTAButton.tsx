@@ -25,7 +25,7 @@ export default function CallCTAButton({
     if (window.fbq) {
       window.fbq(
         "track",
-        "Lead",
+        "Contact",
         { content_name: "/call tap-to-call", content_category: "tap-to-call" },
         { eventID: eventId }
       );
@@ -34,7 +34,7 @@ export default function CallCTAButton({
     fetch("/api/meta-lead-conversion", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phoneNumber: phone, eventId }),
+      body: JSON.stringify({ phoneNumber: phone, eventId, eventName: "Contact" }),
       keepalive: true,
     }).catch(() => {});
   }

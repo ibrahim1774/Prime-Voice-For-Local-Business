@@ -15,7 +15,7 @@ function trackLead() {
   if (typeof fbq === "function") {
     fbq(
       "track",
-      "Lead",
+      "Contact",
       { content_name: "/contractors tap-to-call", content_category: "tap-to-call" },
       { eventID: eventId }
     );
@@ -23,7 +23,7 @@ function trackLead() {
   fetch("/api/meta-lead-conversion", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phoneNumber: "+18406882671", eventId }),
+    body: JSON.stringify({ phoneNumber: "+18406882671", eventId, eventName: "Contact" }),
     keepalive: true,
   }).catch(() => {});
 }

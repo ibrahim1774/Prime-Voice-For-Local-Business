@@ -16,6 +16,12 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { phoneNumber, eventId } = body;
+    // Tap-to-call sends "Contact" — a tap is intent, not a lead, and the
+    // browser can't see whether the call ever connected. The real Lead for a
+    // phone call is fired server-side by /api/vapi/call-report once the
+    // caller has actually stayed on 20s+. Forms keep the default: a submitted
+    // form IS a lead. Allowlisted so the body can't invent event names.
+    const eventName: "Contact" | "Lead" = body.eventName === "Contact" ? "Contact" : "Lead";
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
     const userAgent = request.headers.get("user-agent") || "";
@@ -31,7 +37,7 @@ export async function POST(request: NextRequest) {
     const eventData = {
       data: [
         {
-          event_name: "Lead",
+          event_name: eventName,
           event_time: Math.floor(Date.now() / 1000),
           event_id: eventId,
           action_source: "website",
