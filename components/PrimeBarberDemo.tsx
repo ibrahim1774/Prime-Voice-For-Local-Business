@@ -56,7 +56,7 @@ export default function PrimeBarberDemo() {
     if (typeof fbq === "function") {
       fbq(
         "track",
-        "Lead",
+        "Contact",
         {
           content_name: "/primebarber tap-to-call",
           content_category: "tap-to-call",
@@ -67,7 +67,7 @@ export default function PrimeBarberDemo() {
     fetch("/api/meta-lead-conversion", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phoneNumber: number, eventId }),
+      body: JSON.stringify({ phoneNumber: number, eventId, eventName: "Contact" }),
       keepalive: true,
     }).catch(() => {});
   }

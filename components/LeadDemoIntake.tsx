@@ -112,7 +112,7 @@ export default function LeadDemoIntake() {
     if (typeof fbq === "function") {
       fbq(
         "track",
-        "Lead",
+        "Contact",
         { content_name: "/leaddemo tap-to-call", content_category: "tap-to-call" },
         { eventID: eventId }
       );
@@ -120,7 +120,7 @@ export default function LeadDemoIntake() {
     fetch("/api/meta-lead-conversion", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phoneNumber: phone.replace(/\D/g, "") || "+19289689136", eventId }),
+      body: JSON.stringify({ phoneNumber: phone.replace(/\D/g, "") || "+19289689136", eventId, eventName: "Contact" }),
       keepalive: true,
     }).catch(() => {});
   };

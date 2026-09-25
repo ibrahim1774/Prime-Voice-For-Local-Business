@@ -127,6 +127,19 @@ const PRODUCT_LABEL: Record<Product, string> = {
   "junk-removal": "Junk Removal",
 };
 
+// The page that advertises each line's number — sent as the Lead's
+// event_source_url so Meta attributes the call to the page the ad landed on.
+// It used to be hardcoded to /custom for every line, which filed junk-removal
+// and dentist calls under /custom in Ads Manager.
+const PRODUCT_PAGE: Record<Product, string> = {
+  montivaro: "https://www.montivaro.com/custom",
+  primebarber: "https://www.montivaro.com/primebarber",
+  dentist: "https://www.montivaro.com/dentist",
+  contractors: "https://www.montivaro.com/contractors",
+  website: "https://www.montivaro.com/websites",
+  "junk-removal": "https://www.montivaro.com/junk-removal",
+};
+
 function fmtSecs(s: number): string {
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m${String(s % 60).padStart(2, "0")}s`;
 }
@@ -392,6 +405,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // THE Meta Lead for a phone call, and the only place one is sent.
+    // Definition (owner, 2026-09-24): the caller actually talked to the agent
+    // for 20 seconds. It fires exactly once per call, for every line, BEFORE
+    // any product branch — so it does not depend on whether the caller gave
+    // a name, on whether a text went out, or on which SMS path runs below.
+    // Tap-to-call on the page fires Contact, not Lead, so a caller who taps
+    // and stays on produces one Contact and one Lead — never two Leads.
+    // event_id is the Vapi call id, so a webhook retry can't double-count.
+    // Web click-to-call sessions have no number and are skipped.
+    if (lead.callerNumber) {
+      const secs = callSeconds(message);
+      if (secs >= OWNER_ALERT_MIN_SECONDS) {
+        await sendMetaEvent({
+          eventName: "Lead",
+          phone: lead.callerNumber,
+          eventId: message?.call?.id ? `${message.call.id}:lead` : undefined,
+          actionSource: "phone_call",
+          sourceUrl: PRODUCT_PAGE[product],
+          customData: { lead_type: "demo_call_20s", product, call_seconds: String(secs) },
+        });
+      }
+    }
+
     // Catch-all line: if the assistant booked the setup call through the
     // calendar tools, the caller gets a booking confirmation (text + email +
     // reminders from the cron) instead of the sample-alert pitch — they're
@@ -444,17 +480,8 @@ export async function POST(request: NextRequest) {
       if (lead.callerNumber) {
         const secs = callSeconds(message);
         if (secs >= OWNER_ALERT_MIN_SECONDS) {
-          // Meta Lead for the /custom ads (owner call 2026-09-11): a real
-          // phone call to the demo line that lasted at least 20s. Tap-to-call
-          // on the page only fires Contact, so Lead = "called and stayed on".
-          await sendMetaEvent({
-            eventName: "Lead",
-            phone: lead.callerNumber,
-            eventId: message?.call?.id ? `${message.call.id}:lead` : undefined,
-            actionSource: "phone_call",
-            sourceUrl: "https://www.montivaro.com/custom",
-            customData: { lead_type: "demo_call_20s", call_seconds: String(secs) },
-          });
+          // Owner alert only. The Meta Lead for this call already went out
+          // above, before the product branches — nothing here fires one.
           try {
             await sendSms(OWNER_ALERT_NUMBER, buildOwnerCallAlert(message, lead, structured));
           } catch (err) {
