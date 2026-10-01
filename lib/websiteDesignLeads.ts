@@ -223,14 +223,23 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
     VALUES (${phone}, ${name}, ${business}, 'new', ${"Website design lead (primehub.dev)"})
     ON CONFLICT (phone) DO UPDATE SET name = CASE WHEN EXCLUDED.name <> '' THEN EXCLUDED.name ELSE dialer_leads.name END, business = EXCLUDED.business, updated_at = now()`;
 
-  if (!input.canPay) {
-    // Disqualified on the page — recorded, but nobody gets texted.
-    return { ok: true, phone, duplicate: false, leadSms: null, ownerSms: null };
-  }
-
   const { from } = twilioEnv();
 
-  // Owner alert goes out right away.
+  // Owner alert goes out right away, on BOTH paths.
+  //
+  // It used to return early when canPay was false — "recorded, but nobody gets
+  // texted" — so a visitor who handed over their number and then said no to the
+  // hosting fee vanished silently. That is the opposite of how the voice side
+  // behaves: a junk-removal caller who stays 20 seconds but never gives a name
+  // still pings the owner (call-report's OWNER_ALERT_MIN_SECONDS branch), on the
+  // grounds that someone who engaged that far is worth knowing about even when
+  // they did not qualify. Same rule here (owner, 2026-10-01).
+  //
+  // Only the LEAD's opener is withheld — the route gates sendLeadOpener on
+  // canPay — because a "we're building your site" text contradicts the
+  // "you don't qualify" screen they were just shown. The owner alert already
+  // renders "hosting yes" / "hosting no", so the two read differently on a
+  // lock screen without any new wording.
   let ownerSid: string | null = null;
   try {
     const owner = await twilio("/Messages.json", {
@@ -249,7 +258,7 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
   // — a pause so it reads like a person getting to it, not an autoresponder.
   // The route schedules it with next/server after() so the form gets its
   // response immediately.
-  return { ok: true, phone, duplicate: false, leadSms: "scheduled", ownerSms: ownerSid };
+  return { ok: true, phone, duplicate: false, leadSms: input.canPay ? "scheduled" : null, ownerSms: ownerSid };
 }
 
 // 30s (owner, 2026-09-18; was 7s). The route's maxDuration is 60s and the
