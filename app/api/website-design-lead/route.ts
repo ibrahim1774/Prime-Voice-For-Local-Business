@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { createWebsiteDesignLead, ensureLeadSchema, sendLeadOpener, leadPageOpenerSms, LEAD_PAGE_OPENER_DELAY_MS, barberOpenerSms, LEAD_BARBER_OPENER_DELAY_MS } from "@/lib/websiteDesignLeads";
+import { createWebsiteDesignLead, ensureLeadSchema, sendLeadOpener, leadPageOpenerSms, LEAD_PAGE_OPENER_DELAY_MS, barberOpenerSms, LEAD_BARBER_OPENER_DELAY_MS, ugcOpenerSms, LEAD_UGC_OPENER_DELAY_MS } from "@/lib/websiteDesignLeads";
 import { sql, twilio, twilioEnv } from "@/lib/dialer/core";
 
 export const maxDuration = 60;
@@ -39,12 +39,15 @@ export async function POST(request: NextRequest) {
       page: String(body?.page ?? ""),
       gbp: body?.gbp && typeof body.gbp === "object" ? body.gbp : null,
       bookingLink,
+      applicant: body?.applicant && typeof body.applicant === "object" ? body.applicant : null,
     });
     if (!result.duplicate && canPay) {
       // Respond now; the lead's opener text goes out ~7s later (10s for /lead).
       after(async () => {
         try {
-          const sid = variant === "barber"
+          const sid = variant === "ugc"
+            ? await sendLeadOpener(result.phone, name, business, LEAD_UGC_OPENER_DELAY_MS, ugcOpenerSms(name || business))
+            : variant === "barber"
             ? await sendLeadOpener(result.phone, name, business, LEAD_BARBER_OPENER_DELAY_MS, barberOpenerSms())
             : variant === "lead"
             ? await sendLeadOpener(result.phone, name, business, LEAD_PAGE_OPENER_DELAY_MS, leadPageOpenerSms(business))

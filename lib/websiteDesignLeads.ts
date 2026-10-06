@@ -45,6 +45,11 @@ export async function ensureLeadSchema() {
   // derived from its slug, because `business` is what the duplicate check,
   // the dialer row and the inbox thread label all key on.
   await sql()`ALTER TABLE website_design_leads ADD COLUMN IF NOT EXISTS booking_link text NOT NULL DEFAULT ''`;
+  // /ugc/subcreators collects things no other funnel has: the applicant's
+  // social handles and a free-text paragraph about prior experience. They go
+  // in one jsonb rather than three columns because nothing queries them —
+  // they are read by a human in the inbox, not by the app.
+  await sql()`ALTER TABLE website_design_leads ADD COLUMN IF NOT EXISTS applicant jsonb`;
   // Inbound MMS photo URLs (Twilio media), so the inbox can show them.
   await sql()`ALTER TABLE dialer_messages ADD COLUMN IF NOT EXISTS media jsonb NOT NULL DEFAULT '[]'::jsonb`;
   // Images the OWNER attaches to a reply. Twilio fetches MMS media from a
@@ -144,6 +149,28 @@ export const LEAD_BARBER_OPENER_DELAY_MS = 20_000;
 export const ownerBarberLeadSms = (phone: string, bookingLink: string) =>
   asciiSms(`Barber site lead: ${phone} - ${bookingLink}`);
 
+// /ugc/subcreators. Three things on the lock screen: that it is a creator
+// application, who, and their number. Socials follow only if they fit —
+// the experience paragraph never goes in a text, it is read in the inbox.
+// A declined applicant still alerts, wording flipped, the same way the
+// website funnel renders "hosting no" (owner, 2026-10-01).
+export const ownerUgcLeadSms = (name: string, phone: string, social: string, qualified: boolean) => {
+  const who = asciiSms(name) || "no name";
+  const head = qualified ? "UGC applicant" : "UGC applicant (said NO to $100)";
+  return fitSms((n) => `${head}: ${n} | ${phone}${social ? ` | ${asciiSms(social)}` : ""}`, who);
+};
+
+// The applicant's opener. A job application, so it confirms receipt and
+// says what happens next — nothing to ask for, nothing to sell.
+export const ugcOpenerSms = (name: string) => {
+  const first = asciiSms(firstName(name));
+  return asciiSms(
+    `Hey${first ? ` ${first}` : ""}, got your application for the creator role. ` +
+      `I'll go through it and text you back shortly.`,
+  );
+};
+export const LEAD_UGC_OPENER_DELAY_MS = 15_000;
+
 export const ownerNewLeadSms = (
   name: string,
   business: string,
@@ -182,6 +209,7 @@ export interface CreateLeadInput {
   name: string;
   phone: string;
   canPay: boolean;
+  applicant?: { social?: string; experience?: string } | null;
   page?: string;
   gbp?: LeadGbp | null;
   // /barber-design-lead only: the raw booking URL the barber pasted.
@@ -215,8 +243,8 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
   if (recent.length) return { ok: true, phone, duplicate: true, leadSms: null, ownerSms: null };
 
   await q`
-    INSERT INTO website_design_leads (phone, name, business, can_pay, source, page, gbp, booking_link)
-    VALUES (${phone}, ${name}, ${business}, ${input.canPay}, ${LEAD_SOURCE}, ${page}, ${input.gbp ? JSON.stringify(input.gbp) : null}::jsonb, ${bookingLink})`;
+    INSERT INTO website_design_leads (phone, name, business, can_pay, source, page, gbp, booking_link, applicant)
+    VALUES (${phone}, ${name}, ${business}, ${input.canPay}, ${LEAD_SOURCE}, ${page}, ${input.gbp ? JSON.stringify(input.gbp) : null}::jsonb, ${bookingLink}, ${input.applicant ? JSON.stringify(input.applicant) : null}::jsonb)`;
   // Surface the lead in the dialer (Texts tab shows the business name).
   await q`
     INSERT INTO dialer_leads (phone, name, business, status, notes)
@@ -245,7 +273,9 @@ export async function createWebsiteDesignLead(input: CreateLeadInput): Promise<C
     const owner = await twilio("/Messages.json", {
       To: OWNER_ALERT_NUMBER,
       From: from,
-      Body: bookingLink
+      Body: input.applicant
+        ? ownerUgcLeadSms(name || business, phone, input.applicant.social || "", input.canPay)
+        : bookingLink
         ? ownerBarberLeadSms(phone, bookingLink)
         : ownerNewLeadSms(name, business, phone, input.canPay, page, input.gbp),
     });
